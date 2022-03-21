@@ -1,8 +1,5 @@
 #pragma once
 
-#if _DEBUG
-#define DBGONLY(x) x
-#define KEYPRESS(x) if (GetAsyncKeyState(x) & 0x8000)
 #define SPDLOG_WCHAR_FILENAMES
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/basic_file_sink.h"
@@ -13,7 +10,7 @@ public:
     static const std::shared_ptr<spdlog::logger>& log()
     {
         static const auto log = spdlog::basic_logger_mt("basic_logger", spd::GetLogName(), true);
-        spdlog::set_pattern("%v");
+        spdlog::set_pattern("[%H:%M:%S] [%l] %v");
         return log;
     }
 
@@ -29,6 +26,3 @@ private:
         return ret;
     }
 };
-#else
-#define DBGONLY(x)
-#endif

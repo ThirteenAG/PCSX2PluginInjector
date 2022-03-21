@@ -19,3 +19,9 @@
 [submodule "external/modutils"]
 	path = external/modutils
 	url = https://github.com/CookiePLMonster/ModUtils
+[submodule "external/ps2sdk"]
+	path = external/ps2sdk
+	url = https://github.com/ThirteenAG/ps2sdk
+[submodule "external/elfio"]
+	path = external/elfio
+	url = https://github.com/serge1/ELFIO
