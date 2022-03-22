@@ -25,9 +25,9 @@
 
  - Plugins should be placed inside a directory with a name that starts with game **crc**.
 
- - Plugins must have base address that doesn't conflict with main game and with other plugins (including **PCSX2PluginInvoker.elf**).
+ - Plugins must have base address that doesn't conflict with main game and with other plugins (including **PCSX2PluginInvoker.elf**). *This design is WIP, might be changed in the future.*
 
- - Use **PCSX2PluginInvoker.elf** in combination with **PCSX2PluginDummy.elf** (invoker will not be injected without any plugins) to find out minimum base address for new plugin. After the game is loaded, check memory address of **MallocReturnAddr** symbol (address can be found inside **PCSX2PluginInvoker.map**).
+ - Use **PCSX2PluginInvoker.elf** in combination with **PCSX2PluginDummy.elf** (invoker will not be injected without any plugins) to find out minimum base address for new plugin. After the game is loaded, check memory address of **MallocReturnAddr** symbol (address can be found inside **PCSX2PluginInvoker.map**). *This design is WIP, might be changed in the future.*
 
  - Plugins are required to have an **ini file** with the same name as elf. Under **[MAIN]** section, add **Malloc** param with an address of ingame malloc function. E.g.:
  
@@ -44,6 +44,8 @@ MallocPatternString = F0 FF BD 27 00 00 B0 FF 08 00 BF FF ? ? ? ? 2D 80 80 00 2D
 MallocPatternIndex = 2
 MallocPatternOffset = 0
  ```
+*This design is WIP, might be changed in the future.*
+ - This ini file is also written to **PluginData** symbol of the injected plugin, e.g. `char PluginData[100] = { 0 };`.
 
 - Demo plugin (and most likely PCSX2PluginInvoker too) is only compatible with **GTAVCS [SLUS-21590]**. It renders few coronas at the beginning of the game:
 

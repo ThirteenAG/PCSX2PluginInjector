@@ -218,7 +218,8 @@ CEXP void LoadPlugins(uint32_t crc, uintptr_t EEMainMemoryStart, size_t EEMainMe
                             injector::WriteMemoryRaw(EEMainMemoryStart + mod.Base, buffer.data() + mod.SegmentFileOffset, buffer.size() - mod.SegmentFileOffset, true);
                             injector::WriteMemoryRaw(EEMainMemoryStart + invoker.DataAddr + (sizeof(invoker) * count), &mod, sizeof(mod), true);
                             auto ini = LoadFileToBuffer(pluginini.GetIniPath());
-                            injector::WriteMemoryRaw(EEMainMemoryStart + mod.DataAddr + (sizeof(mod) * count), &ini, sizeof(ini), true);
+                            injector::WriteMemory(EEMainMemoryStart + mod.DataAddr, ini.size(), true);
+                            injector::WriteMemoryRaw(EEMainMemoryStart + mod.DataAddr + sizeof(uint32_t), ini.data(), ini.size(), true);
                             count++;
                             spd::log()->info("{} was successfully injected", file.path().filename().string());
                         }
