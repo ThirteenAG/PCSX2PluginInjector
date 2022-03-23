@@ -208,6 +208,7 @@ CEXP void LoadPlugins(uint32_t crc, uintptr_t EEMainMemoryStart, size_t EEMainMe
 
                         spd::log()->info("{} base address: 0x{:X}", file.path().filename().string(), mod.Base);
                         spd::log()->info("{} entry point: 0x{:X}", file.path().filename().string(), mod.EntryPoint);
+                        spd::log()->info("{} size: {} bytes", file.path().filename().string(), mod.Size);
 
                         mod.Malloc = invoker.Malloc;
                         mod.Free = invoker.Free;

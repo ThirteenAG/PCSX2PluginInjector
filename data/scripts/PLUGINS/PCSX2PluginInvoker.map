@@ -7,26 +7,27 @@ Name             Origin             Length             Attributes
 Linker script and memory map
 
 LOAD main.o
-                0x000000000075e000                BASE_ADDRESS = 0x75e000
+                0x0000000001fff000                BASE_ADDRESS = 0x1fff000
+LOAD z:/github/pcsx2plugininjector/external/ps2sdk/ee/bin/../lib/gcc/mips64r5900el-ps2-elf/11.2.0/../../../../mips64r5900el-ps2-elf/lib\libc.a
 
-.text           0x000000000075e000       0xe8
-                0x000000000075e000                _ftext = .
+.text           0x0000000001fff000      0x108
+                0x0000000001fff000                _ftext = .
  *(.text)
- .text          0x000000000075e000       0xd8 main.o
-                0x000000000075e000                init
+ .text          0x0000000001fff000       0xf8 main.o
+                0x0000000001fff000                init
  *(.text.*)
- .text.startup  0x000000000075e0d8        0x8 main.o
-                0x000000000075e0d8                main
+ .text.startup  0x0000000001fff0f8        0x8 main.o
+                0x0000000001fff0f8                main
  *(.gnu.linkonce.t*)
  *(.init)
  *(.fini)
-                0x000000000075e0e0        0x8 QUAD 0x0
+                0x0000000001fff100        0x8 QUAD 0x0
                 [!provide]                        PROVIDE (_etext = .)
                 [!provide]                        PROVIDE (etext = .)
 
-.reginfo        0x000000000075e0e8       0x18
+.reginfo        0x0000000001fff108       0x18
  *(.reginfo)
- .reginfo       0x000000000075e0e8       0x18 main.o
+ .reginfo       0x0000000001fff108       0x18 main.o
 
 .ctors
  *crtbegin*.o(.ctors)
@@ -45,14 +46,15 @@ LOAD main.o
  *(.rodata.*)
  *(.gnu.linkonce.r*)
 
-.MIPS.abiflags  0x000000000075e0e8       0x18
+.MIPS.abiflags  0x0000000001fff108       0x18
  .MIPS.abiflags
-                0x000000000075e0e8       0x18 main.o
+                0x0000000001fff108       0x18 main.o
 
-.data           0x000000000075e100        0x0
-                0x000000000075e100                _fdata = .
+.data           0x0000000001fff180      0x640
+                0x0000000001fff180                _fdata = .
  *(.data)
- .data          0x000000000075e100        0x0 main.o
+ .data          0x0000000001fff180      0x640 main.o
+                0x0000000001fff180                PluginData
  *(.data.*)
  *(.gnu.linkonce.d*)
 
@@ -61,7 +63,7 @@ LOAD main.o
 
 .gcc_except_table
  *(.gcc_except_table)
-                0x00000000007660f0                _gp = (ALIGN (0x80) + 0x7ff0)
+                0x00000000020077f0                _gp = (ALIGN (0x80) + 0x7ff0)
 
 .lit4
  *(.lit4)
@@ -73,26 +75,25 @@ LOAD main.o
  *(.sdata)
  *(.sdata.*)
  *(.gnu.linkonce.s*)
-                0x000000000075e100                _edata = .
+                0x0000000001fff7c0                _edata = .
                 [!provide]                        PROVIDE (edata = .)
 
-.sbss           0x000000000075e100        0x0
-                0x000000000075e100                _fbss = .
+.sbss           0x0000000001fff800        0x0
+                0x0000000001fff800                _fbss = .
  *(.sbss)
  *(.sbss.*)
  *(.gnu.linkonce.sb*)
  *(.scommon)
 
-.bss            0x000000000075e100      0x648
+.bss            0x0000000001fff800        0x4
  *(.bss)
- .bss           0x000000000075e100      0x648 main.o
-                0x000000000075e100                MallocReturnAddr
-                0x000000000075e108                PluginData
+ .bss           0x0000000001fff800        0x4 main.o
+                0x0000000001fff800                MallocReturnAddr
  *(.bss.*)
  *(.gnu.linkonce.b*)
  *(COMMON)
-                0x000000000075e748                _end_bss = .
-                0x000000000075e748                _end = .
+                0x0000000001fff804                _end_bss = .
+                0x0000000001fff804                _end = .
                 [!provide]                        PROVIDE (end = .)
                 [!provide]                        PROVIDE (_heap_size = 0xffffffffffffffff)
                 [!provide]                        PROVIDE (_stack = 0xffffffffffffffff)

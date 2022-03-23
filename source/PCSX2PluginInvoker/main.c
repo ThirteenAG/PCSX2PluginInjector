@@ -13,32 +13,38 @@ struct PluginInfo
     uint32_t Free;
 };
 
-struct PluginInfo PluginData[50] = { 0 };
+struct PluginInfo PluginData[50] = { 0xFFFFFFFF }; //needs to be initialized
 uint32_t MallocReturnAddr = 0;
 
 void init()
 {
     asm("ei\n");
 
-    uint32_t MaxBase = PluginData[0].Base;
-    uint32_t MaxSize = PluginData[0].Size;
-    for (size_t i = 0; i < sizeof(PluginData); i++)
+    uint32_t MinBase = 0xFFFFFFFF;
+    uint32_t MaxBase = 0;
+    uint32_t MaxSize = 0;
+    for (size_t i = 1; i < sizeof(PluginData); i++)
     {
+        if (PluginData[i].Base == 0)
+            break;
+
         if (PluginData[i].Base > MaxBase)
         {
             MaxBase = PluginData[i].Base;
             MaxSize = PluginData[i].Size;
         }
 
-        if (PluginData[i].Base == 0)
-            break;
+        if (PluginData[i].Base < MinBase)
+        {
+            MinBase = PluginData[i].Base;
+        }
     }
 
     void* (*malloc)(size_t size) = (void* (*)(size_t))PluginData[0].Malloc;
-    size_t alloc_size = (MaxBase + MaxSize) - PluginData[0].Base;
-    MallocReturnAddr = (uint32_t)malloc(alloc_size * 10); // without *10 crashes, idk why
+    size_t alloc_size = (MaxBase + MaxSize) - MinBase;
+    MallocReturnAddr = (uint32_t)malloc(alloc_size);
 
-    if (MallocReturnAddr <= PluginData[0].Base)
+    if (MallocReturnAddr <= MinBase)
     {
         for (size_t i = 1; i < sizeof(PluginData); i++)
         {
