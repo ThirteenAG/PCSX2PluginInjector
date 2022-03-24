@@ -11,6 +11,7 @@ public:
     {
         static const auto log = spdlog::basic_logger_mt("basic_logger", spd::GetLogName(), true);
         spdlog::set_pattern("[%H:%M:%S] [%l] %v");
+        spdlog::flush_on(spdlog::level::debug);
         return log;
     }
 

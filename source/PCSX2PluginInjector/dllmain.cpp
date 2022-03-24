@@ -4,6 +4,14 @@
 #include <assembly64.hpp>
 #include "pcsx2/pcsx2.h"
 
+#include <thread>
+#include <iostream>
+#include <assert.h>
+#include <chrono>
+#include <future>
+
+std::promise<void> exitSignal;
+
 constexpr auto start_pattern = "28 ? 00 70 28 ? 00 70 28 ? 00 70 28 ? 00 70 28";
 
 struct PluginInfo
@@ -19,6 +27,66 @@ struct PluginInfo
 
     bool isValid() { return (Base != 0 && EntryPoint != 0 && Size != 0); }
 };
+
+CEXP void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize);
+
+void FindMemoryBuffer(uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize)
+{
+    auto test = [](uint8_t* begin, std::size_t bytes) -> bool
+    {
+        return std::all_of(begin, begin + bytes, [](uint8_t const byte)
+            {
+                return byte == 0;
+            });
+    };
+
+    size_t NeededRegionSize = 200000;
+    auto start = EEMainMemoryStart + GameElfTextBase + GameElfTextSize;
+    auto end = EEMainMemoryStart + EEMainMemorySize - NeededRegionSize;
+
+    using namespace std::chrono_literals;
+    std::this_thread::sleep_for(25500ms);
+
+    AllocConsole();
+    freopen("CONOUT$", "w", stdout);
+
+    for (auto i = start; i < end; i += 1)
+    {
+        while (test((uint8_t*)i, NeededRegionSize))
+        {
+            std::cout << "0x" << std::hex << i - EEMainMemoryStart << std::endl;
+        }
+    }
+    std::cout << "Nothing found" << std::endl;
+}
+
+void ElfSwitchWatcher(std::future<void> futureObj, uint32_t* addr, uint32_t data, uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize)
+{
+    auto cur_crc = crc;
+    while (futureObj.wait_for(std::chrono::milliseconds(1)) == std::future_status::timeout)
+    {
+        MEMORY_BASIC_INFORMATION MemoryInf;
+        if (cur_crc != crc || (VirtualQuery((LPCVOID)addr, &MemoryInf, sizeof(MemoryInf)) != 0 && MemoryInf.Protect != 0))
+        {
+            if (cur_crc != crc || *addr != data)
+            {
+                while (*addr == 0)
+                {
+                    if (cur_crc != crc)
+                        return;
+                    std::this_thread::yield();
+                }
+                LoadPlugins(crc, EEMainMemoryStart, EEMainMemorySize, GameElfTextBase, GameElfTextSize);
+                break;
+            }
+        }
+        else
+        {
+            break;
+        }
+        std::this_thread::yield();
+    }
+}
 
 std::vector<char> LoadFileToBuffer(std::filesystem::path path)
 {
@@ -92,10 +160,21 @@ PluginInfo ParseElf(std::string path)
     return info;
 }
 
-CEXP void LoadPlugins(uint32_t crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize)
+void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize)
 {
     spd::log()->info("Starting PCSX2PluginInjector, game crc: 0x{:X}", crc);
     spd::log()->info("EE Memory starts at: 0x{:X}", EEMainMemoryStart);
+    spd::log()->info("Game Base Address: 0x{:X}", GameElfTextBase);
+    spd::log()->info("Game Region End: 0x{:X}", GameElfTextBase + GameElfTextSize);
+    //spd::log()->info("Suggested minimum base address for plugins: 0x{:X}", GameElfTextBase + GameElfTextSize + 0xAC);
+
+    if (0)
+        std::thread(&FindMemoryBuffer, EEMainMemoryStart, EEMainMemorySize, GameElfTextBase, GameElfTextSize).detach();
+
+    exitSignal.set_value();
+    std::promise<void>().swap(exitSignal);
+    uint32_t* ei_hook = nullptr;
+    uint32_t ei_data = 0;
 
     wchar_t buffer[MAX_PATH];
     HMODULE hm = NULL;
@@ -121,7 +200,8 @@ CEXP void LoadPlugins(uint32_t crc, uintptr_t EEMainMemoryStart, size_t EEMainMe
                 {
                     if (file.is_regular_file() && iequals(file.path().extension().wstring(), L".elf"))
                     {
-                        CIniReader pluginini(std::filesystem::path(file.path()).replace_extension(L".ini").string());
+                        auto iniPath = std::filesystem::path(file.path()).replace_extension(L".ini");
+                        CIniReader pluginini(iniPath.string());
 
                         invoker.Malloc = pluginini.ReadInteger("MAIN", "Malloc", 0);
                         if (invoker.Malloc == 0)
@@ -133,24 +213,9 @@ CEXP void LoadPlugins(uint32_t crc, uintptr_t EEMainMemoryStart, size_t EEMainMe
                                 if (!pattern.empty())
                                     invoker.Malloc = (uint32_t)pattern.get(pluginini.ReadInteger("MAIN", "MallocPatternIndex", 0)).get<void>(pluginini.ReadInteger("MAIN", "MallocPatternOffset", 0)) - EEMainMemoryStart;
                             }
-                        }
 
-                        invoker.Free = pluginini.ReadInteger("MAIN", "Free", 0);
-                        if (invoker.Free == 0)
-                        {
-                            auto free_ini = pluginini.ReadString("MAIN", "FreePatternString", "");
-                            if (!free_ini.empty())
-                            {
-                                auto pattern = hook::pattern(EEMainMemoryStart, EEMainMemoryStart + EEMainMemorySize, free_ini);
-                                if (!pattern.empty())
-                                    invoker.Free = (uint32_t)pattern.get(pluginini.ReadInteger("MAIN", "FreePatternIndex", 0)).get<void>(pluginini.ReadInteger("MAIN", "FreePatternOffset", 0)) - EEMainMemoryStart;
-                            }
-                        }
-
-                        if (invoker.Malloc == 0)
-                        {
-                            spd::log()->error("{} does not contain 'malloc' address in game elf, plugin injection can not continue", pluginini.GetIniPath());
-                            return;
+                            if (invoker.Malloc == 0)
+                                spd::log()->warn("{} does not contain 'malloc' address in game elf, make sure plugin will not be overwritten in memory", iniPath.filename().string());
                         }
 
                         if (!bInvokerLoaded)
@@ -172,13 +237,14 @@ CEXP void LoadPlugins(uint32_t crc, uintptr_t EEMainMemoryStart, size_t EEMainMe
 
                                 auto patched = false;
                                 auto pattern = hook::pattern(EEMainMemoryStart, EEMainMemoryStart + EEMainMemorySize, start_pattern);
-                                pattern.for_each_result([&](hook::pattern_match match)
+                                pattern.for_each_result([&ei_hook, &ei_data, &invoker, &patched](hook::pattern_match match)
                                     {
                                         auto ei_lookup = hook::pattern((uintptr_t)match.get<void>(0), (uintptr_t)match.get<void>(2000), "38 00 00 42");
                                         if (!ei_lookup.empty())
                                         {
-                                            //injector::WriteMemory(ei_lookup.get_first(), ((0x0C000000 | ((invoker.EntryPoint & 0x0fffffff) >> 2))), true);
-                                            injector::WriteMemory(ei_lookup.get_first(), mips::jal(invoker.EntryPoint), true);
+                                            ei_hook = ei_lookup.get_first<uint32_t>();
+                                            ei_data = mips::jal(invoker.EntryPoint);
+                                            injector::WriteMemory(ei_hook, ei_data, true);
                                             patched = true;
                                             return;
                                         }
@@ -193,6 +259,18 @@ CEXP void LoadPlugins(uint32_t crc, uintptr_t EEMainMemoryStart, size_t EEMainMe
                                 spd::log()->info("{} was successfully injected", invokerPath.filename().string());
                                 bInvokerLoaded = true;
                                 count++;
+
+                                if (pluginini.ReadInteger("MAIN", "MultipleElfs", 0))
+                                {
+                                    spd::log()->info("MultipleElfs parameter is set, creating thread to handle it");
+                                    std::future<void> futureObj = exitSignal.get_future();
+                                    std::thread th(&ElfSwitchWatcher, std::move(futureObj), ei_hook, ei_data, std::ref(crc), EEMainMemoryStart, EEMainMemorySize, GameElfTextBase, GameElfTextSize);
+                                    th.detach();
+                                }
+                                else
+                                {
+                                    spd::log()->info("MultipleElfs ini parameter is not set, plugins will not be injected if the game loads another elf");
+                                }
                             }
                         }
 
@@ -202,6 +280,17 @@ CEXP void LoadPlugins(uint32_t crc, uintptr_t EEMainMemoryStart, size_t EEMainMe
                         {
                             spd::log()->warn("Can't load {}", file.path().filename().string());
                             continue;
+                        }
+
+                        auto pattern_str = pluginini.ReadString("MAIN", "ElfPattern", "");
+                        if (!pattern_str.empty())
+                        {
+                            auto pattern = hook::pattern(EEMainMemoryStart, EEMainMemoryStart + EEMainMemorySize, pattern_str);
+                            if (pattern.empty())
+                            {
+                                spd::log()->warn("Pattern \"{}\" is not found in this elf, {} will not be loaded", pattern_str, file.path().filename().string());
+                                continue;
+                            }
                         }
 
                         //add check for conflicting base addresses

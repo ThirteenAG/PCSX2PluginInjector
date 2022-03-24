@@ -14,7 +14,6 @@ struct PluginInfo
 };
 
 struct PluginInfo PluginData[50] = { 0xFFFFFFFF }; //needs to be initialized
-uint32_t MallocReturnAddr = 0;
 
 void init()
 {
@@ -40,22 +39,29 @@ void init()
         }
     }
 
-    void* (*malloc)(size_t size) = (void* (*)(size_t))PluginData[0].Malloc;
-    size_t alloc_size = (MaxBase + MaxSize) - MinBase;
-    MallocReturnAddr = (uint32_t)malloc(alloc_size);
+    if (MinBase == 0xFFFFFFFF)
+        return;
 
-    if (MallocReturnAddr <= MinBase)
+    if (PluginData[0].Malloc != 0)
     {
-        for (size_t i = 1; i < sizeof(PluginData); i++)
-        {
-            if (PluginData[i].Base == 0)
-                break;
+        void* (*malloc)(size_t size) = (void* (*)(size_t))PluginData[0].Malloc;
+        size_t alloc_size = (MaxBase + MaxSize) - MinBase;
+        uint32_t MallocReturnAddr = (uint32_t)malloc(alloc_size);
+        //*(int*)0x100008 = MallocReturnAddr;
 
-            if (PluginData[i].EntryPoint != 0)
-            {
-                void (*callee)() = (void(*)())PluginData[i].EntryPoint;
-                callee();
-            }
+        if (MallocReturnAddr > MinBase)
+            return;
+    }
+
+    for (size_t i = 1; i < sizeof(PluginData); i++)
+    {
+        if (PluginData[i].Base == 0)
+            break;
+
+        if (PluginData[i].EntryPoint != 0)
+        {
+            void (*callee)() = (void(*)())PluginData[i].EntryPoint;
+            callee();
         }
     }
 }

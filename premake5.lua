@@ -109,7 +109,7 @@ project "PCSX2PluginInvoker"
    files { "source/%{prj.name}/*.c" }
    targetextension ".elf"
    setbuildpaths_ps2("Z:/GitHub/pcsx2/bin/", "pcsx2x64.exe", "scripts/PLUGINS/", "%{wks.location}/../external/ps2sdk/ee/bin/vsmake", "%{wks.location}/../source/%{prj.name}/", "PCSX2PluginInvoker")
-   writemakefile("PCSX2PluginInvoker", "scripts/PLUGINS/", "0x75E000")
+   writemakefile("PCSX2PluginInvoker", "scripts/PLUGINS/", "0x1FFF000")
    writelinkfile("PCSX2PluginInvoker")
 
 project "PCSX2PluginDemo"
@@ -120,6 +120,15 @@ project "PCSX2PluginDemo"
    setbuildpaths_ps2("Z:/GitHub/pcsx2/bin/", "pcsx2x64.exe", "scripts/PLUGINS/4F32A11F-GTAVCS-[SLUS-21590]/", "%{wks.location}/../external/ps2sdk/ee/bin/vsmake", "%{wks.location}/../source/%{prj.name}/", "PCSX2PluginDemo")
    writemakefile("PCSX2PluginDemo", "scripts/PLUGINS/4F32A11F-GTAVCS-[SLUS-21590]/", "0x760000")
    writelinkfile("PCSX2PluginDemo")
+   
+project "PCSX2PluginDemo2"
+   kind "Makefile"
+   includedirs { "external/ps2sdk/ps2sdk/ee" }
+   files { "source/%{prj.name}/*.c" }
+   targetextension ".elf"
+   setbuildpaths_ps2("Z:/GitHub/pcsx2/bin/", "pcsx2x64.exe", "scripts/PLUGINS/C0498D24-SCDA-[SLUS-21356]/", "%{wks.location}/../external/ps2sdk/ee/bin/vsmake", "%{wks.location}/../source/%{prj.name}/", "PCSX2PluginDemo2")
+   writemakefile("PCSX2PluginDemo2", "scripts/PLUGINS/C0498D24-SCDA-[SLUS-21356]/", "0x1D87CD8")
+   writelinkfile("PCSX2PluginDemo2")
    
 project "PCSX2PluginDummy"
    kind "Makefile"
