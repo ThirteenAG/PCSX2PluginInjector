@@ -1,7 +1,7 @@
 EE_BIN = ../../data/scripts/PLUGINS/C0498D24-SCDA-[SLUS-21356]/PCSX2PluginDemo2.elf
 EE_OBJS = main.o 
 
-BASE_ADDRESS = 0x1D87CD8
+BASE_ADDRESS = 0x02020000
 EE_LINKFILE = linkfile
 #EE_LIBS += -l:libc.a -l:libps2sdkc.a -l:libkernel.a
 EE_LDFLAGS = -Wl,--entry=init -Wl,-Map,../../data/scripts/PLUGINS/C0498D24-SCDA-[SLUS-21356]/PCSX2PluginDemo2.map -nostdlib -nodefaultlibs -Wl,'--defsym=BASE_ADDRESS=$(BASE_ADDRESS)'

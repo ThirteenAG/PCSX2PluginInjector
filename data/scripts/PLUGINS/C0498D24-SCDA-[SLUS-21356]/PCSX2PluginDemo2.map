@@ -7,27 +7,27 @@ Name             Origin             Length             Attributes
 Linker script and memory map
 
 LOAD main.o
-                0x0000000001d87cd8                BASE_ADDRESS = 0x1d87cd8
+                0x0000000002020000                BASE_ADDRESS = 0x2020000
 
-.text           0x0000000001d87cd8       0x68
-                0x0000000001d87cd8                _ftext = .
+.text           0x0000000002020000       0x68
+                0x0000000002020000                _ftext = .
  *(.text)
- .text          0x0000000001d87cd8       0x58 main.o
-                0x0000000001d87cd8                fun
-                0x0000000001d87d08                init
+ .text          0x0000000002020000       0x58 main.o
+                0x0000000002020000                fun
+                0x0000000002020030                init
  *(.text.*)
- .text.startup  0x0000000001d87d30        0x8 main.o
-                0x0000000001d87d30                main
+ .text.startup  0x0000000002020058        0x8 main.o
+                0x0000000002020058                main
  *(.gnu.linkonce.t*)
  *(.init)
  *(.fini)
-                0x0000000001d87d38        0x8 QUAD 0x0
+                0x0000000002020060        0x8 QUAD 0x0
                 [!provide]                        PROVIDE (_etext = .)
                 [!provide]                        PROVIDE (etext = .)
 
-.reginfo        0x0000000001d87d40       0x18
+.reginfo        0x0000000002020068       0x18
  *(.reginfo)
- .reginfo       0x0000000001d87d40       0x18 main.o
+ .reginfo       0x0000000002020068       0x18 main.o
 
 .ctors
  *crtbegin*.o(.ctors)
@@ -46,14 +46,14 @@ LOAD main.o
  *(.rodata.*)
  *(.gnu.linkonce.r*)
 
-.MIPS.abiflags  0x0000000001d87d40       0x18
+.MIPS.abiflags  0x0000000002020068       0x18
  .MIPS.abiflags
-                0x0000000001d87d40       0x18 main.o
+                0x0000000002020068       0x18 main.o
 
-.data           0x0000000001d87d80        0x0
-                0x0000000001d87d80                _fdata = .
+.data           0x0000000002020080        0x0
+                0x0000000002020080                _fdata = .
  *(.data)
- .data          0x0000000001d87d80        0x0 main.o
+ .data          0x0000000002020080        0x0 main.o
  *(.data.*)
  *(.gnu.linkonce.d*)
 
@@ -62,7 +62,7 @@ LOAD main.o
 
 .gcc_except_table
  *(.gcc_except_table)
-                0x0000000001d8fd70                _gp = (ALIGN (0x80) + 0x7ff0)
+                0x0000000002028070                _gp = (ALIGN (0x80) + 0x7ff0)
 
 .lit4
  *(.lit4)
@@ -74,24 +74,24 @@ LOAD main.o
  *(.sdata)
  *(.sdata.*)
  *(.gnu.linkonce.s*)
-                0x0000000001d87d80                _edata = .
+                0x0000000002020080                _edata = .
                 [!provide]                        PROVIDE (edata = .)
 
-.sbss           0x0000000001d87d80        0x0
-                0x0000000001d87d80                _fbss = .
+.sbss           0x0000000002020080        0x0
+                0x0000000002020080                _fbss = .
  *(.sbss)
  *(.sbss.*)
  *(.gnu.linkonce.sb*)
  *(.scommon)
 
-.bss            0x0000000001d87d80        0x0
+.bss            0x0000000002020080        0x0
  *(.bss)
- .bss           0x0000000001d87d80        0x0 main.o
+ .bss           0x0000000002020080        0x0 main.o
  *(.bss.*)
  *(.gnu.linkonce.b*)
  *(COMMON)
-                0x0000000001d87d80                _end_bss = .
-                0x0000000001d87d80                _end = .
+                0x0000000002020080                _end_bss = .
+                0x0000000002020080                _end = .
                 [!provide]                        PROVIDE (end = .)
                 [!provide]                        PROVIDE (_heap_size = 0xffffffffffffffff)
                 [!provide]                        PROVIDE (_stack = 0xffffffffffffffff)

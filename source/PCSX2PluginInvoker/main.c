@@ -27,6 +27,16 @@ void init()
         if (PluginData[i].Base == 0)
             break;
 
+        if (PluginData[i].Malloc != 0)
+        {
+            PluginData[0].Malloc = PluginData[i].Malloc;
+        }
+
+        if (PluginData[i].Free != 0)
+        {
+            PluginData[0].Free = PluginData[i].Free;
+        }
+
         if (PluginData[i].Base > MaxBase)
         {
             MaxBase = PluginData[i].Base;

@@ -1,7 +1,7 @@
 EE_BIN = ../../data/scripts/PLUGINS/PCSX2PluginDummy.elf
 EE_OBJS = main.o 
 
-BASE_ADDRESS = 0x800000
+BASE_ADDRESS = 0x02020000
 EE_LINKFILE = linkfile
 #EE_LIBS += -l:libc.a -l:libps2sdkc.a -l:libkernel.a
 EE_LDFLAGS = -Wl,--entry=init -Wl,-Map,../../data/scripts/PLUGINS/PCSX2PluginDummy.map -nostdlib -nodefaultlibs -Wl,'--defsym=BASE_ADDRESS=$(BASE_ADDRESS)'
