@@ -25,7 +25,7 @@
         ├───C0498D24-SCDA-[SLUS-21356]
         │       PCSX2PluginDemo2.elf
         │       PCSX2PluginDemo2.ini
-	│
+        │
         └───43341C03-MKD-[SLES-52705]
                 PCSX2PluginDemo3.elf			
 				
