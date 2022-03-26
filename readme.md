@@ -22,9 +22,13 @@
         │       PCSX2PluginDemo.elf
         │       PCSX2PluginDemo.ini
         │
-        └───C0498D24-SCDA-[SLUS-21356]
-                PCSX2PluginDemo2.elf
-                PCSX2PluginDemo2.ini
+        ├───C0498D24-SCDA-[SLUS-21356]
+        │       PCSX2PluginDemo2.elf
+        │       PCSX2PluginDemo2.ini
+		│		
+        └───43341C03-MKD-[SLES-52705]
+                PCSX2PluginDemo3.elf			
+				
 ```
 
  - **Enable 128 MB of RAM** option in PCSX2 settings should be set to **on** in order to use plugins.
@@ -53,6 +57,10 @@ ElfPattern = 10 00 BF FF 00 00 B0 7F 30 00 A4 AF 40 00 A5 AF
 - Demo Plugin 2 is for **Splinter Cell Double Agent [SLUS-21356]**, it makes the game stretched via redirecting code to plugin's function:
 
 ![](https://i.imgur.com/rBmx5Pc.png)
+
+- Demo Plugin 3 is for **Mortal Kombat: Deception [SLES-52705]**, disables intro movies and makes Konquest protagonist always use young model:
+
+![](https://i.imgur.com/VWptXcv.png)
 
 Log example:
 
