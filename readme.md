@@ -2,11 +2,11 @@
 
 ### Quick how-to
 
- - Download [custom build of PCSX264](https://github.com/ThirteenAG/pcsx2/actions), that is capable of loading **scripts/PCSX2PluginInjector.asi** from this project. (not available at the moment)
+ - Download [custom build of PCSX264](https://github.com/ThirteenAG/pcsx2/actions), that is capable of loading **scripts/PCSX2PluginInjector.asi** from this project (Windows only).
 
-- Compile the project, copy contents of **data** folder to PCSX264 root dir, where **pcsx2x64.exe** is located.
+ - Compile the project, copy contents of **data** folder to PCSX264 root dir, where **pcsx2x64.exe** is located.
 
-- Directory tree:
+ - Directory tree:
 
 ```
 │   pcsx2x64.exe
@@ -35,7 +35,7 @@
 
  - Plugins should be placed inside a directory with a name that starts with game **crc**.
 
- - Plugins must have base address that doesn't conflict with main game and with other plugins (including **PCSX2PluginInvoker.elf**).
+ - Plugins must have base address that don't conflict with other plugins (including **PCSX2PluginInvoker.elf**, which is at **0x2000000**).
 
  - To find out minimum base address for new plugin, check the log file. Normally anything higher than **0x2001000** should work.
 
