@@ -2,7 +2,7 @@
 
 ### Quick how-to
 
- - Download [custom build of PCSX264](https://github.com/ThirteenAG/pcsx2/actions), that is capable of loading **scripts/PCSX2PluginInjector.asi** from this project (Windows only).
+ - Download [custom build of PCSX264](https://github.com/ASI-Factory/PCSX2-Fork-With-Plugins/tree/latest), that is capable of loading **scripts/PCSX2PluginInjector.asi** from this project (**Windows only**).
 
  - Compile the project, copy contents of **data** folder to PCSX264 root dir, where **pcsx2x64.exe** is located.
 
@@ -50,13 +50,28 @@ ElfPattern = 10 00 BF FF 00 00 B0 7F 30 00 A4 AF 40 00 A5 AF
 
  - This ini file is also written to **PluginData** symbol of the injected plugin, e.g. `char PluginData[100] = { 0 };`. Use this to read ini inside the plugin.
 
+ - If **PCSX2Data** symbol is present inside the plugin, e.g. `char PCSX2Data[20] = { 0 };`, you can access these parameters:
+ ```c
+    char PCSX2Data[20] = { 1 };
+
+    ...
+
+    int DesktopSizeX       = *(uint32_t*)((uintptr_t)&PCSX2Data + (sizeof(uint32_t) * 0));
+    int DesktopSizeY       = *(uint32_t*)((uintptr_t)&PCSX2Data + (sizeof(uint32_t) * 1));
+    int WindowSizeX        = *(uint32_t*)((uintptr_t)&PCSX2Data + (sizeof(uint32_t) * 2));
+    int WindowSizeY        = *(uint32_t*)((uintptr_t)&PCSX2Data + (sizeof(uint32_t) * 3));
+    int IsFullscreen       = *(uint32_t*)((uintptr_t)&PCSX2Data + (sizeof(uint32_t) * 4));
+    int AspectRatioSetting = *(uint32_t*)((uintptr_t)&PCSX2Data + (sizeof(uint32_t) * 5));
+```
+See Demo Plugin 2 for full example.
+
 - Demo Plugin 1 is compatible with **GTAVCS [SLUS-21590]**. It renders few coronas at the beginning of the game:
 
 ![](https://i.imgur.com/qYbBtr3.png)
 
-- Demo Plugin 2 is for **Splinter Cell Double Agent [SLUS-21356]**, it makes the game stretched via redirecting code to plugin's function:
+- Demo Plugin 2 is for **Splinter Cell Double Agent [SLUS-21356]**, it makes the game's aspect ratio adjust to emulator's resolution via redirecting code to plugin's function:
 
-![](https://i.imgur.com/rBmx5Pc.png)
+![](https://i.imgur.com/nYdAUp2.png)
 
 - Demo Plugin 3 is for **Mortal Kombat: Deception [SLES-52705]**, disables intro movies and makes Konquest protagonist always use young model:
 

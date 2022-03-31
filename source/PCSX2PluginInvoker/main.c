@@ -9,11 +9,14 @@ struct PluginInfo
     uint32_t Size;
     uint32_t DataAddr;
     uint32_t DataSize;
+    uint32_t PCSX2DataAddr;
+    uint32_t PCSX2DataSize;
     uint32_t Malloc;
     uint32_t Free;
 };
 
 struct PluginInfo PluginData[50] = { 0xFFFFFFFF }; //needs to be initialized
+char PCSX2Data[20] = { 0xFFFFFFFF };
 
 void init()
 {

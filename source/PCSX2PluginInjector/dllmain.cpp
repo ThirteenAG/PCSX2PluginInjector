@@ -16,6 +16,14 @@ std::promise<void> exitSignal;
 
 constexpr auto start_pattern = "28 ? 00 70 28 ? 00 70 28 ? 00 70 28 ? 00 70 28";
 
+enum class AspectRatioType : uint8_t
+{
+    Stretch,
+    R4_3,
+    R16_9,
+    MaxCount
+};
+
 struct PluginInfo
 {
     uint32_t Base;
@@ -24,13 +32,15 @@ struct PluginInfo
     uint32_t Size;
     uint32_t DataAddr;
     uint32_t DataSize;
+    uint32_t PCSX2DataAddr;
+    uint32_t PCSX2DataSize;
     uint32_t Malloc;
     uint32_t Free;
 
     bool isValid() { return (Base != 0 && EntryPoint != 0 && Size != 0); }
 };
 
-CEXP void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, bool bEnableEE128mbRam);
+CEXP void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, bool bEnableEE128mbRam, int& WindowSizeX, int& WindowSizeY, bool& IsFullscreen, AspectRatioType& AspectRatioSetting);
 
 void SuspendParentProcess(DWORD targetProcessId, DWORD targetThreadId, bool action)
 {
@@ -95,9 +105,9 @@ void SuspendParentProcess(DWORD targetProcessId, DWORD targetThreadId, bool acti
 //    std::cout << "Nothing found" << std::endl;
 //}
 
-void ElfSwitchWatcher(std::future<void> futureObj, uint32_t* addr, uint32_t data, uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, bool bEnableEE128mbRam)
+void ElfSwitchWatcher(std::future<void> futureObj, uint32_t* addr, uint32_t data, uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, bool bEnableEE128mbRam, int& WindowSizeX, int& WindowSizeY, bool& IsFullscreen, AspectRatioType& AspectRatioSetting)
 {
-    auto cur_crc = crc;
+    volatile auto cur_crc = crc;
     while (futureObj.wait_for(std::chrono::milliseconds(1)) == std::future_status::timeout)
     {
         MEMORY_BASIC_INFORMATION MemoryInf;
@@ -111,7 +121,7 @@ void ElfSwitchWatcher(std::future<void> futureObj, uint32_t* addr, uint32_t data
                         return;
                 }
                 SuspendParentProcess(GetCurrentProcessId(), GetCurrentThreadId(), true);
-                LoadPlugins(crc, EEMainMemoryStart, EEMainMemorySize, GameElfTextBase, GameElfTextSize, bEnableEE128mbRam);
+                LoadPlugins(crc, EEMainMemoryStart, EEMainMemorySize, GameElfTextBase, GameElfTextSize, bEnableEE128mbRam, WindowSizeX, WindowSizeY, IsFullscreen, AspectRatioSetting);
                 SuspendParentProcess(GetCurrentProcessId(), GetCurrentThreadId(), false);
                 return;
             }
@@ -188,6 +198,11 @@ PluginInfo ParseElf(std::string path)
                         info.DataAddr = value;
                         info.DataSize = size;
                     }
+                    else if (name == "PCSX2Data")
+                    {
+                        info.PCSX2DataAddr = value;
+                        info.PCSX2DataSize = size;
+                    }
                 }
             }
         }
@@ -196,7 +211,7 @@ PluginInfo ParseElf(std::string path)
     return info;
 }
 
-void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, bool bEnableEE128mbRam)
+void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, bool bEnableEE128mbRam, int& WindowSizeX, int& WindowSizeY, bool& IsFullscreen, AspectRatioType& AspectRatioSetting)
 {
     spd::log()->info("Starting PCSX2PluginInjector, game crc: 0x{:X}", crc);
     spd::log()->info("EE Memory starts at: 0x{:X}", EEMainMemoryStart);
@@ -320,9 +335,9 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
                                         spd::log()->warn("Pattern \"{}\" is not found in this elf, {} will not be loaded at this time", pattern_str, file.path().filename().string());
                                         if (!thread_created)
                                         {
-                                            spd::log()->info("Some plugins has be loaded in another elf, creating thread to handle it");
+                                            spd::log()->info("Some plugins has to be loaded in another elf, creating thread to handle it");
                                             std::future<void> futureObj = exitSignal.get_future();
-                                            std::thread th(&ElfSwitchWatcher, std::move(futureObj), ei_hook, ei_data, std::ref(crc), EEMainMemoryStart, EEMainMemorySize, GameElfTextBase, GameElfTextSize, bEnableEE128mbRam);
+                                            std::thread th(&ElfSwitchWatcher, std::move(futureObj), ei_hook, ei_data, std::ref(crc), EEMainMemoryStart, EEMainMemorySize, GameElfTextBase, GameElfTextSize, bEnableEE128mbRam, std::ref(WindowSizeX), std::ref(WindowSizeY), std::ref(IsFullscreen), std::ref(AspectRatioSetting));
                                             th.detach();
                                             thread_created = true;
                                         }
@@ -368,6 +383,18 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
                                     injector::WriteMemoryRaw(EEMainMemoryStart + mod.DataAddr + sizeof(uint32_t), ini.data(), ini.size(), true);
                                     spd::log()->info("{} was successfully injected", iniPath.filename().string());
                                 }
+                            }
+
+                            if (mod.PCSX2DataAddr)
+                            {
+                                spd::log()->info("Writing PCSX2 Data to {}", plugin_path.filename().string());
+                                auto [DesktopSizeX, DesktopSizeY] = GetDesktopRes();
+                                injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * 0), (uint32_t)DesktopSizeX, true);
+                                injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * 1), (uint32_t)DesktopSizeY, true);
+                                injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * 2), (uint32_t)WindowSizeX, true);
+                                injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * 3), (uint32_t)WindowSizeY, true);
+                                injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * 4), (uint32_t)IsFullscreen, true);
+                                injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * 5), (uint32_t)AspectRatioSetting, true);
                             }
                         }
                     }
