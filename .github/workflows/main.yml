@@ -8,7 +8,7 @@ jobs:
     runs-on: windows-2022
     strategy:
       matrix:
-        platform: [x64]
+        platform: [Win64]
         buildtype: [Release]
 
     steps:
