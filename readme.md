@@ -2,7 +2,7 @@
 
 ### Quick how-to
 
- - Download [custom build of PCSX264](https://github.com/ASI-Factory/PCSX2-Fork-With-Plugins/tree/latest), that is capable of loading **scripts/PCSX2PluginInjector.asi** from this project (**Windows only**).
+ - Download [custom build of PCSX264](https://github.com/ASI-Factory/PCSX2-Fork-With-Plugins/releases/tag/latest), that is capable of loading **scripts/PCSX2PluginInjector.asi** from this project (**Windows only**).
 
  - Compile the project, copy contents of **data** folder to PCSX264 root dir, where **pcsx2x64.exe** is located.
 
