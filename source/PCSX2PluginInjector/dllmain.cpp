@@ -1,7 +1,6 @@
 #include <elfio/elfio.hpp>
 #include "stdafx.h"
 #include <filesystem>
-#include <assembly64.hpp>
 #include "pcsx2/pcsx2.h"
 
 #include <thread>
@@ -13,6 +12,7 @@
 #include <tlhelp32.h>
 
 std::promise<void> exitSignal;
+std::promise<void> exitSignal2;
 
 constexpr auto start_pattern = "28 ? 00 70 28 ? 00 70 28 ? 00 70 28 ? 00 70 28";
 
@@ -34,8 +34,12 @@ struct PluginInfo
     uint32_t DataSize;
     uint32_t PCSX2DataAddr;
     uint32_t PCSX2DataSize;
-    uint32_t Malloc;
-    uint32_t Free;
+    uint32_t CompatibleCRCListAddr;
+    uint32_t CompatibleCRCListSize;
+    uint32_t PatternDataAddr;
+    uint32_t PatternDataSize;
+    uint32_t KeyboardStateAddr;
+    uint32_t KeyboardStateSize;
 
     bool isValid() { return (Base != 0 && EntryPoint != 0 && Size != 0); }
 };
@@ -75,36 +79,6 @@ void SuspendParentProcess(DWORD targetProcessId, DWORD targetThreadId, bool acti
     }
 }
 
-//void FindMemoryBuffer(uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize)
-//{
-//    auto test = [](uint8_t* begin, std::size_t bytes) -> bool
-//    {
-//        return std::all_of(begin, begin + bytes, [](uint8_t const byte)
-//            {
-//                return byte == 0;
-//            });
-//    };
-//
-//    size_t NeededRegionSize = 200000;
-//    auto start = EEMainMemoryStart + GameElfTextBase + GameElfTextSize;
-//    auto end = EEMainMemoryStart + EEMainMemorySize - NeededRegionSize;
-//
-//    using namespace std::chrono_literals;
-//    std::this_thread::sleep_for(25500ms);
-//
-//    AllocConsole();
-//    freopen("CONOUT$", "w", stdout);
-//
-//    for (auto i = start; i < end; i += 1)
-//    {
-//        while (test((uint8_t*)i, NeededRegionSize))
-//        {
-//            std::cout << "0x" << std::hex << i - EEMainMemoryStart << std::endl;
-//        }
-//    }
-//    std::cout << "Nothing found" << std::endl;
-//}
-
 void ElfSwitchWatcher(std::future<void> futureObj, uint32_t* addr, uint32_t data, uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, bool bEnableEE128mbRam, int& WindowSizeX, int& WindowSizeY, bool& IsFullscreen, AspectRatioType& AspectRatioSetting)
 {
     volatile auto cur_crc = crc;
@@ -129,6 +103,33 @@ void ElfSwitchWatcher(std::future<void> futureObj, uint32_t* addr, uint32_t data
         else
         {
             break;
+        }
+        std::this_thread::yield();
+    }
+}
+
+void KeyboardStateThread(std::future<void> futureObj, std::vector<std::pair<uintptr_t, size_t>> kbd_ptrs, uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize)
+{
+    volatile auto cur_crc = crc;
+    while (futureObj.wait_for(std::chrono::milliseconds(1)) == std::future_status::timeout)
+    {
+        int16_t kbd[255];
+        for (int i = VK_LBUTTON; i < sizeof(kbd) / sizeof(kbd[0]); i++)
+        {
+            kbd[i] = GetAsyncKeyState(i);
+        }
+
+        for (auto& it : kbd_ptrs)
+        {
+            MEMORY_BASIC_INFORMATION MemoryInf;
+            if (cur_crc != crc || (VirtualQuery((LPCVOID)(EEMainMemoryStart + it.first), &MemoryInf, sizeof(MemoryInf)) != 0 && MemoryInf.Protect != 0))
+            {
+                injector::WriteMemoryRaw(EEMainMemoryStart + it.first, kbd, it.second, true);
+            }
+            else
+            {
+                break;
+            }
         }
         std::this_thread::yield();
     }
@@ -203,6 +204,21 @@ PluginInfo ParseElf(std::string path)
                         info.PCSX2DataAddr = value;
                         info.PCSX2DataSize = size;
                     }
+                    else if (name == "CompatibleCRCList")
+                    {
+                        info.CompatibleCRCListAddr = value;
+                        info.CompatibleCRCListSize = size;
+                    }
+                    else if (name == "ElfPattern")
+                    {
+                        info.PatternDataAddr = value;
+                        info.PatternDataSize = size;
+                    }
+                    else if (name == "KeyboardState")
+                    {
+                        info.KeyboardStateAddr = value;
+                        info.KeyboardStateSize = size;
+                    }
                 }
             }
         }
@@ -218,11 +234,11 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
     spd::log()->info("Game Base Address: 0x{:X}", GameElfTextBase);
     spd::log()->info("Game Region End: 0x{:X}", GameElfTextBase + GameElfTextSize);
 
-    //if (0)
-    //    std::thread(&FindMemoryBuffer, EEMainMemoryStart, EEMainMemorySize, GameElfTextBase, GameElfTextSize).detach();
-
     exitSignal.set_value();
     std::promise<void>().swap(exitSignal);
+    exitSignal2.set_value();
+    std::promise<void>().swap(exitSignal2);
+    std::vector<std::pair<uintptr_t, size_t>> kbd_ptrs;
     uint32_t* ei_hook = nullptr;
     uint32_t ei_data = 0;
     uint32_t NewMinBase = 0;
@@ -232,7 +248,7 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
     GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCWSTR)&LoadPlugins, &hm);
     GetModuleFileNameW(hm, buf, sizeof(buf));
     auto modulePath = std::filesystem::path(buf);
-    auto pluginsPath = modulePath.remove_filename() / L"PLUGINS";
+    auto pluginsPath = modulePath.remove_filename() / L"PLUGINS/";
     auto invokerPath = pluginsPath / L"PCSX2PluginInvoker.elf";
     auto _32mb = 0x02000000;
 
@@ -296,109 +312,127 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
             spd::log()->info("Finished hooking entry point function at 0x{:X}", (uintptr_t)ei_hook - EEMainMemoryStart);
             spd::log()->info("Looking for plugins in {}", pluginsPath.parent_path().filename().string());
 
-            bool thread_created = false;
+            bool elf_thread_created = false;
+            bool kb_thread_created = false;
 
             for (const auto& folder : std::filesystem::recursive_directory_iterator(pluginsPath, std::filesystem::directory_options::skip_permission_denied))
             {
-                if (folder.path().stem().wstring().starts_with(int_to_hex(crc)))
+                if (std::filesystem::is_directory(folder))
                 {
                     for (const auto& file : std::filesystem::directory_iterator(folder, std::filesystem::directory_options::skip_permission_denied))
                     {
                         if (file.is_regular_file() && iequals(file.path().extension().wstring(), L".elf"))
                         {
                             auto plugin_path = file.path().parent_path().filename() / file.path().filename().string();
-                            spd::log()->info("Loading {}", plugin_path.string());
                             PluginInfo mod = ParseElf(file.path().string());
-                            auto buffer = LoadFileToBuffer(file.path().string());
-                            if (!mod.isValid() || buffer.empty())
+
+                            if (mod.CompatibleCRCListAddr && mod.CompatibleCRCListSize)
                             {
-                                spd::log()->warn("{} could not be loaded", plugin_path.string());
-                                continue;
-                            }
+                                auto buffer = LoadFileToBuffer(file.path().string());
+                                if (buffer.empty())
+                                    continue;
 
-                            spd::log()->info("{} base address: 0x{:X}", file.path().filename().string(), mod.Base);
-                            spd::log()->info("{} entry point: 0x{:X}", file.path().filename().string(), mod.EntryPoint);
-                            spd::log()->info("{} size: {} bytes", file.path().filename().string(), mod.Size);
-
-                            auto iniPath = std::filesystem::path(file.path()).replace_extension(L".ini");
-                            if (std::filesystem::exists(iniPath))
-                            {
-                                spd::log()->info("Loading {}", iniPath.filename().string());
-                                CIniReader pluginini(iniPath.string());
-
-                                auto pattern_str = pluginini.ReadString("MAIN", "ElfPattern", "");
-                                if (!pattern_str.empty())
+                                bool crc_compatible = false;
+                                uint32_t* crc_array = (uint32_t*)(buffer.data() + mod.SegmentFileOffset + mod.CompatibleCRCListAddr - mod.Base);
+                                for (uint32_t i = 0; i < mod.CompatibleCRCListSize / sizeof(uint32_t); i++)
                                 {
-                                    auto pattern = hook::pattern(EEMainMemoryStart, EEMainMemoryStart + EEMainMemorySize, pattern_str);
-                                    if (pattern.empty())
+                                    if (crc_array[i] == crc)
                                     {
-                                        spd::log()->warn("Pattern \"{}\" is not found in this elf, {} will not be loaded at this time", pattern_str, file.path().filename().string());
-                                        if (!thread_created)
-                                        {
-                                            spd::log()->info("Some plugins has to be loaded in another elf, creating thread to handle it");
-                                            std::future<void> futureObj = exitSignal.get_future();
-                                            std::thread th(&ElfSwitchWatcher, std::move(futureObj), ei_hook, ei_data, std::ref(crc), EEMainMemoryStart, EEMainMemorySize, GameElfTextBase, GameElfTextSize, bEnableEE128mbRam, std::ref(WindowSizeX), std::ref(WindowSizeY), std::ref(IsFullscreen), std::ref(AspectRatioSetting));
-                                            th.detach();
-                                            thread_created = true;
-                                        }
-                                        continue;
+                                        crc_compatible = true;
+                                        break;
                                     }
                                 }
 
-                                //remove later
-                                if (mod.Base < _32mb)
-                                {
-                                    mod.Malloc = pluginini.ReadInteger("MAIN", "Malloc", 0);
-                                    if (mod.Malloc == 0)
-                                    {
-                                        auto malloc_ini = pluginini.ReadString("MAIN", "MallocPatternString", "");
-                                        if (!malloc_ini.empty())
-                                        {
-                                            auto pattern = hook::pattern(EEMainMemoryStart, EEMainMemoryStart + EEMainMemorySize, malloc_ini);
-                                            if (!pattern.empty())
-                                                mod.Malloc = (uint32_t)pattern.get(pluginini.ReadInteger("MAIN", "MallocPatternIndex", 0)).get<void>(pluginini.ReadInteger("MAIN", "MallocPatternOffset", 0)) - EEMainMemoryStart;
-                                        }
+                                if (!crc_compatible)
+                                    continue;
 
-                                        if (mod.Malloc == 0)
-                                            spd::log()->warn("{} does not contain 'malloc' address in game elf, make sure plugin will not be overwritten in memory", iniPath.filename().string());
+                                spd::log()->info("Loading {}", plugin_path.string());
+                                if (!mod.isValid() || mod.Base < _32mb)
+                                {
+                                    spd::log()->warn("{} could not be loaded", plugin_path.string());
+                                    if (mod.Base < _32mb)
+                                        spd::log()->error("{} base address can't be less than 32mb", file.path().filename().string());
+                                    continue;
+                                }
+
+                                spd::log()->info("{} base address: 0x{:X}", file.path().filename().string(), mod.Base);
+                                spd::log()->info("{} entry point: 0x{:X}", file.path().filename().string(), mod.EntryPoint);
+                                spd::log()->info("{} size: {} bytes", file.path().filename().string(), mod.Size);
+
+                                if (mod.PatternDataAddr)
+                                {
+                                    std::string_view pattern_str((char*)(buffer.data() + mod.SegmentFileOffset + mod.PatternDataAddr - mod.Base));
+                                    if (!pattern_str.empty())
+                                    {
+                                        auto pattern = hook::pattern(EEMainMemoryStart, EEMainMemoryStart + EEMainMemorySize, pattern_str);
+                                        if (pattern.empty())
+                                        {
+                                            spd::log()->warn("Pattern \"{}\" is not found in this elf, {} will not be loaded at this time", pattern_str, file.path().filename().string());
+                                            if (!elf_thread_created)
+                                            {
+                                                spd::log()->info("Some plugins has to be loaded in another elf, creating thread to handle it");
+                                                std::future<void> futureObj = exitSignal.get_future();
+                                                std::thread th(&ElfSwitchWatcher, std::move(futureObj), ei_hook, ei_data, std::ref(crc), EEMainMemoryStart, EEMainMemorySize, GameElfTextBase, GameElfTextSize, bEnableEE128mbRam, std::ref(WindowSizeX), std::ref(WindowSizeY), std::ref(IsFullscreen), std::ref(AspectRatioSetting));
+                                                th.detach();
+                                                elf_thread_created = true;
+                                            }
+                                            continue;
+                                        }
                                     }
                                 }
-                            }
 
-                            count++;
-                            spd::log()->info("Injecting {}...", plugin_path.filename().string());
-                            injector::WriteMemoryRaw(EEMainMemoryStart + mod.Base, buffer.data() + mod.SegmentFileOffset, buffer.size() - mod.SegmentFileOffset, true);
-                            injector::WriteMemoryRaw(EEMainMemoryStart + invoker.DataAddr + (sizeof(invoker) * count), &mod, sizeof(mod), true);
-                            spd::log()->info("Finished injecting {}, {} bytes written at 0x{:X}", plugin_path.filename().string(), mod.Size, mod.Base);
-                            if (NewMinBase < mod.Base + mod.Size) NewMinBase = mod.Base + mod.Size;
+                                count++;
+                                spd::log()->info("Injecting {}...", plugin_path.filename().string());
+                                injector::WriteMemoryRaw(EEMainMemoryStart + mod.Base, buffer.data() + mod.SegmentFileOffset, buffer.size() - mod.SegmentFileOffset, true);
+                                injector::WriteMemoryRaw(EEMainMemoryStart + invoker.DataAddr + (sizeof(invoker) * count), &mod, sizeof(mod), true);
+                                spd::log()->info("Finished injecting {}, {} bytes written at 0x{:X}", plugin_path.filename().string(), mod.Size, mod.Base);
+                                if (NewMinBase < mod.Base + mod.Size) NewMinBase = mod.Base + mod.Size;
 
-                            if (std::filesystem::exists(iniPath))
-                            {
-                                if (mod.DataAddr)
+                                auto iniPath = std::filesystem::path(file.path()).replace_extension(L".ini");
+                                if (std::filesystem::exists(iniPath))
                                 {
-                                    auto ini = LoadFileToBuffer(iniPath);
-                                    spd::log()->info("Injecting {}...", iniPath.filename().string());
-                                    ini.resize(mod.DataSize - sizeof(uint32_t));
-                                    injector::WriteMemory(EEMainMemoryStart + mod.DataAddr, ini.size(), true);
-                                    injector::WriteMemoryRaw(EEMainMemoryStart + mod.DataAddr + sizeof(uint32_t), ini.data(), ini.size(), true);
-                                    spd::log()->info("{} was successfully injected", iniPath.filename().string());
+                                    spd::log()->info("Loading {}", iniPath.filename().string());
+                                    if (mod.DataAddr)
+                                    {
+                                        auto ini = LoadFileToBuffer(iniPath);
+                                        spd::log()->info("Injecting {}...", iniPath.filename().string());
+                                        ini.resize(mod.DataSize - sizeof(uint32_t));
+                                        injector::WriteMemory(EEMainMemoryStart + mod.DataAddr, ini.size(), true);
+                                        injector::WriteMemoryRaw(EEMainMemoryStart + mod.DataAddr + sizeof(uint32_t), ini.data(), ini.size(), true);
+                                        spd::log()->info("{} was successfully injected", iniPath.filename().string());
+                                    }
                                 }
-                            }
 
-                            if (mod.PCSX2DataAddr)
-                            {
-                                spd::log()->info("Writing PCSX2 Data to {}", plugin_path.filename().string());
-                                auto [DesktopSizeX, DesktopSizeY] = GetDesktopRes();
-                                injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * 0), (uint32_t)DesktopSizeX, true);
-                                injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * 1), (uint32_t)DesktopSizeY, true);
-                                injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * 2), (uint32_t)WindowSizeX, true);
-                                injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * 3), (uint32_t)WindowSizeY, true);
-                                injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * 4), (uint32_t)IsFullscreen, true);
-                                injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * 5), (uint32_t)AspectRatioSetting, true);
+                                if (mod.PCSX2DataAddr)
+                                {
+                                    spd::log()->info("Writing PCSX2 Data to {}", plugin_path.filename().string());
+                                    auto [DesktopSizeX, DesktopSizeY] = GetDesktopRes();
+                                    injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * 0), (uint32_t)DesktopSizeX, true);
+                                    injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * 1), (uint32_t)DesktopSizeY, true);
+                                    injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * 2), (uint32_t)WindowSizeX, true);
+                                    injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * 3), (uint32_t)WindowSizeY, true);
+                                    injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * 4), (uint32_t)IsFullscreen, true);
+                                    injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * 5), (uint32_t)AspectRatioSetting, true);
+                                }
+
+                                if (mod.KeyboardStateAddr)
+                                {
+                                    spd::log()->info("{} requests keyboard state", plugin_path.filename().string());
+                                    kbd_ptrs.emplace_back(mod.KeyboardStateAddr, mod.KeyboardStateSize);
+                                }
                             }
                         }
                     }
                 }
+            }
+
+            if (!kbd_ptrs.empty() && !kb_thread_created)
+            {
+                spd::log()->info("Creating thread to handle keyboard state");
+                std::future<void> futureObj = exitSignal2.get_future();
+                std::thread th(&KeyboardStateThread, std::move(futureObj), kbd_ptrs, std::ref(crc), EEMainMemoryStart, EEMainMemorySize);
+                th.detach();
+                kb_thread_created = true;
             }
 
             spd::log()->info("Suggested minimum base address for new plugins: 0x{:X}", NewMinBase);

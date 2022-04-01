@@ -11,60 +11,19 @@ struct PluginInfo
     uint32_t DataSize;
     uint32_t PCSX2DataAddr;
     uint32_t PCSX2DataSize;
-    uint32_t Malloc;
-    uint32_t Free;
+    uint32_t CompatibleCRCListAddr;
+    uint32_t CompatibleCRCListSize;
+    uint32_t PatternDataAddr;
+    uint32_t PatternDataSize;
+    uint32_t KeyboardStateAddr;
+    uint32_t KeyboardStateSize;
 };
 
-struct PluginInfo PluginData[50] = { 0xFFFFFFFF }; //needs to be initialized
-char PCSX2Data[20] = { 0xFFFFFFFF };
+struct PluginInfo PluginData[100] = { 0xFFFFFFFF }; //needs to be initialized
 
 void init()
 {
     asm("ei\n");
-
-    uint32_t MinBase = 0xFFFFFFFF;
-    uint32_t MaxBase = 0;
-    uint32_t MaxSize = 0;
-    for (size_t i = 1; i < sizeof(PluginData); i++)
-    {
-        if (PluginData[i].Base == 0)
-            break;
-
-        if (PluginData[i].Malloc != 0)
-        {
-            PluginData[0].Malloc = PluginData[i].Malloc;
-        }
-
-        if (PluginData[i].Free != 0)
-        {
-            PluginData[0].Free = PluginData[i].Free;
-        }
-
-        if (PluginData[i].Base > MaxBase)
-        {
-            MaxBase = PluginData[i].Base;
-            MaxSize = PluginData[i].Size;
-        }
-
-        if (PluginData[i].Base < MinBase)
-        {
-            MinBase = PluginData[i].Base;
-        }
-    }
-
-    if (MinBase == 0xFFFFFFFF)
-        return;
-
-    if (PluginData[0].Malloc != 0)
-    {
-        void* (*malloc)(size_t size) = (void* (*)(size_t))PluginData[0].Malloc;
-        size_t alloc_size = (MaxBase + MaxSize) - MinBase;
-        uint32_t MallocReturnAddr = (uint32_t)malloc(alloc_size);
-        //*(int*)0x100008 = MallocReturnAddr;
-
-        if (MallocReturnAddr > MinBase)
-            return;
-    }
 
     for (size_t i = 1; i < sizeof(PluginData); i++)
     {

@@ -1,7 +1,26 @@
 #include <stdio.h>
 #include <stdint.h>
 
+int CompatibleCRCList[] = { 0x4F32A11F };
 char PluginData[100] = { 0 };
+short KeyboardState[256] = { 1 };
+
+short GetAsyncKeyState(int vKey)
+{
+    return KeyboardState[vKey];
+}
+
+enum KeyCodes
+{
+    VK_KEY_W = 0x57
+};
+
+short vcsAcceleration(short* pad) {
+    if (pad[75] == 0 && GetAsyncKeyState(VK_KEY_W) < 0)
+        return 0xFF;
+
+    return 0;
+}
 
 void(*CCoronas__RegisterCoronaINT)(unsigned int id, unsigned char r, unsigned char g, unsigned char b, unsigned char a, void* pos, unsigned char coronaType, unsigned char flareType, unsigned char reflection, unsigned char LOScheck, unsigned char drawStreak, unsigned char flag4);
 void __attribute__((optimize("O0"))) CCoronas__RegisterCoronaFLT(float radius, float farClip, float unk3, float unk4)
@@ -36,8 +55,12 @@ void RenderCoronas()
 
 void init()
 {
-    *(int*)0x21ED38 = ((0x0C000000 | (((uint32_t)RenderCoronas & 0x0fffffff) >> 2))); //jal
-    *(int*)0x21C8F0 = 0; //nop, skips intro
+    //jal, renders coronas
+    *(int*)0x21ED38 = ((0x0C000000 | (((uint32_t)RenderCoronas & 0x0fffffff) >> 2)));
+    //nop, skips intro
+    *(int*)0x21C8F0 = 0;
+    //jump, replaces acceleration in car with W key on keyboard
+    *(int*)0x2861D0 = (0x08000000 | (((intptr_t)vcsAcceleration & 0x0FFFFFFC) >> 2));
 }
 
 int main()

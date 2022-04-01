@@ -26,12 +26,19 @@ jobs:
       shell: cmd
       run: |
         msbuild -m build/PCSX2PluginInjector.sln /property:Configuration=${{matrix.buildtype}} /property:Platform=${{matrix.platform}}
-    - name: Pack binaries
+    - name: Pack binaries (Main)
       uses: ThirteenAG/zip-release@master
       with:
         path: ./data/scripts/
         type: 'zip'
         filename: 'PCSX2PluginInjector.zip'
+        exclusions: '*.pdb *.lib *.exp *.map PCSX2PluginDummy.elf GTAVCS MKD SCDA'
+    - name: Pack binaries (With Demo Plugins)
+      uses: ThirteenAG/zip-release@master
+      with:
+        path: ./data/scripts/
+        type: 'zip'
+        filename: 'PCSX2PluginInjectorDemo.zip'
         exclusions: '*.pdb *.lib *.exp *.map'
     - name: Get release info
       id: release_info
@@ -48,4 +55,4 @@ jobs:
         name: ${{ steps.release_info.outputs.name }}
         body: ${{ steps.release_info.outputs.body }}
         tag: ${{ steps.release_info.outputs.tag_name }}
-        artifacts: PCSX2PluginInjector.zip
+        artifacts: PCSX2PluginInjector.zip,PCSX2PluginInjectorDemo.zip

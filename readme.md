@@ -18,37 +18,42 @@
     └───PLUGINS
         │   PCSX2PluginInvoker.elf
         │
-        ├───4F32A11F-GTAVCS-[SLUS-21590]
+        ├───GTAVCS
         │       PCSX2PluginDemo.elf
         │       PCSX2PluginDemo.ini
         │
-        ├───C0498D24-SCDA-[SLUS-21356]
+        ├───SCDA
         │       PCSX2PluginDemo2.elf
-        │       PCSX2PluginDemo2.ini
         │
-        └───43341C03-MKD-[SLES-52705]
+        └───MKD
                 PCSX2PluginDemo3.elf			
 				
 ```
 
- - **Enable 128 MB of RAM** option in PCSX2 settings should be set to **on** in order to use plugins.
-
- - Plugins should be placed inside a directory with a name that starts with game **crc**.
+ - Plugins should be placed inside **PLUGINS** directory in a **sub directory** with any name.
 
  - Plugins must have base address that don't conflict with other plugins (including **PCSX2PluginInvoker.elf**, which is at **0x2000000**).
 
  - To find out minimum base address for new plugin, check the log file. Normally anything higher than **0x2001000** should work.
 
- - Some games use multiple elf files. To ensure that the plugin will be injected into correct game executable, there's an ini option:
+ - Define compatible games for plugin using **CompatibleCRCList** symbol, e.g.:
+ ```c
+ int CompatibleCRCList[] = { 0xC0498D24, 0xABE2FDE9 };
+ ```
+ This array is **required** to be present in the plugin, otherwise it will not be loaded.
 
-```ini
-[MAIN]
-ElfPattern = 10 00 BF FF 00 00 B0 7F 30 00 A4 AF 40 00 A5 AF
+ - Some games use multiple elf files. To ensure that the plugin will be injected into correct game executable, define **ElfPattern** symbol within plugin, e.g.:
+
+```c
+char ElfPattern[] = "10 00 BF FF 00 00 B0 7F 30 00 A4 AF 40 00 A5 AF";
 ```
 
  - Set `ElfPattern` to something unique from target elf. 
 
- - This ini file is also written to **PluginData** symbol of the injected plugin, e.g. `char PluginData[100] = { 0 };`. Use this to read ini inside the plugin.
+ - **Ini file** with the same name is written to **PluginData** symbol of the injected plugin. Use this to read ini inside the plugin. Adjust symbol's size accordingly. E.g.:
+ ```c
+ char PluginData[100] = { 0 };
+ ```
 
  - If **PCSX2Data** symbol is present inside the plugin, e.g. `char PCSX2Data[20] = { 0 };`, you can access these parameters:
  ```c
@@ -65,7 +70,18 @@ ElfPattern = 10 00 BF FF 00 00 B0 7F 30 00 A4 AF 40 00 A5 AF
 ```
 See Demo Plugin 2 for full example.
 
-- Demo Plugin 1 is compatible with **GTAVCS [SLUS-21590]**. It renders few coronas at the beginning of the game:
+ - **KeyboardState** symbol can be used to access keyboard data (experimental):
+ ```c
+ short KeyboardState[256] = { 1 };
+ ...
+ short GetAsyncKeyState(int vKey)
+{
+    return KeyboardState[vKey];
+}
+ ```
+ See Demo Plugin 1 for full example.
+
+- Demo Plugin 1 is compatible with **GTAVCS [SLUS-21590]**. It renders few coronas at the beginning of the game, skips intro and replaces vehicle acceleration button on gamepad with keyboard key **W**:
 
 ![](https://i.imgur.com/qYbBtr3.png)
 

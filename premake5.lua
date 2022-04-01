@@ -100,7 +100,7 @@ workspace "PCSX2PluginInjector"
 project "PCSX2PluginInjector"
    buildoptions { "/bigobj" }
    includedirs { "external/elfio" }
-   add_asmjit()
+   --add_asmjit()
    setpaths("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2x64.exe", "scripts/")
 
 project "PCSX2PluginInvoker"
@@ -117,8 +117,8 @@ project "PCSX2PluginDemo"
    includedirs { "external/ps2sdk/ps2sdk/ee" }
    files { "source/%{prj.name}/*.c" }
    targetextension ".elf"
-   setbuildpaths_ps2("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2x64.exe", "scripts/PLUGINS/4F32A11F-GTAVCS-[SLUS-21590]/", "%{wks.location}/../external/ps2sdk/ee/bin/vsmake", "%{wks.location}/../source/%{prj.name}/", "PCSX2PluginDemo")
-   writemakefile("PCSX2PluginDemo", "scripts/PLUGINS/4F32A11F-GTAVCS-[SLUS-21590]/", "0x02020000")
+   setbuildpaths_ps2("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2x64.exe", "scripts/PLUGINS/GTAVCS/", "%{wks.location}/../external/ps2sdk/ee/bin/vsmake", "%{wks.location}/../source/%{prj.name}/", "PCSX2PluginDemo")
+   writemakefile("PCSX2PluginDemo", "scripts/PLUGINS/GTAVCS/", "0x02020000")
    writelinkfile("PCSX2PluginDemo")
    
 project "PCSX2PluginDemo2"
@@ -126,8 +126,8 @@ project "PCSX2PluginDemo2"
    includedirs { "external/ps2sdk/ps2sdk/ee" }
    files { "source/%{prj.name}/*.c" }
    targetextension ".elf"
-   setbuildpaths_ps2("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2x64.exe", "scripts/PLUGINS/C0498D24-SCDA-[SLUS-21356]/", "%{wks.location}/../external/ps2sdk/ee/bin/vsmake", "%{wks.location}/../source/%{prj.name}/", "PCSX2PluginDemo2")
-   writemakefile("PCSX2PluginDemo2", "scripts/PLUGINS/C0498D24-SCDA-[SLUS-21356]/", "0x02020000")
+   setbuildpaths_ps2("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2x64.exe", "scripts/PLUGINS/SCDA/", "%{wks.location}/../external/ps2sdk/ee/bin/vsmake", "%{wks.location}/../source/%{prj.name}/", "PCSX2PluginDemo2")
+   writemakefile("PCSX2PluginDemo2", "scripts/PLUGINS/SCDA/", "0x02020000")
    writelinkfile("PCSX2PluginDemo2")
 
 project "PCSX2PluginDemo3"
@@ -135,8 +135,8 @@ project "PCSX2PluginDemo3"
    includedirs { "external/ps2sdk/ps2sdk/ee" }
    files { "source/%{prj.name}/*.c" }
    targetextension ".elf"
-   setbuildpaths_ps2("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2x64.exe", "scripts/PLUGINS/43341C03-MKD-[SLES-52705]/", "%{wks.location}/../external/ps2sdk/ee/bin/vsmake", "%{wks.location}/../source/%{prj.name}/", "PCSX2PluginDemo3")
-   writemakefile("PCSX2PluginDemo3", "scripts/PLUGINS/43341C03-MKD-[SLES-52705]/", "0x02020000")
+   setbuildpaths_ps2("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2x64.exe", "scripts/PLUGINS/MKD/", "%{wks.location}/../external/ps2sdk/ee/bin/vsmake", "%{wks.location}/../source/%{prj.name}/", "PCSX2PluginDemo3")
+   writemakefile("PCSX2PluginDemo3", "scripts/PLUGINS/MKD/", "0x02020000")
    writelinkfile("PCSX2PluginDemo3")
    
 project "PCSX2PluginDummy"

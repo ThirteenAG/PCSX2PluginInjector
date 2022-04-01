@@ -1,5 +1,7 @@
 #include <stdio.h>
 
+int CompatibleCRCList[] = { 0xC0498D24 };
+char ElfPattern[] = "10 00 BF FF 00 00 B0 7F 30 00 A4 AF 40 00 A5 AF";
 char PCSX2Data[20] = { 1 };
 
 enum AspectRatioType
@@ -30,11 +32,11 @@ void __attribute__((naked)) fun()
 
 void init()
 {
-    int DesktopSizeX       = *(uint32_t*)((uintptr_t)&PCSX2Data + (sizeof(uint32_t) * 0));
-    int DesktopSizeY       = *(uint32_t*)((uintptr_t)&PCSX2Data + (sizeof(uint32_t) * 1));
-    int WindowSizeX        = *(uint32_t*)((uintptr_t)&PCSX2Data + (sizeof(uint32_t) * 2));
-    int WindowSizeY        = *(uint32_t*)((uintptr_t)&PCSX2Data + (sizeof(uint32_t) * 3));
-    int IsFullscreen       = *(uint32_t*)((uintptr_t)&PCSX2Data + (sizeof(uint32_t) * 4));
+    int DesktopSizeX = *(uint32_t*)((uintptr_t)&PCSX2Data + (sizeof(uint32_t) * 0));
+    int DesktopSizeY = *(uint32_t*)((uintptr_t)&PCSX2Data + (sizeof(uint32_t) * 1));
+    int WindowSizeX = *(uint32_t*)((uintptr_t)&PCSX2Data + (sizeof(uint32_t) * 2));
+    int WindowSizeY = *(uint32_t*)((uintptr_t)&PCSX2Data + (sizeof(uint32_t) * 3));
+    int IsFullscreen = *(uint32_t*)((uintptr_t)&PCSX2Data + (sizeof(uint32_t) * 4));
     int AspectRatioSetting = *(uint32_t*)((uintptr_t)&PCSX2Data + (sizeof(uint32_t) * 5));
 
     if (IsFullscreen || !WindowSizeX || !WindowSizeY)
