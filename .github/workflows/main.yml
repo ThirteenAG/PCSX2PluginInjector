@@ -32,7 +32,7 @@ jobs:
         path: ./data/scripts/
         type: 'zip'
         filename: 'PCSX2PluginInjector.zip'
-        exclusions: '*.pdb *.lib *.exp *.map PCSX2PluginDummy.elf GTAVCS MKD SCDA'
+        exclusions: '*.pdb *.lib *.exp *.map PCSX2PluginInvoker.elf PCSX2PluginDummy.elf GTAVCS MKD SCDA'
     - name: Pack binaries (With Demo Plugins)
       uses: ThirteenAG/zip-release@master
       with:

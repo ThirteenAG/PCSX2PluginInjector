@@ -101,6 +101,8 @@ project "PCSX2PluginInjector"
    buildoptions { "/bigobj" }
    includedirs { "external/elfio" }
    --add_asmjit()
+   dependson { "PCSX2PluginInvoker" }
+   files { "source/%{prj.name}/invoker.rc" }
    setpaths("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2x64.exe", "scripts/")
 
 project "PCSX2PluginInvoker"
