@@ -29,14 +29,14 @@ jobs:
     - name: Pack binaries (Main)
       uses: ThirteenAG/zip-release@master
       with:
-        path: ./data/
+        path: ./data/*
         type: 'zip'
         filename: 'PCSX2PluginInjector.zip'
         exclusions: '*.pdb *.lib *.exp *.map PCSX2PluginInvoker.elf PCSX2PluginDummy.elf GTAVCS MKD SCDA'
     - name: Pack binaries (With Demo Plugins)
       uses: ThirteenAG/zip-release@master
       with:
-        path: ./data/
+        path: ./data/*
         type: 'zip'
         filename: 'PCSX2PluginInjectorDemo.zip'
         exclusions: '*.pdb *.lib *.exp *.map'
