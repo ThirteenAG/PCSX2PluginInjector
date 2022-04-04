@@ -1,38 +1,45 @@
-## Experimental project
+# PCSX2 Fork Plugin Injector
 
-### Quick how-to
+## Using
 
- - Download [custom build of PCSX264](https://github.com/ASI-Factory/PCSX2-Fork-With-Plugins/releases/tag/latest), that is capable of loading **scripts/PCSX2PluginInjector.asi** from this project (**Windows only**).
+ - Download [custom build of PCSX264](https://github.com/ASI-Factory/PCSX2-Fork-With-Plugins/releases/tag/latest), this project is already included in it. (**Windows only**).
 
- - Compile the project, copy contents of **data** folder to PCSX264 root dir, where **pcsx2x64.exe** is located.
+ - Copy **.elf** plugins to **PLUGINS** directory, e.g. **GTAVCS.PCSX2.WidescreenFix.elf**.
+
+## Limitations
+
+ - Save states between regular PCSX2 version and the fork will not be compatible.
+
+ - Do not open issues in PCSX2 repository when using the fork. Reproduce them in regular PCSX2 build first.
+
+## Plugin development how-to 
+
+ - Compile **PCSX2PluginInjector** solution, copy contents of **data** folder to PCSX264 root dir, where **pcsx2x64.exe** is located, or use [PCSX2PluginInjectorDemo.zip](https://github.com/ThirteenAG/PCSX2PluginInjector/releases/download/latest/PCSX2PluginInjectorDemo.zip) with all necessary files.
 
  - Directory tree:
 
 ```
 │   pcsx2x64.exe
+│   PCSX2PluginInjector.asi
+│   PCSX2PluginInjector.log
 │
-├───scripts
-    │   PCSX2PluginInjector.asi
-    │   PCSX2PluginInjector.log
+└───PLUGINS
+    │   PCSX2PluginInvoker.elf (optional)
     │
-    └───PLUGINS
-        │   PCSX2PluginInvoker.elf
-        │
-        ├───GTAVCS
-        │       PCSX2PluginDemo.elf
-        │       PCSX2PluginDemo.ini
-        │
-        ├───SCDA
-        │       PCSX2PluginDemo2.elf
-        │
-        └───MKD
-                PCSX2PluginDemo3.elf			
-				
+    ├───GTAVCS
+    │       PCSX2PluginDemo.elf
+    │       PCSX2PluginDemo.ini
+    │
+    ├───SCDA
+    │       PCSX2PluginDemo2.elf
+    │
+    └───MKD
+            PCSX2PluginDemo3.elf			
 ```
 
- - Plugins should be placed inside **PLUGINS** directory in a **sub directory** with any name.
+ - Plugins should be placed inside **PLUGINS** directory, using subfolders is optional.
 
- - Plugins must have base address that don't conflict with other plugins (including **PCSX2PluginInvoker.elf**, which is at **0x2000000**).
+ - Plugins must have base address that doesn't conflict with other plugins (including **PCSX2PluginInvoker.elf**, which is at **0x2000000**).
 
  - To find out minimum base address for new plugin, check the log file. Normally anything higher than **0x2001000** should work.
 
@@ -57,7 +64,7 @@ char ElfPattern[] = "10 00 BF FF 00 00 B0 7F 30 00 A4 AF 40 00 A5 AF";
 
  - If **PCSX2Data** symbol is present inside the plugin, e.g. `char PCSX2Data[20] = { 0 };`, you can access these parameters:
  ```c
-    char PCSX2Data[20] = { 1 };
+    int PCSX2Data[10] = { 1 };
 
     ...
 

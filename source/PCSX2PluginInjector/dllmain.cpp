@@ -18,6 +18,16 @@ std::promise<void> exitSignal2;
 
 constexpr auto start_pattern = "28 ? 00 70 28 ? 00 70 28 ? 00 70 28 ? 00 70 28";
 
+enum class PCSX2DataType : uint32_t
+{
+    PCSX2Data_DesktopSizeX,
+    PCSX2Data_DesktopSizeY,
+    PCSX2Data_WindowSizeX,
+    PCSX2Data_WindowSizeY,
+    PCSX2Data_IsFullscreen,
+    PCSX2Data_AspectRatioSetting
+};
+
 enum class AspectRatioType : uint8_t
 {
     Stretch,
@@ -431,12 +441,12 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
                     {
                         spd::log()->info("Writing PCSX2 Data to {}", plugin_path.filename().string());
                         auto [DesktopSizeX, DesktopSizeY] = GetDesktopRes();
-                        injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * 0), (uint32_t)DesktopSizeX, true);
-                        injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * 1), (uint32_t)DesktopSizeY, true);
-                        injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * 2), (uint32_t)WindowSizeX, true);
-                        injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * 3), (uint32_t)WindowSizeY, true);
-                        injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * 4), (uint32_t)IsFullscreen, true);
-                        injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * 5), (uint32_t)AspectRatioSetting, true);
+                        injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_DesktopSizeX), (uint32_t)DesktopSizeX, true);
+                        injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_DesktopSizeY), (uint32_t)DesktopSizeY, true);
+                        injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_WindowSizeX), (uint32_t)WindowSizeX, true);
+                        injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_WindowSizeY), (uint32_t)WindowSizeY, true);
+                        injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_IsFullscreen), (uint32_t)IsFullscreen, true);
+                        injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_AspectRatioSetting), (uint32_t)AspectRatioSetting, true);
                     }
 
                     if (mod.KeyboardStateAddr)

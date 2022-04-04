@@ -13,7 +13,7 @@ EE_OBJS = %s
 
 BASE_ADDRESS = %s
 EE_LINKFILE = linkfile
-#EE_LIBS += -l:libc.a -l:libps2sdkc.a -l:libkernel.a
+#EE_LIBS += -l:libc.a
 EE_LDFLAGS = -Wl,--entry=init -Wl,-Map,../../data/%s.map -nostdlib -nodefaultlibs -Wl,'--defsym=BASE_ADDRESS=$(BASE_ADDRESS)'
 
 all: $(EE_BIN)
