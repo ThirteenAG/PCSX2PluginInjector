@@ -93,6 +93,7 @@ void SuspendParentProcess(DWORD targetProcessId, DWORD targetThreadId, bool acti
 
 void ElfSwitchWatcher(std::future<void> futureObj, uint32_t* addr, uint32_t data, uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, bool bEnableEE128mbRam, int& WindowSizeX, int& WindowSizeY, bool& IsFullscreen, AspectRatioType& AspectRatioSetting)
 {
+    spd::log()->info("Starting thread ElfSwitchWatcher");
     volatile auto cur_crc = crc;
     while (futureObj.wait_for(std::chrono::milliseconds(1)) == std::future_status::timeout)
     {
@@ -104,11 +105,15 @@ void ElfSwitchWatcher(std::future<void> futureObj, uint32_t* addr, uint32_t data
                 while (*addr == 0)
                 {
                     if (cur_crc != crc)
+                    {
+                        spd::log()->info("Ending thread ElfSwitchWatcher");
                         return;
+                    }
                 }
                 SuspendParentProcess(GetCurrentProcessId(), GetCurrentThreadId(), true);
                 LoadPlugins(crc, EEMainMemoryStart, EEMainMemorySize, GameElfTextBase, GameElfTextSize, bEnableEE128mbRam, WindowSizeX, WindowSizeY, IsFullscreen, AspectRatioSetting);
                 SuspendParentProcess(GetCurrentProcessId(), GetCurrentThreadId(), false);
+                spd::log()->info("Ending thread ElfSwitchWatcher");
                 return;
             }
         }
@@ -118,10 +123,12 @@ void ElfSwitchWatcher(std::future<void> futureObj, uint32_t* addr, uint32_t data
         }
         std::this_thread::yield();
     }
+    spd::log()->info("Ending thread ElfSwitchWatcher");
 }
 
 void KeyboardStateThread(std::future<void> futureObj, std::vector<std::pair<uintptr_t, size_t>> kbd_ptrs, uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize)
 {
+    spd::log()->info("Starting thread KeyboardState");
     volatile auto cur_crc = crc;
     while (futureObj.wait_for(std::chrono::milliseconds(1)) == std::future_status::timeout)
     {
@@ -140,11 +147,13 @@ void KeyboardStateThread(std::future<void> futureObj, std::vector<std::pair<uint
             }
             else
             {
-                break;
+                spd::log()->info("Ending thread KeyboardState");
+                return;
             }
         }
         std::this_thread::yield();
     }
+    spd::log()->info("Ending thread KeyboardState");
 }
 
 std::vector<char> LoadFileToBuffer(std::filesystem::path path)
@@ -395,6 +404,15 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
 
                     if (mod.PatternDataAddr)
                     {
+                        if (!elf_thread_created)
+                        {
+                            spd::log()->info("Some plugins has to be loaded in another elf, creating thread to handle it");
+                            std::future<void> futureObj = exitSignal.get_future();
+                            std::thread th(&ElfSwitchWatcher, std::move(futureObj), ei_hook, ei_data, std::ref(crc), EEMainMemoryStart, EEMainMemorySize, GameElfTextBase, GameElfTextSize, bEnableEE128mbRam, std::ref(WindowSizeX), std::ref(WindowSizeY), std::ref(IsFullscreen), std::ref(AspectRatioSetting));
+                            th.detach();
+                            elf_thread_created = true;
+                        }
+
                         std::string_view pattern_str((char*)(buffer.data() + mod.SegmentFileOffset + mod.PatternDataAddr - mod.Base));
                         if (!pattern_str.empty())
                         {
@@ -402,14 +420,6 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
                             if (pattern.empty())
                             {
                                 spd::log()->warn("Pattern \"{}\" is not found in this elf, {} will not be loaded at this time", pattern_str, file.path().filename().string());
-                                if (!elf_thread_created)
-                                {
-                                    spd::log()->info("Some plugins has to be loaded in another elf, creating thread to handle it");
-                                    std::future<void> futureObj = exitSignal.get_future();
-                                    std::thread th(&ElfSwitchWatcher, std::move(futureObj), ei_hook, ei_data, std::ref(crc), EEMainMemoryStart, EEMainMemorySize, GameElfTextBase, GameElfTextSize, bEnableEE128mbRam, std::ref(WindowSizeX), std::ref(WindowSizeY), std::ref(IsFullscreen), std::ref(AspectRatioSetting));
-                                    th.detach();
-                                    elf_thread_created = true;
-                                }
                                 continue;
                             }
                         }
@@ -473,7 +483,7 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
     {
         spd::log()->error("{} directory does not exist", pluginsPath.filename().string());
     }
-    spd::log()->info("\n");
+    spd::log()->info("Finished loading plugins\n");
 }
 
 

@@ -10,8 +10,9 @@ public:
     static const std::shared_ptr<spdlog::logger>& log()
     {
         static const auto log = spdlog::basic_logger_mt("basic_logger", spd::GetLogName(), true);
-        spdlog::set_pattern("[%H:%M:%S] [%l] %v");
+        spdlog::set_pattern("[%H:%M:%S] [thread %t] [%l] %v");
         spdlog::flush_on(spdlog::level::debug);
+        spdlog::set_default_logger(log);
         return log;
     }
 
