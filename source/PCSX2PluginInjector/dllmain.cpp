@@ -139,6 +139,24 @@ struct CMouseControllerState
     float	Y;
 };
 
+void RegisterInputDevices(HWND hWnd)
+{
+    constexpr auto HID_USAGE_PAGE_GENERIC = 0x01;
+    constexpr auto HID_USAGE_GENERIC_MOUSE = 0x02;
+    constexpr auto HID_USAGE_GENERIC_KEYBOARD = 0x06;
+    RAWINPUTDEVICE Rid[2] = {};
+    Rid[0].usUsagePage = HID_USAGE_PAGE_GENERIC;
+    Rid[0].usUsage = HID_USAGE_GENERIC_KEYBOARD;
+    Rid[0].dwFlags = 0;
+    Rid[0].hwndTarget = hWnd;
+    Rid[1].usUsagePage = HID_USAGE_PAGE_GENERIC;
+    Rid[1].usUsage = HID_USAGE_GENERIC_MOUSE;
+    Rid[1].dwFlags = RIDEV_INPUTSINK;
+    Rid[1].hwndTarget = hWnd;
+    RegisterRawInputDevices(&Rid[0], 1, sizeof(Rid[0]));
+    RegisterRawInputDevices(&Rid[1], 1, sizeof(Rid[1]));
+}
+
 enum PtrType
 {
     KeyboardData,
@@ -148,7 +166,11 @@ std::vector<std::pair<uintptr_t, std::pair<size_t, uint8_t>>> kbd_ptrs;
 LRESULT(WINAPI* WndProc)(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 LRESULT WINAPI CustomWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-    if (msg == WM_INPUT)
+    if (msg == WM_ACTIVATE && wParam == WA_ACTIVE)
+    {
+        RegisterInputDevices(hWnd);
+    }
+    else if (msg == WM_INPUT)
     {
         for (auto& it : kbd_ptrs)
         {
@@ -599,21 +621,7 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
             auto hwnd = GetHwnd(GetCurrentProcessId());
             if (hwnd)
             {
-                constexpr auto HID_USAGE_PAGE_GENERIC = 0x01;
-                constexpr auto HID_USAGE_GENERIC_MOUSE = 0x02;
-                constexpr auto HID_USAGE_GENERIC_KEYBOARD = 0x06;
-                RAWINPUTDEVICE Rid[2] = {};
-                Rid[0].usUsagePage = HID_USAGE_PAGE_GENERIC;
-                Rid[0].usUsage = HID_USAGE_GENERIC_KEYBOARD;
-                Rid[0].dwFlags = 0;
-                Rid[0].hwndTarget = hwnd;
-                Rid[1].usUsagePage = HID_USAGE_PAGE_GENERIC;
-                Rid[1].usUsage = HID_USAGE_GENERIC_MOUSE;
-                Rid[1].dwFlags = RIDEV_INPUTSINK;
-                Rid[1].hwndTarget = hwnd;
-                RegisterRawInputDevices(&Rid[0], 1, sizeof(Rid[0]));
-                RegisterRawInputDevices(&Rid[1], 1, sizeof(Rid[1]));
-
+                RegisterInputDevices(hwnd);
                 auto wp = (LRESULT(WINAPI*)(HWND, UINT, WPARAM, LPARAM))GetWindowLongPtr(hwnd, GWLP_WNDPROC);
                 if (wp != CustomWndProc)
                 {
