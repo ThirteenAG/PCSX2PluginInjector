@@ -3,23 +3,43 @@
 
 int CompatibleCRCList[] = { 0x4F32A11F };
 char PluginData[100] = { 0 };
-short KeyboardState[256] = { 1 };
+char KeyboardState[256] = { 1 };
 
-short GetAsyncKeyState(int vKey)
+char GetAsyncKeyState(int vKey)
 {
     return KeyboardState[vKey];
 }
 
 enum KeyCodes
 {
-    VK_KEY_W = 0x57
+    VK_KEY_A = 0x41,
+    VK_KEY_D = 0x44,
+    VK_KEY_S = 0x53,
+    VK_KEY_W = 0x57,
 };
 
-short vcsAcceleration(short* pad) {
-    if (pad[75] == 0 && GetAsyncKeyState(VK_KEY_W) < 0)
+int16_t sub_287470(struct CPad* pad)
+{
+    if (GetAsyncKeyState(VK_KEY_D))
         return 0xFF;
+}
 
-    return 0;
+int16_t sub_287450(struct CPad* pad)
+{
+    if (GetAsyncKeyState(VK_KEY_A))
+        return 0xFF;
+}
+
+int16_t sub_287430(struct CPad* pad)
+{
+    if (GetAsyncKeyState(VK_KEY_S))
+        return 0xFF;
+}
+
+int16_t sub_287410(struct CPad* pad)
+{
+    if (GetAsyncKeyState(VK_KEY_W))
+        return 0xFF;
 }
 
 void(*CCoronas__RegisterCoronaINT)(unsigned int id, unsigned char r, unsigned char g, unsigned char b, unsigned char a, void* pos, unsigned char coronaType, unsigned char flareType, unsigned char reflection, unsigned char LOScheck, unsigned char drawStreak, unsigned char flag4);
@@ -59,8 +79,11 @@ void init()
     *(int*)0x21ED38 = ((0x0C000000 | (((uint32_t)RenderCoronas & 0x0fffffff) >> 2)));
     //nop, skips intro
     *(int*)0x21C8F0 = 0;
-    //jump, replaces acceleration in car with W key on keyboard
-    *(int*)0x2861D0 = (0x08000000 | (((intptr_t)vcsAcceleration & 0x0FFFFFFC) >> 2));
+    //jal, player movement with WASD
+    *(int*)0x285764 = ((0x0C000000 | (((intptr_t)sub_287470 & 0x0fffffff) >> 2)));
+    *(int*)0x285770 = ((0x0C000000 | (((intptr_t)sub_287450 & 0x0fffffff) >> 2)));
+    *(int*)0x2858BC = ((0x0C000000 | (((intptr_t)sub_287430 & 0x0fffffff) >> 2)));
+    *(int*)0x2858C8 = ((0x0C000000 | (((intptr_t)sub_287410 & 0x0fffffff) >> 2)));
 }
 
 int main()

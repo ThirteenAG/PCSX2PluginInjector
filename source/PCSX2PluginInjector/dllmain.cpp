@@ -14,9 +14,6 @@
 #define IDR_INVOKER    101
 
 std::promise<void> exitSignal;
-std::promise<void> exitSignal2;
-
-constexpr auto start_pattern = "28 ? 00 70 28 ? 00 70 28 ? 00 70 28 ? 00 70 28";
 
 enum class PCSX2DataType : uint32_t
 {
@@ -52,6 +49,8 @@ struct PluginInfo
     uint32_t PatternDataSize;
     uint32_t KeyboardStateAddr;
     uint32_t KeyboardStateSize;
+    uint32_t MouseStateAddr;
+    uint32_t MouseStateSize;
 
     bool isValid() { return (Base != 0 && EntryPoint != 0 && Size != 0); }
 };
@@ -126,34 +125,133 @@ void ElfSwitchWatcher(std::future<void> futureObj, uint32_t* addr, uint32_t data
     spd::log()->info("Ending thread ElfSwitchWatcher");
 }
 
-void KeyboardStateThread(std::future<void> futureObj, std::vector<std::pair<uintptr_t, size_t>> kbd_ptrs, uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize)
+struct CMouseControllerState
 {
-    spd::log()->info("Starting thread KeyboardState");
-    volatile auto cur_crc = crc;
-    while (futureObj.wait_for(std::chrono::milliseconds(1)) == std::future_status::timeout)
-    {
-        int16_t kbd[255];
-        for (int i = VK_LBUTTON; i < sizeof(kbd) / sizeof(kbd[0]); i++)
-        {
-            kbd[i] = GetAsyncKeyState(i);
-        }
+    bool	lmb;
+    bool	rmb;
+    bool	mmb;
+    bool	wheelUp;
+    bool	wheelDown;
+    bool	bmx1;
+    bool	bmx2;
+    float	Z;
+    float	X;
+    float	Y;
+};
 
+enum PtrType
+{
+    KeyboardData,
+    MouseData
+};
+std::vector<std::pair<uintptr_t, std::pair<size_t, uint8_t>>> kbd_ptrs;
+LRESULT(WINAPI* WndProc)(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+LRESULT WINAPI CustomWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    if (msg == WM_INPUT)
+    {
         for (auto& it : kbd_ptrs)
         {
             MEMORY_BASIC_INFORMATION MemoryInf;
-            if (cur_crc != crc || (VirtualQuery((LPCVOID)(EEMainMemoryStart + it.first), &MemoryInf, sizeof(MemoryInf)) != 0 && MemoryInf.Protect != 0))
+            if ((VirtualQuery((LPCVOID)it.first, &MemoryInf, sizeof(MemoryInf)) != 0 && MemoryInf.Protect != 0))
             {
-                injector::WriteMemoryRaw(EEMainMemoryStart + it.first, kbd, it.second, true);
-            }
-            else
-            {
-                spd::log()->info("Ending thread KeyboardState");
-                return;
+                auto VKeyStates = reinterpret_cast<char*>(it.first);
+                UINT dwSize = 0;
+
+                GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER));
+                static std::vector<uint8_t> lbp(dwSize);
+                auto raw = reinterpret_cast<RAWINPUT*>(lbp.data());
+
+                if (GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, raw, &dwSize, sizeof(RAWINPUTHEADER)) != dwSize)
+                {
+                    OutputDebugString(TEXT("GetRawInputData does not return correct size !\n"));
+                }
+
+                if (raw->header.dwType == RIM_TYPEKEYBOARD)
+                {
+                    if (it.second.second == KeyboardData && raw->header.hDevice)
+                    {
+                        switch (raw->data.keyboard.VKey)
+                        {
+                        case VK_CONTROL:
+                            if (raw->data.keyboard.Flags & RI_KEY_E0)
+                                VKeyStates[VK_RCONTROL] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                            else
+                                VKeyStates[VK_LCONTROL] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                            break;
+                        case VK_MENU:
+                            if (raw->data.keyboard.Flags & RI_KEY_E0)
+                                VKeyStates[VK_RMENU] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                            else
+                                VKeyStates[VK_LMENU] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                            break;
+                        case VK_SHIFT:
+                            if (raw->data.keyboard.MakeCode == 0x36)
+                                VKeyStates[VK_RSHIFT] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                            else
+                                VKeyStates[VK_LSHIFT] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                            break;
+                        default:
+                            VKeyStates[raw->data.keyboard.VKey] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                            break;
+                        }
+                    }
+                }
+                else if (raw->header.dwType == RIM_TYPEMOUSE)
+                {
+                    if (it.second.second == MouseData && raw->header.hDevice)
+                    {
+                        CMouseControllerState& StateBuf = *reinterpret_cast<CMouseControllerState*>(it.first);
+
+                        // Movement
+                        StateBuf.X += static_cast<float>(raw->data.mouse.lLastX);
+                        StateBuf.Y += static_cast<float>(raw->data.mouse.lLastY);
+
+                        // LMB
+                        if (!StateBuf.lmb)
+                            StateBuf.lmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN) != false;
+                        else
+                            StateBuf.lmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP) == false;
+
+                        // RMB
+                        if (!StateBuf.rmb)
+                            StateBuf.rmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN) != false;
+                        else
+                            StateBuf.rmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_UP) == false;
+
+                        // MMB
+                        if (!StateBuf.mmb)
+                            StateBuf.mmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN) != false;
+                        else
+                            StateBuf.mmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP) == false;
+
+                        // 4th button
+                        if (!StateBuf.bmx1)
+                            StateBuf.bmx1 = (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_4_DOWN) != false;
+                        else
+                            StateBuf.bmx1 = (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_4_UP) == false;
+
+                        // 5th button
+                        if (!StateBuf.bmx2)
+                            StateBuf.bmx2 = (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_5_DOWN) != false;
+                        else
+                            StateBuf.bmx2 = (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_5_UP) == false;
+
+                        // Scroll
+                        if (raw->data.mouse.usButtonFlags & RI_MOUSE_WHEEL)
+                        {
+                            StateBuf.Z += static_cast<signed short>(raw->data.mouse.usButtonData);
+                            if (StateBuf.Z < 0.0f)
+                                StateBuf.wheelDown = true;
+                            else if (StateBuf.Z > 0.0f)
+                                StateBuf.wheelUp = true;
+                        }
+                    }
+                }
             }
         }
-        std::this_thread::yield();
     }
-    spd::log()->info("Ending thread KeyboardState");
+    return WndProc(hWnd, msg, wParam, lParam);
 }
 
 std::vector<char> LoadFileToBuffer(std::filesystem::path path)
@@ -240,6 +338,11 @@ PluginInfo ParseElf(auto path)
                         info.KeyboardStateAddr = value;
                         info.KeyboardStateSize = size;
                     }
+                    else if (name == "MouseState")
+                    {
+                        info.MouseStateAddr = value;
+                        info.MouseStateSize = size;
+                    }
                 }
             }
         }
@@ -257,9 +360,7 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
 
     exitSignal.set_value();
     std::promise<void>().swap(exitSignal);
-    exitSignal2.set_value();
-    std::promise<void>().swap(exitSignal2);
-    std::vector<std::pair<uintptr_t, size_t>> kbd_ptrs;
+    kbd_ptrs.clear();
     uint32_t* ei_hook = nullptr;
     uint32_t ei_data = 0;
     uint32_t NewMinBase = 0;
@@ -336,6 +437,7 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
 
         spd::log()->info("Hooking game's entry point function...", invokerPath.filename().string());
         auto patched = false;
+        constexpr auto start_pattern = "28 ? 00 70 28 ? 00 70 28 ? 00 70 28 ? 00 70 28";
         auto pattern = hook::pattern(EEMainMemoryStart, EEMainMemoryStart + EEMainMemorySize, start_pattern);
         pattern.for_each_result([&ei_hook, &ei_data, &invoker, &patched](hook::pattern_match match)
             {
@@ -360,7 +462,6 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
         spd::log()->info("Looking for plugins in {}", pluginsPath.parent_path().filename().string());
 
         bool elf_thread_created = false;
-        bool kb_thread_created = false;
 
         for (const auto& file : std::filesystem::recursive_directory_iterator(pluginsPath, std::filesystem::directory_options::skip_permission_denied))
         {
@@ -462,19 +563,65 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
                     if (mod.KeyboardStateAddr)
                     {
                         spd::log()->info("{} requests keyboard state", plugin_path.filename().string());
-                        kbd_ptrs.emplace_back(mod.KeyboardStateAddr, mod.KeyboardStateSize);
+                        kbd_ptrs.emplace_back(EEMainMemoryStart + mod.KeyboardStateAddr, std::make_pair(mod.KeyboardStateSize, KeyboardData));
+                    }
+
+                    if (mod.MouseStateAddr)
+                    {
+                        spd::log()->info("{} requests mouse state", plugin_path.filename().string());
+                        kbd_ptrs.emplace_back(EEMainMemoryStart + mod.MouseStateAddr, std::make_pair(mod.MouseStateSize, MouseData));
                     }
                 }
             }
         }
 
-        if (!kbd_ptrs.empty() && !kb_thread_created)
+        if (!kbd_ptrs.empty())
         {
-            spd::log()->info("Creating thread to handle keyboard state");
-            std::future<void> futureObj = exitSignal2.get_future();
-            std::thread th(&KeyboardStateThread, std::move(futureObj), kbd_ptrs, std::ref(crc), EEMainMemoryStart, EEMainMemorySize);
-            th.detach();
-            kb_thread_created = true;
+            auto GetHwnd = [](DWORD dwProcessID) -> HWND
+            {
+                HWND hCurWnd = nullptr;
+                do
+                {
+                    hCurWnd = FindWindowEx(nullptr, hCurWnd, nullptr, nullptr);
+                    DWORD checkProcessID = 0;
+                    GetWindowThreadProcessId(hCurWnd, &checkProcessID);
+                    if (checkProcessID == dwProcessID)
+                    {
+                        std::wstring title(GetWindowTextLength(hCurWnd) + 1, L'\0');
+                        GetWindowTextW(hCurWnd, &title[0], title.size());
+                        if (title.starts_with(L"Slot:"))
+                            return hCurWnd;
+                    }
+                } while (hCurWnd != nullptr);
+                return NULL;
+            };
+
+            auto hwnd = GetHwnd(GetCurrentProcessId());
+            if (hwnd)
+            {
+                constexpr auto HID_USAGE_PAGE_GENERIC = 0x01;
+                constexpr auto HID_USAGE_GENERIC_MOUSE = 0x02;
+                constexpr auto HID_USAGE_GENERIC_KEYBOARD = 0x06;
+                RAWINPUTDEVICE Rid[2] = {};
+                Rid[0].usUsagePage = HID_USAGE_PAGE_GENERIC;
+                Rid[0].usUsage = HID_USAGE_GENERIC_KEYBOARD;
+                Rid[0].dwFlags = 0;
+                Rid[0].hwndTarget = hwnd;
+                Rid[1].usUsagePage = HID_USAGE_PAGE_GENERIC;
+                Rid[1].usUsage = HID_USAGE_GENERIC_MOUSE;
+                Rid[1].dwFlags = RIDEV_INPUTSINK;
+                Rid[1].hwndTarget = hwnd;
+                RegisterRawInputDevices(&Rid[0], 1, sizeof(Rid[0]));
+                RegisterRawInputDevices(&Rid[1], 1, sizeof(Rid[1]));
+
+                auto wp = (LRESULT(WINAPI*)(HWND, UINT, WPARAM, LPARAM))GetWindowLongPtr(hwnd, GWLP_WNDPROC);
+                if (wp != CustomWndProc)
+                {
+                    spd::log()->info("Keyboard and mouse data requested by plugins, replacing WndProc for HWND {}", (uint32_t)hwnd);
+                    WndProc = wp;
+                    SetWindowLongPtr(hwnd, GWLP_WNDPROC, (LONG_PTR)&CustomWndProc);
+                }
+            }
         }
 
         spd::log()->info("Suggested minimum base address for new plugins: 0x{:X}", NewMinBase);
