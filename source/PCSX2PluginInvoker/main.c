@@ -19,6 +19,8 @@ struct PluginInfo
     uint32_t KeyboardStateSize;
     uint32_t MouseStateAddr;
     uint32_t MouseStateSize;
+    uint32_t OSDTextAddr;
+    uint32_t OSDTextSize;
 };
 
 struct PluginInfo PluginData[100] = { 0xFFFFFFFF }; //needs to be initialized

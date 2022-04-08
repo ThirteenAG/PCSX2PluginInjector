@@ -108,9 +108,20 @@ float test()
 ```
  See Demo Plugin 1 for full example.
 
-- Demo Plugin 1 is compatible with **GTAVCS [SLUS-21590]**. It renders few coronas at the beginning of the game, skips intro and adds possibility to control player with **WASD** keyboard keys:
+ - **OSDText** symbol can be used to display text on screen (experimental, only in QT version):
+```c
+char OSDText[10][255] = { 1 };
+...
+npf_snprintf(OSDText[0], 255, "Cam Pos: %s %s %s", pos_x, pos_y, pos_z);
+strcpy(OSDText[1], "This is test message");
+```
+Strings amount can be custom (**10** in the example code), but the length(**255**) is hardcoded, do to change it. 
 
-![](https://i.imgur.com/qYbBtr3.png)
+See Demo Plugin 1 for full example.
+
+- Demo Plugin 1 is compatible with **GTAVCS [SLUS-21590]**. It renders few coronas at the beginning of the game, skips intro, displays some messages using on screen overlay (enable in emulator settings, only available in QT version) and adds possibility to control player with **WASD** keyboard keys:
+
+![](https://i.imgur.com/eECJWlQ.png)
 
 - Demo Plugin 2 is for **Splinter Cell Double Agent [SLUS-21356]**, it makes the game's aspect ratio adjust to emulator's resolution via redirecting code to plugin's function:
 

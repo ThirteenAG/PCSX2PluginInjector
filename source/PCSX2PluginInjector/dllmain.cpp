@@ -51,9 +51,30 @@ struct PluginInfo
     uint32_t KeyboardStateSize;
     uint32_t MouseStateAddr;
     uint32_t MouseStateSize;
+    uint32_t OSDTextAddr;
+    uint32_t OSDTextSize;
 
     bool isValid() { return (Base != 0 && EntryPoint != 0 && Size != 0); }
 };
+
+std::vector<std::string_view>& GetOSDVector()
+{
+    static std::vector<std::string_view> osd;
+    return osd;
+}
+
+CEXP size_t GetOSDVectorSize()
+{
+    return GetOSDVector().size();
+}
+
+CEXP const char* GetOSDVectorData(size_t index)
+{
+    if (index > GetOSDVectorSize())
+        return nullptr;
+    else
+        return GetOSDVector()[index].data();
+}
 
 CEXP void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, bool bEnableEE128mbRam, int& WindowSizeX, int& WindowSizeY, bool& IsFullscreen, AspectRatioType& AspectRatioSetting);
 
@@ -170,7 +191,7 @@ LRESULT WINAPI CustomWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
         RegisterInputDevices(hWnd);
     }
-    else if (msg == WM_INPUT)
+    else if (msg == WM_INPUT && hWnd == GetActiveWindow())
     {
         for (auto& it : kbd_ptrs)
         {
@@ -365,6 +386,11 @@ PluginInfo ParseElf(auto path)
                         info.MouseStateAddr = value;
                         info.MouseStateSize = size;
                     }
+                    else if (name == "OSDText")
+                    {
+                        info.OSDTextAddr = value;
+                        info.OSDTextSize = size;
+                    }
                 }
             }
         }
@@ -382,6 +408,7 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
 
     exitSignal.set_value();
     std::promise<void>().swap(exitSignal);
+    GetOSDVector().clear();
     kbd_ptrs.clear();
     uint32_t* ei_hook = nullptr;
     uint32_t ei_data = 0;
@@ -593,6 +620,17 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
                         spd::log()->info("{} requests mouse state", plugin_path.filename().string());
                         kbd_ptrs.emplace_back(EEMainMemoryStart + mod.MouseStateAddr, std::make_pair(mod.MouseStateSize, MouseData));
                     }
+
+                    if (mod.OSDTextAddr)
+                    {
+                        spd::log()->info("{} requests OSD drawings", plugin_path.filename().string());
+                        for (size_t i = 0; i < mod.OSDTextSize / 255; i++)
+                        {
+                            auto block = (char*)(EEMainMemoryStart + mod.OSDTextAddr + (255 * i));
+                            injector::MemoryFill(block, 0, 255, true);
+                            GetOSDVector().emplace_back(std::string_view(block, 255));
+                        }
+                    }
                 }
             }
         }
@@ -611,7 +649,7 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
                     {
                         std::wstring title(GetWindowTextLength(hCurWnd) + 1, L'\0');
                         GetWindowTextW(hCurWnd, &title[0], title.size());
-                        if (title.starts_with(L"Slot:"))
+                        if (title.starts_with(L"Slot:") || title.starts_with(L"Booting PS2 BIOS..."))
                             return hCurWnd;
                     }
                 } while (hCurWnd != nullptr);
