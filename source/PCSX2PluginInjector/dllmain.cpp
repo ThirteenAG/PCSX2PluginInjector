@@ -148,16 +148,16 @@ void ElfSwitchWatcher(std::future<void> futureObj, uint32_t* addr, uint32_t data
 
 struct CMouseControllerState
 {
-    bool	lmb;
-    bool	rmb;
-    bool	mmb;
-    bool	wheelUp;
-    bool	wheelDown;
-    bool	bmx1;
-    bool	bmx2;
-    float	Z;
-    float	X;
-    float	Y;
+    int8_t	lmb;
+    int8_t	rmb;
+    int8_t	mmb;
+    int8_t	wheelUp;
+    int8_t	wheelDown;
+    int8_t	bmx1;
+    int8_t	bmx2;
+    float   Z;
+    float   X;
+    float   Y;
 };
 
 void RegisterInputDevices(HWND hWnd)
