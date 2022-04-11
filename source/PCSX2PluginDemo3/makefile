@@ -3,7 +3,7 @@ EE_OBJS = main.o
 
 BASE_ADDRESS = 0x02020000
 EE_LINKFILE = linkfile
-#EE_LIBS += -l:libc.a
+EE_LIBS += -l:libc.a -l:libgcc.a
 EE_LDFLAGS = -Wl,--entry=init -Wl,-Map,../../data/PLUGINS/MKD/PCSX2PluginDemo3.map -nostdlib -nodefaultlibs -Wl,'--defsym=BASE_ADDRESS=$(BASE_ADDRESS)'
 
 all: $(EE_BIN)
