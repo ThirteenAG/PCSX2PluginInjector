@@ -9,14 +9,50 @@
 #define NANOPRINTF_IMPLEMENTATION
 #include "nanoprintf.h"
 
+struct CMouseControllerState
+{
+    int8_t	lmb;
+    int8_t	rmb;
+    int8_t	mmb;
+    int8_t	wheelUp;
+    int8_t	wheelDown;
+    int8_t	bmx1;
+    int8_t	bmx2;
+    float   Z;
+    float   X;
+    float   Y;
+};
+
+enum KeyboardBufState
+{
+    CurrentState,
+    PreviousState,
+
+    StateNum,
+
+    StateSize = 256
+};
+
+enum
+{
+    OSDStringNum = 10,
+    OSDStringSize = 255
+};
+
 int CompatibleCRCList[] = { 0x4F32A11F };
 char PluginData[100] = { 0 };
-char KeyboardState[256] = { 1 };
-char OSDText[10][255] = { 1 };
+char KeyboardState[StateNum][StateSize] = { 1 };
+struct CMouseControllerState MouseState[StateNum] = { 1 };
+char OSDText[OSDStringNum][OSDStringSize] = { 1 };
 
 char GetAsyncKeyState(int vKey)
 {
-    return KeyboardState[vKey];
+    return KeyboardState[CurrentState][vKey];
+}
+
+int8_t isMouseKeyDown(size_t vKey)
+{
+    return *(int8_t*)(&MouseState[CurrentState] + vKey);
 }
 
 enum KeyCodes
@@ -49,6 +85,13 @@ int16_t sub_287410(struct CPad* pad)
 {
     if (GetAsyncKeyState(VK_KEY_W))
         return 0xFF;
+}
+
+int16_t sub_286148(struct CPad* pad)
+{
+    if (isMouseKeyDown(offsetof(struct CMouseControllerState, lmb)))
+        return 0xFF;
+    return 0;
 }
 
 void(*CCoronas__RegisterCoronaINT)(unsigned int id, unsigned char r, unsigned char g, unsigned char b, unsigned char a, void* pos, unsigned char coronaType, unsigned char flareType, unsigned char reflection, unsigned char LOScheck, unsigned char drawStreak, unsigned char flag4);
@@ -114,6 +157,10 @@ void init()
     *(int*)0x285770 = ((0x0C000000 | (((intptr_t)sub_287450 & 0x0fffffff) >> 2)));
     *(int*)0x2858BC = ((0x0C000000 | (((intptr_t)sub_287430 & 0x0fffffff) >> 2)));
     *(int*)0x2858C8 = ((0x0C000000 | (((intptr_t)sub_287410 & 0x0fffffff) >> 2)));
+
+    //jmp, fire with LMB
+    *(int*)0x286148 = ((0x08000000 | (((intptr_t)sub_286148 & 0x0FFFFFFC) >> 2)));
+    *(int*)(0x286148 + 4) = 0; //nop
 }
 
 int main()

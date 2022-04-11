@@ -81,36 +81,42 @@ See Demo Plugin 2 for full example.
  ```c
 struct CMouseControllerState
 {
-    bool	lmb;
-    bool	rmb;
-    bool	mmb;
-    bool	wheelUp;
-    bool	wheelDown;
-    bool	bmx1;
-    bool	bmx2;
-    float	Z;
-    float	X;
-    float	Y;
+    int8_t	lmb;
+    int8_t	rmb;
+    int8_t	mmb;
+    int8_t	wheelUp;
+    int8_t	wheelDown;
+    int8_t	bmx1;
+    int8_t	bmx2;
+    float   Z;
+    float   X;
+    float   Y;
 };
 
-char KeyboardState[256] = { 1 };
-struct CMouseControllerState MouseState = { 1 };
-...
-char GetAsyncKeyState(int vKey)
+enum KeyboardBufState
 {
-    return KeyboardState[vKey];
-}
+    CurrentState,
+    PreviousState,
 
-float test()
-{
-    return MouseState.Y;
-}
+    StateNum,
+
+    StateSize = 256 //do not modify
+};
+
+char KeyboardState[StateNum][StateSize] = { 1 };
+struct CMouseControllerState MouseState[StateNum] = { 1 };
 ```
  See Demo Plugin 1 for full example.
 
  - **OSDText** symbol can be used to display text on screen (experimental, only in QT version):
 ```c
-char OSDText[10][255] = { 1 };
+enum
+{
+    OSDStringNum = 10,
+    OSDStringSize = 255 //do not modify
+};
+
+char OSDText[OSDStringNum][OSDStringSize] = { 1 };
 ...
 npf_snprintf(OSDText[0], 255, "Cam Pos: %s %s %s", pos_x, pos_y, pos_z);
 strcpy(OSDText[1], "This is test message");
@@ -119,7 +125,7 @@ Strings amount can be custom (**10** in the example code), but the length(**255*
 
 See Demo Plugin 1 for full example.
 
-- Demo Plugin 1 is compatible with **GTAVCS [SLUS-21590]**. It renders few coronas at the beginning of the game, skips intro, displays some messages using on screen overlay (enable in emulator settings, only available in QT version) and adds possibility to control player with **WASD** keyboard keys:
+- Demo Plugin 1 is compatible with **GTAVCS [SLUS-21590]**. It renders few coronas at the beginning of the game, skips intro, displays some messages using on screen overlay (enable in emulator settings, only available in QT version) and adds possibility to control player with **WASD** keyboard keys, and shoot weapon with left mouse button:
 
 ![](https://i.imgur.com/eECJWlQ.png)
 

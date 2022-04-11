@@ -178,11 +178,27 @@ void RegisterInputDevices(HWND hWnd)
     RegisterRawInputDevices(&Rid[1], 1, sizeof(Rid[1]));
 }
 
+enum
+{
+    OSDStringSize = 255
+};
+
+enum KeyboardBufState
+{
+    CurrentState,
+    PreviousState,
+
+    StateNum,
+
+    StateSize = 256
+};
+
 enum PtrType
 {
     KeyboardData,
     MouseData
 };
+
 std::vector<std::pair<uintptr_t, std::pair<size_t, uint8_t>>> kbd_ptrs;
 LRESULT(WINAPI* WndProc)(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 LRESULT WINAPI CustomWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -199,6 +215,7 @@ LRESULT WINAPI CustomWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             if ((VirtualQuery((LPCVOID)it.first, &MemoryInf, sizeof(MemoryInf)) != 0 && MemoryInf.Protect != 0))
             {
                 auto VKeyStates = reinterpret_cast<char*>(it.first);
+                auto VKeyStatesPrev = reinterpret_cast<char*>(it.first + KeyboardBufState::StateSize);
                 UINT dwSize = 0;
 
                 GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER));
@@ -218,23 +235,42 @@ LRESULT WINAPI CustomWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
                         {
                         case VK_CONTROL:
                             if (raw->data.keyboard.Flags & RI_KEY_E0)
+                            {
+                                VKeyStatesPrev[VK_RCONTROL] = VKeyStates[VK_RCONTROL];
                                 VKeyStates[VK_RCONTROL] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                            }
                             else
+                            {
+                                VKeyStatesPrev[VK_LCONTROL] = VKeyStates[VK_LCONTROL];
                                 VKeyStates[VK_LCONTROL] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                            }
                             break;
                         case VK_MENU:
                             if (raw->data.keyboard.Flags & RI_KEY_E0)
+                            {
+                                VKeyStatesPrev[VK_RMENU] = VKeyStates[VK_RMENU];
                                 VKeyStates[VK_RMENU] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                            }
                             else
+                            {
+                                VKeyStatesPrev[VK_LMENU] = VKeyStates[VK_LMENU];
                                 VKeyStates[VK_LMENU] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                            }
                             break;
                         case VK_SHIFT:
                             if (raw->data.keyboard.MakeCode == 0x36)
+                            {
+                                VKeyStatesPrev[VK_RSHIFT] = VKeyStates[VK_RSHIFT];
                                 VKeyStates[VK_RSHIFT] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                            }
                             else
+                            {
+                                VKeyStatesPrev[VK_LSHIFT] = VKeyStates[VK_LSHIFT];
                                 VKeyStates[VK_LSHIFT] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                            }
                             break;
                         default:
+                            VKeyStatesPrev[raw->data.keyboard.VKey] = VKeyStates[raw->data.keyboard.VKey];
                             VKeyStates[raw->data.keyboard.VKey] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
                             break;
                         }
@@ -245,6 +281,9 @@ LRESULT WINAPI CustomWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
                     if (it.second.second == MouseData && raw->header.hDevice)
                     {
                         CMouseControllerState& StateBuf = *reinterpret_cast<CMouseControllerState*>(it.first);
+                        CMouseControllerState& StateBufPrev = *reinterpret_cast<CMouseControllerState*>(it.first + sizeof(CMouseControllerState));
+
+                        StateBufPrev = StateBuf;
 
                         // Movement
                         StateBuf.X += static_cast<float>(raw->data.mouse.lLastX);
@@ -612,23 +651,25 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
                     if (mod.KeyboardStateAddr)
                     {
                         spd::log()->info("{} requests keyboard state", plugin_path.filename().string());
-                        kbd_ptrs.emplace_back(EEMainMemoryStart + mod.KeyboardStateAddr, std::make_pair(mod.KeyboardStateSize, KeyboardData));
+                        kbd_ptrs.emplace_back(EEMainMemoryStart + mod.KeyboardStateAddr, std::make_pair(mod.KeyboardStateSize, PtrType::KeyboardData));
+                        injector::MemoryFill(EEMainMemoryStart + mod.KeyboardStateAddr, 0, mod.KeyboardStateSize, true);
                     }
 
                     if (mod.MouseStateAddr)
                     {
                         spd::log()->info("{} requests mouse state", plugin_path.filename().string());
-                        kbd_ptrs.emplace_back(EEMainMemoryStart + mod.MouseStateAddr, std::make_pair(mod.MouseStateSize, MouseData));
+                        kbd_ptrs.emplace_back(EEMainMemoryStart + mod.MouseStateAddr, std::make_pair(mod.MouseStateSize, PtrType::MouseData));
+                        injector::MemoryFill(EEMainMemoryStart + mod.MouseStateAddr, 0, mod.MouseStateSize, true);
                     }
 
                     if (mod.OSDTextAddr)
                     {
                         spd::log()->info("{} requests OSD drawings", plugin_path.filename().string());
-                        for (size_t i = 0; i < mod.OSDTextSize / 255; i++)
+                        for (size_t i = 0; i < mod.OSDTextSize / OSDStringSize; i++)
                         {
-                            auto block = (char*)(EEMainMemoryStart + mod.OSDTextAddr + (255 * i));
-                            injector::MemoryFill(block, 0, 255, true);
-                            GetOSDVector().emplace_back(std::string_view(block, 255));
+                            auto block = (char*)(EEMainMemoryStart + mod.OSDTextAddr + (OSDStringSize * i));
+                            injector::MemoryFill(block, 0, OSDStringSize, true);
+                            GetOSDVector().emplace_back(std::string_view(block, OSDStringSize));
                         }
                     }
                 }
