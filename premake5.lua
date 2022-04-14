@@ -27,6 +27,7 @@ workspace "PCSX2PluginInjector"
    files { "external/hooking/Hooking.Patterns.h", "external/hooking/Hooking.Patterns.cpp" }
    files { "includes/stdafx.h", "includes/stdafx.cpp" }
    includedirs { "includes" }
+   includedirs { "source/api" }
    includedirs { "external/hooking" }
    includedirs { "external/injector/include" }
    includedirs { "external/inireader" }

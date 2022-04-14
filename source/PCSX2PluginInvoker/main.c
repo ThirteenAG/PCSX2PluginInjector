@@ -1,29 +1,8 @@
+#define PLUGIN_INVOKER
 #include <stdio.h>
-#include <stdint.h>
+#include "../API/pcsx2f_api.h"
 
-struct PluginInfo
-{
-    uint32_t Base;
-    uint32_t EntryPoint;
-    uint32_t SegmentFileOffset;
-    uint32_t Size;
-    uint32_t DataAddr;
-    uint32_t DataSize;
-    uint32_t PCSX2DataAddr;
-    uint32_t PCSX2DataSize;
-    uint32_t CompatibleCRCListAddr;
-    uint32_t CompatibleCRCListSize;
-    uint32_t PatternDataAddr;
-    uint32_t PatternDataSize;
-    uint32_t KeyboardStateAddr;
-    uint32_t KeyboardStateSize;
-    uint32_t MouseStateAddr;
-    uint32_t MouseStateSize;
-    uint32_t OSDTextAddr;
-    uint32_t OSDTextSize;
-};
-
-struct PluginInfo PluginData[100] = { 0xFFFFFFFF }; //needs to be initialized
+struct PluginInfo PluginData[PluginsMaxNum] = { };
 
 void init()
 {

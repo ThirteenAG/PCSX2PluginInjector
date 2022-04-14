@@ -1,61 +1,17 @@
 #include <elfio/elfio.hpp>
 #include "stdafx.h"
-#include <filesystem>
-#include "pcsx2/pcsx2.h"
-
 #include <thread>
 #include <iostream>
-#include <assert.h>
 #include <chrono>
 #include <future>
-
+#include <filesystem>
 #include <tlhelp32.h>
+#include <pcsx2f_api.h>
+#include <pcsx2/mips.hpp>
 
 #define IDR_INVOKER    101
 
 std::promise<void> exitSignal;
-
-enum class PCSX2DataType : uint32_t
-{
-    PCSX2Data_DesktopSizeX,
-    PCSX2Data_DesktopSizeY,
-    PCSX2Data_WindowSizeX,
-    PCSX2Data_WindowSizeY,
-    PCSX2Data_IsFullscreen,
-    PCSX2Data_AspectRatioSetting
-};
-
-enum class AspectRatioType : uint8_t
-{
-    Stretch,
-    R4_3,
-    R16_9,
-    MaxCount
-};
-
-struct PluginInfo
-{
-    uint32_t Base;
-    uint32_t EntryPoint;
-    uint32_t SegmentFileOffset;
-    uint32_t Size;
-    uint32_t DataAddr;
-    uint32_t DataSize;
-    uint32_t PCSX2DataAddr;
-    uint32_t PCSX2DataSize;
-    uint32_t CompatibleCRCListAddr;
-    uint32_t CompatibleCRCListSize;
-    uint32_t PatternDataAddr;
-    uint32_t PatternDataSize;
-    uint32_t KeyboardStateAddr;
-    uint32_t KeyboardStateSize;
-    uint32_t MouseStateAddr;
-    uint32_t MouseStateSize;
-    uint32_t OSDTextAddr;
-    uint32_t OSDTextSize;
-
-    bool isValid() { return (Base != 0 && EntryPoint != 0 && Size != 0); }
-};
 
 std::vector<std::string_view>& GetOSDVector()
 {
@@ -76,7 +32,7 @@ CEXP const char* GetOSDVectorData(size_t index)
         return GetOSDVector()[index].data();
 }
 
-CEXP void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, bool bEnableEE128mbRam, int& WindowSizeX, int& WindowSizeY, bool& IsFullscreen, AspectRatioType& AspectRatioSetting);
+CEXP void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, bool bEnableEE128mbRam, int& WindowSizeX, int& WindowSizeY, bool& IsFullscreen, uint8_t& AspectRatioSetting);
 
 void SuspendParentProcess(DWORD targetProcessId, DWORD targetThreadId, bool action)
 {
@@ -111,7 +67,7 @@ void SuspendParentProcess(DWORD targetProcessId, DWORD targetThreadId, bool acti
     }
 }
 
-void ElfSwitchWatcher(std::future<void> futureObj, uint32_t* addr, uint32_t data, uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, bool bEnableEE128mbRam, int& WindowSizeX, int& WindowSizeY, bool& IsFullscreen, AspectRatioType& AspectRatioSetting)
+void ElfSwitchWatcher(std::future<void> futureObj, uint32_t* addr, uint32_t data, uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, bool bEnableEE128mbRam, int& WindowSizeX, int& WindowSizeY, bool& IsFullscreen, uint8_t& AspectRatioSetting)
 {
     spd::log()->info("Starting thread ElfSwitchWatcher");
     volatile auto cur_crc = crc;
@@ -146,20 +102,6 @@ void ElfSwitchWatcher(std::future<void> futureObj, uint32_t* addr, uint32_t data
     spd::log()->info("Ending thread ElfSwitchWatcher");
 }
 
-struct CMouseControllerState
-{
-    int8_t	lmb;
-    int8_t	rmb;
-    int8_t	mmb;
-    int8_t	wheelUp;
-    int8_t	wheelDown;
-    int8_t	bmx1;
-    int8_t	bmx2;
-    float   Z;
-    float   X;
-    float   Y;
-};
-
 void RegisterInputDevices(HWND hWnd)
 {
     constexpr auto HID_USAGE_PAGE_GENERIC = 0x01;
@@ -177,27 +119,6 @@ void RegisterInputDevices(HWND hWnd)
     RegisterRawInputDevices(&Rid[0], 1, sizeof(Rid[0]));
     RegisterRawInputDevices(&Rid[1], 1, sizeof(Rid[1]));
 }
-
-enum
-{
-    OSDStringSize = 255
-};
-
-enum KeyboardBufState
-{
-    CurrentState,
-    PreviousState,
-
-    StateNum,
-
-    StateSize = 256
-};
-
-enum PtrType
-{
-    KeyboardData,
-    MouseData
-};
 
 std::vector<std::pair<uintptr_t, std::pair<size_t, uint8_t>>> kbd_ptrs;
 LRESULT(WINAPI* WndProc)(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -397,8 +318,8 @@ PluginInfo ParseElf(auto path)
 
                     if (name == "PluginData")
                     {
-                        info.DataAddr = value;
-                        info.DataSize = size;
+                        info.PluginDataAddr = value;
+                        info.PluginDataSize = size;
                     }
                     else if (name == "PCSX2Data")
                     {
@@ -438,7 +359,7 @@ PluginInfo ParseElf(auto path)
     return info;
 }
 
-void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, bool bEnableEE128mbRam, int& WindowSizeX, int& WindowSizeY, bool& IsFullscreen, AspectRatioType& AspectRatioSetting)
+void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, bool bEnableEE128mbRam, int& WindowSizeX, int& WindowSizeY, bool& IsFullscreen, uint8_t& AspectRatioSetting)
 {
     spd::log()->info("Starting PCSX2PluginInjector, game crc: 0x{:X}", crc);
     spd::log()->info("EE Memory starts at: 0x{:X}", EEMainMemoryStart);
@@ -453,14 +374,10 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
     uint32_t ei_data = 0;
     uint32_t NewMinBase = 0;
 
-    wchar_t buf[MAX_PATH];
-    HMODULE hm = NULL;
-    GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCWSTR)&LoadPlugins, &hm);
-    GetModuleFileNameW(hm, buf, sizeof(buf));
-    auto modulePath = std::filesystem::path(buf);
+    auto modulePath = std::filesystem::path(GetThisModulePath<std::wstring>());
     auto pluginsPath = modulePath.remove_filename() / L"PLUGINS/";
     auto invokerPath = pluginsPath / L"PCSX2PluginInvoker.elf";
-    auto _32mb = 0x02000000;
+    constexpr auto _32mb = 0x02000000;
 
     if (std::filesystem::exists(pluginsPath))
     {
@@ -474,6 +391,8 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
         }
         else
         {
+            HMODULE hm = NULL;
+            GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCWSTR)&LoadPlugins, &hm);
             HRSRC hResource = FindResource(hm, MAKEINTRESOURCE(IDR_INVOKER), RT_RCDATA);
             if (hResource)
             {
@@ -519,7 +438,8 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
 
         spd::log()->info("Injecting {}...", invokerPath.filename().string());
         injector::WriteMemoryRaw(EEMainMemoryStart + invoker.Base, buffer.data() + invoker.SegmentFileOffset, buffer.size() - invoker.SegmentFileOffset, true);
-        injector::WriteMemoryRaw(EEMainMemoryStart + invoker.DataAddr + (sizeof(invoker) * count), &invoker, sizeof(invoker), true);
+        injector::MemoryFill(EEMainMemoryStart + invoker.PluginDataAddr, 0x00, invoker.PluginDataSize, true);
+        injector::WriteMemoryRaw(EEMainMemoryStart + invoker.PluginDataAddr + (sizeof(invoker) * count), &invoker, sizeof(invoker), true);
         spd::log()->info("Finished injecting {}, {} bytes written at 0x{:X}", invokerPath.filename().string(), invoker.Size, invoker.Base);
         if (NewMinBase < invoker.Base + invoker.Size) NewMinBase = invoker.Base + invoker.Size;
 
@@ -617,7 +537,7 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
                     count++;
                     spd::log()->info("Injecting {}...", plugin_path.filename().string());
                     injector::WriteMemoryRaw(EEMainMemoryStart + mod.Base, buffer.data() + mod.SegmentFileOffset, buffer.size() - mod.SegmentFileOffset, true);
-                    injector::WriteMemoryRaw(EEMainMemoryStart + invoker.DataAddr + (sizeof(invoker) * count), &mod, sizeof(mod), true);
+                    injector::WriteMemoryRaw(EEMainMemoryStart + invoker.PluginDataAddr + (sizeof(invoker) * count), &mod, sizeof(mod), true);
                     spd::log()->info("Finished injecting {}, {} bytes written at 0x{:X}", plugin_path.filename().string(), mod.Size, mod.Base);
                     if (NewMinBase < mod.Base + mod.Size) NewMinBase = mod.Base + mod.Size;
 
@@ -625,13 +545,13 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
                     if (std::filesystem::exists(iniPath))
                     {
                         spd::log()->info("Loading {}", iniPath.filename().string());
-                        if (mod.DataAddr)
+                        if (mod.PluginDataAddr)
                         {
                             auto ini = LoadFileToBuffer(iniPath);
                             spd::log()->info("Injecting {}...", iniPath.filename().string());
-                            ini.resize(mod.DataSize - sizeof(uint32_t));
-                            injector::WriteMemory(EEMainMemoryStart + mod.DataAddr, ini.size(), true);
-                            injector::WriteMemoryRaw(EEMainMemoryStart + mod.DataAddr + sizeof(uint32_t), ini.data(), ini.size(), true);
+                            ini.resize(mod.PluginDataSize - sizeof(uint32_t));
+                            injector::WriteMemory(EEMainMemoryStart + mod.PluginDataAddr, ini.size(), true);
+                            injector::WriteMemoryRaw(EEMainMemoryStart + mod.PluginDataAddr + sizeof(uint32_t), ini.data(), ini.size(), true);
                             spd::log()->info("{} was successfully injected", iniPath.filename().string());
                         }
                     }

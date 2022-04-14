@@ -2,51 +2,23 @@
 #include <stdint.h>
 #define NANOPRINTF_IMPLEMENTATION
 #include "nanoprintf.h"
-
-struct CMouseControllerState
-{
-    int8_t	lmb;
-    int8_t	rmb;
-    int8_t	mmb;
-    int8_t	wheelUp;
-    int8_t	wheelDown;
-    int8_t	bmx1;
-    int8_t	bmx2;
-    float   Z;
-    float   X;
-    float   Y;
-};
-
-enum KeyboardBufState
-{
-    CurrentState,
-    PreviousState,
-
-    StateNum,
-
-    StateSize = 256
-};
-
-enum
-{
-    OSDStringNum = 10,
-    OSDStringSize = 255
-};
+#include "../API/pcsx2f_api.h"
 
 int CompatibleCRCList[] = { 0x4F32A11F };
-char PluginData[100] = { 0 };
-char KeyboardState[StateNum][StateSize] = { 1 };
-struct CMouseControllerState MouseState[StateNum] = { 1 };
-char OSDText[OSDStringNum][OSDStringSize] = { 1 };
+char PluginData[MaxIniSize] = { 1 };
+int PCSX2Data[PCSX2Data_Size] = { 1 };
+char KeyboardState[StateNum][StateSize] = { {1} };
+struct CMouseControllerState MouseState[StateNum] = { {1} };
+char OSDText[OSDStringNum][OSDStringSize] = { {1} };
 
 char GetAsyncKeyState(int vKey)
 {
     return KeyboardState[CurrentState][vKey];
 }
 
-int8_t isMouseKeyDown(size_t vKey)
+int8_t isLmbDown()
 {
-    return *(int8_t*)(&MouseState[CurrentState] + vKey);
+    return MouseState->lmb;
 }
 
 enum KeyCodes
@@ -61,29 +33,33 @@ int16_t sub_287470(struct CPad* pad)
 {
     if (GetAsyncKeyState(VK_KEY_D))
         return 0xFF;
+    return 0;
 }
 
 int16_t sub_287450(struct CPad* pad)
 {
     if (GetAsyncKeyState(VK_KEY_A))
         return 0xFF;
+    return 0;
 }
 
 int16_t sub_287430(struct CPad* pad)
 {
     if (GetAsyncKeyState(VK_KEY_S))
         return 0xFF;
+    return 0;
 }
 
 int16_t sub_287410(struct CPad* pad)
 {
     if (GetAsyncKeyState(VK_KEY_W))
         return 0xFF;
+    return 0;
 }
 
 int16_t sub_286148(struct CPad* pad)
 {
-    if (isMouseKeyDown(offsetof(struct CMouseControllerState, lmb)))
+    if (isLmbDown())
         return 0xFF;
     return 0;
 }

@@ -2,7 +2,6 @@
 #include <stdint.h>
 
 int CompatibleCRCList[] = { 0x43341C03 };
-char PluginData[100] = { 0 };
 
 int(*load_hero_model)(int ptr);
 

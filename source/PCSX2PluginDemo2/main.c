@@ -1,27 +1,10 @@
 #include <stdio.h>
+#include "../API/pcsx2f_api.h"
 
 int CompatibleCRCList[] = { 0xC0498D24 };
 char ElfPattern[] = "10 00 BF FF 00 00 B0 7F 30 00 A4 AF 40 00 A5 AF";
+int PCSX2Data[PCSX2Data_Size] = { 1 };
 
-enum PCSX2DataType
-{
-    PCSX2Data_DesktopSizeX,
-    PCSX2Data_DesktopSizeY,
-    PCSX2Data_WindowSizeX,
-    PCSX2Data_WindowSizeY,
-    PCSX2Data_IsFullscreen,
-    PCSX2Data_AspectRatioSetting,
-
-    PCSX2Data_Size
-}; int PCSX2Data[PCSX2Data_Size] = { 1 };
-
-enum AspectRatioType
-{
-    Stretch,
-    R4_3,
-    R16_9,
-    MaxCount
-};
 float AspectRatio = 0.0f;
 float Scale = 0.0f;
 
