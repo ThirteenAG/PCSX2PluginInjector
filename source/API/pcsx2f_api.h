@@ -43,9 +43,9 @@ enum PCSX2DataType
 enum AspectRatioType
 {
     Stretch,
+    RAuto4_3_3_2,
     R4_3,
     R16_9,
-
     MaxCount
 };
 
@@ -87,7 +87,7 @@ enum PtrType
 
 enum
 {
-    MaxIniSize = 500
+    MaxIniSize = 5000
 };
 
 enum

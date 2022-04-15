@@ -39,12 +39,25 @@ void init()
         WindowSizeY = DesktopSizeY;
     }
 
-    if (AspectRatioSetting == Stretch)
-        AspectRatio = (float)WindowSizeX / (float)WindowSizeY;
-    else if (AspectRatioSetting == R4_3)
+    switch (AspectRatioSetting)
+    {
+    case RAuto4_3_3_2: //not implemented
+        //if (GSgetDisplayMode() == GSVideoMode::SDTV_480P)
+        //    AspectRatio = 3.0f / 2.0f;
+        //else
         AspectRatio = 4.0f / 3.0f;
-    else if (AspectRatioSetting == R16_9)
+        break;
+    case R4_3:
+        AspectRatio = 4.0f / 3.0f;
+        break;
+    case R16_9:
         AspectRatio = 16.0f / 9.0f;
+        break;
+    case Stretch:
+    default:
+        AspectRatio = (float)WindowSizeX / (float)WindowSizeY;
+        break;
+    }
 
     float intResX = 640.0f;
     float intResY = 480.0f;

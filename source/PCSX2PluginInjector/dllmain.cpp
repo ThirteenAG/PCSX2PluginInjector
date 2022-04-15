@@ -6,8 +6,9 @@
 #include <future>
 #include <filesystem>
 #include <tlhelp32.h>
-#include <pcsx2f_api.h>
 #include <pcsx2/mips.hpp>
+
+#include <pcsx2f_api.h>
 
 #define IDR_INVOKER    101
 
