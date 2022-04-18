@@ -33,7 +33,7 @@ CEXP const char* GetOSDVectorData(size_t index)
         return GetOSDVector()[index].data();
 }
 
-CEXP void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, bool bEnableEE128mbRam, int& WindowSizeX, int& WindowSizeY, bool& IsFullscreen, uint8_t& AspectRatioSetting);
+CEXP void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, void*& WindowHandle, int& WindowSizeX, int& WindowSizeY, bool& IsFullscreen, uint8_t& AspectRatioSetting);
 
 void SuspendParentProcess(DWORD targetProcessId, DWORD targetThreadId, bool action)
 {
@@ -68,7 +68,7 @@ void SuspendParentProcess(DWORD targetProcessId, DWORD targetThreadId, bool acti
     }
 }
 
-void ElfSwitchWatcher(std::future<void> futureObj, uint32_t* addr, uint32_t data, uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, bool bEnableEE128mbRam, int& WindowSizeX, int& WindowSizeY, bool& IsFullscreen, uint8_t& AspectRatioSetting)
+void ElfSwitchWatcher(std::future<void> futureObj, uint32_t* addr, uint32_t data, uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, void*& WindowHandle, int& WindowSizeX, int& WindowSizeY, bool& IsFullscreen, uint8_t& AspectRatioSetting)
 {
     spd::log()->info("Starting thread ElfSwitchWatcher");
     volatile auto cur_crc = crc;
@@ -88,7 +88,7 @@ void ElfSwitchWatcher(std::future<void> futureObj, uint32_t* addr, uint32_t data
                     }
                 }
                 SuspendParentProcess(GetCurrentProcessId(), GetCurrentThreadId(), true);
-                LoadPlugins(crc, EEMainMemoryStart, EEMainMemorySize, GameElfTextBase, GameElfTextSize, bEnableEE128mbRam, WindowSizeX, WindowSizeY, IsFullscreen, AspectRatioSetting);
+                LoadPlugins(crc, EEMainMemoryStart, EEMainMemorySize, GameElfTextBase, GameElfTextSize, WindowHandle, WindowSizeX, WindowSizeY, IsFullscreen, AspectRatioSetting);
                 SuspendParentProcess(GetCurrentProcessId(), GetCurrentThreadId(), false);
                 spd::log()->info("Ending thread ElfSwitchWatcher");
                 return;
@@ -125,130 +125,151 @@ std::vector<std::pair<uintptr_t, std::pair<size_t, uint8_t>>> kbd_ptrs;
 LRESULT(WINAPI* WndProc)(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 LRESULT WINAPI CustomWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-    if (msg == WM_ACTIVATE && wParam == WA_ACTIVE)
+    if (msg == WM_ACTIVATE)
     {
-        RegisterInputDevices(hWnd);
-    }
-    else if (msg == WM_INPUT && hWnd == GetActiveWindow())
-    {
-        for (auto& it : kbd_ptrs)
+        switch (wParam)
         {
-            MEMORY_BASIC_INFORMATION MemoryInf;
-            if ((VirtualQuery((LPCVOID)it.first, &MemoryInf, sizeof(MemoryInf)) != 0 && MemoryInf.Protect != 0))
+        case WA_ACTIVE:
+        case WA_CLICKACTIVE:
+            RegisterInputDevices(hWnd);
+            break;
+        case WA_INACTIVE:
+            for (auto& it : kbd_ptrs)
             {
-                auto VKeyStates = reinterpret_cast<char*>(it.first);
-                auto VKeyStatesPrev = reinterpret_cast<char*>(it.first + KeyboardBufState::StateSize);
-                UINT dwSize = 0;
-
-                GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER));
-                static std::vector<uint8_t> lbp(dwSize);
-                auto raw = reinterpret_cast<RAWINPUT*>(lbp.data());
-
-                if (GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, raw, &dwSize, sizeof(RAWINPUTHEADER)) != dwSize)
+                MEMORY_BASIC_INFORMATION MemoryInf;
+                if ((VirtualQuery((LPCVOID)it.first, &MemoryInf, sizeof(MemoryInf)) != 0 && MemoryInf.Protect != 0))
                 {
-                    OutputDebugString(TEXT("GetRawInputData does not return correct size !\n"));
+                    injector::MemoryFill(it.first, 0x00, it.second.first, true);
                 }
-
-                if (raw->header.dwType == RIM_TYPEKEYBOARD)
+            }
+            break;
+        }
+    }
+    else if (msg == WM_INPUT)
+    {
+        DWORD dwPID;
+        GetWindowThreadProcessId(GetActiveWindow(), &dwPID);
+        if (dwPID == GetCurrentProcessId())
+        {
+            for (auto& it : kbd_ptrs)
+            {
+                MEMORY_BASIC_INFORMATION MemoryInf;
+                if ((VirtualQuery((LPCVOID)it.first, &MemoryInf, sizeof(MemoryInf)) != 0 && MemoryInf.Protect != 0))
                 {
-                    if (it.second.second == KeyboardData && raw->header.hDevice)
+                    auto VKeyStates = reinterpret_cast<char*>(it.first);
+                    auto VKeyStatesPrev = reinterpret_cast<char*>(it.first + KeyboardBufState::StateSize);
+                    UINT dwSize = 0;
+
+                    GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER));
+                    static std::vector<uint8_t> lbp(dwSize);
+                    auto raw = reinterpret_cast<RAWINPUT*>(lbp.data());
+
+                    if (GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, raw, &dwSize, sizeof(RAWINPUTHEADER)) != dwSize)
                     {
-                        switch (raw->data.keyboard.VKey)
+                        OutputDebugString(TEXT("GetRawInputData does not return correct size !\n"));
+                    }
+
+                    if (raw->header.dwType == RIM_TYPEKEYBOARD)
+                    {
+                        if (it.second.second == KeyboardData && raw->header.hDevice)
                         {
-                        case VK_CONTROL:
-                            if (raw->data.keyboard.Flags & RI_KEY_E0)
+                            switch (raw->data.keyboard.VKey)
                             {
-                                VKeyStatesPrev[VK_RCONTROL] = VKeyStates[VK_RCONTROL];
-                                VKeyStates[VK_RCONTROL] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                            case VK_CONTROL:
+                                if (raw->data.keyboard.Flags & RI_KEY_E0)
+                                {
+                                    VKeyStatesPrev[VK_RCONTROL] = VKeyStates[VK_RCONTROL];
+                                    VKeyStates[VK_RCONTROL] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                }
+                                else
+                                {
+                                    VKeyStatesPrev[VK_LCONTROL] = VKeyStates[VK_LCONTROL];
+                                    VKeyStates[VK_LCONTROL] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                }
+                                break;
+                            case VK_MENU:
+                                if (raw->data.keyboard.Flags & RI_KEY_E0)
+                                {
+                                    VKeyStatesPrev[VK_RMENU] = VKeyStates[VK_RMENU];
+                                    VKeyStates[VK_RMENU] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                }
+                                else
+                                {
+                                    VKeyStatesPrev[VK_LMENU] = VKeyStates[VK_LMENU];
+                                    VKeyStates[VK_LMENU] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                }
+                                break;
+                            case VK_SHIFT:
+                                if (raw->data.keyboard.MakeCode == 0x36)
+                                {
+                                    VKeyStatesPrev[VK_RSHIFT] = VKeyStates[VK_RSHIFT];
+                                    VKeyStates[VK_RSHIFT] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                }
+                                else
+                                {
+                                    VKeyStatesPrev[VK_LSHIFT] = VKeyStates[VK_LSHIFT];
+                                    VKeyStates[VK_LSHIFT] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                }
+                                break;
+                            default:
+                                VKeyStatesPrev[raw->data.keyboard.VKey] = VKeyStates[raw->data.keyboard.VKey];
+                                VKeyStates[raw->data.keyboard.VKey] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                break;
                             }
-                            else
-                            {
-                                VKeyStatesPrev[VK_LCONTROL] = VKeyStates[VK_LCONTROL];
-                                VKeyStates[VK_LCONTROL] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
-                            }
-                            break;
-                        case VK_MENU:
-                            if (raw->data.keyboard.Flags & RI_KEY_E0)
-                            {
-                                VKeyStatesPrev[VK_RMENU] = VKeyStates[VK_RMENU];
-                                VKeyStates[VK_RMENU] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
-                            }
-                            else
-                            {
-                                VKeyStatesPrev[VK_LMENU] = VKeyStates[VK_LMENU];
-                                VKeyStates[VK_LMENU] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
-                            }
-                            break;
-                        case VK_SHIFT:
-                            if (raw->data.keyboard.MakeCode == 0x36)
-                            {
-                                VKeyStatesPrev[VK_RSHIFT] = VKeyStates[VK_RSHIFT];
-                                VKeyStates[VK_RSHIFT] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
-                            }
-                            else
-                            {
-                                VKeyStatesPrev[VK_LSHIFT] = VKeyStates[VK_LSHIFT];
-                                VKeyStates[VK_LSHIFT] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
-                            }
-                            break;
-                        default:
-                            VKeyStatesPrev[raw->data.keyboard.VKey] = VKeyStates[raw->data.keyboard.VKey];
-                            VKeyStates[raw->data.keyboard.VKey] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
-                            break;
                         }
                     }
-                }
-                else if (raw->header.dwType == RIM_TYPEMOUSE)
-                {
-                    if (it.second.second == MouseData && raw->header.hDevice)
+                    else if (raw->header.dwType == RIM_TYPEMOUSE)
                     {
-                        CMouseControllerState& StateBuf = *reinterpret_cast<CMouseControllerState*>(it.first);
-                        CMouseControllerState& StateBufPrev = *reinterpret_cast<CMouseControllerState*>(it.first + sizeof(CMouseControllerState));
-
-                        StateBufPrev = StateBuf;
-
-                        // Movement
-                        StateBuf.X += static_cast<float>(raw->data.mouse.lLastX);
-                        StateBuf.Y += static_cast<float>(raw->data.mouse.lLastY);
-
-                        // LMB
-                        if (!StateBuf.lmb)
-                            StateBuf.lmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN) != false;
-                        else
-                            StateBuf.lmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP) == false;
-
-                        // RMB
-                        if (!StateBuf.rmb)
-                            StateBuf.rmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN) != false;
-                        else
-                            StateBuf.rmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_UP) == false;
-
-                        // MMB
-                        if (!StateBuf.mmb)
-                            StateBuf.mmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN) != false;
-                        else
-                            StateBuf.mmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP) == false;
-
-                        // 4th button
-                        if (!StateBuf.bmx1)
-                            StateBuf.bmx1 = (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_4_DOWN) != false;
-                        else
-                            StateBuf.bmx1 = (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_4_UP) == false;
-
-                        // 5th button
-                        if (!StateBuf.bmx2)
-                            StateBuf.bmx2 = (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_5_DOWN) != false;
-                        else
-                            StateBuf.bmx2 = (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_5_UP) == false;
-
-                        // Scroll
-                        if (raw->data.mouse.usButtonFlags & RI_MOUSE_WHEEL)
+                        if (it.second.second == MouseData && raw->header.hDevice)
                         {
-                            StateBuf.Z += static_cast<signed short>(raw->data.mouse.usButtonData);
-                            if (StateBuf.Z < 0.0f)
-                                StateBuf.wheelDown = true;
-                            else if (StateBuf.Z > 0.0f)
-                                StateBuf.wheelUp = true;
+                            CMouseControllerState& StateBuf = *reinterpret_cast<CMouseControllerState*>(it.first);
+                            CMouseControllerState& StateBufPrev = *reinterpret_cast<CMouseControllerState*>(it.first + sizeof(CMouseControllerState));
+
+                            StateBufPrev = StateBuf;
+
+                            // Movement
+                            StateBuf.X += static_cast<float>(raw->data.mouse.lLastX);
+                            StateBuf.Y += static_cast<float>(raw->data.mouse.lLastY);
+
+                            // LMB
+                            if (!StateBuf.lmb)
+                                StateBuf.lmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN) != false;
+                            else
+                                StateBuf.lmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP) == false;
+
+                            // RMB
+                            if (!StateBuf.rmb)
+                                StateBuf.rmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN) != false;
+                            else
+                                StateBuf.rmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_UP) == false;
+
+                            // MMB
+                            if (!StateBuf.mmb)
+                                StateBuf.mmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN) != false;
+                            else
+                                StateBuf.mmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP) == false;
+
+                            // 4th button
+                            if (!StateBuf.bmx1)
+                                StateBuf.bmx1 = (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_4_DOWN) != false;
+                            else
+                                StateBuf.bmx1 = (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_4_UP) == false;
+
+                            // 5th button
+                            if (!StateBuf.bmx2)
+                                StateBuf.bmx2 = (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_5_DOWN) != false;
+                            else
+                                StateBuf.bmx2 = (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_5_UP) == false;
+
+                            // Scroll
+                            if (raw->data.mouse.usButtonFlags & RI_MOUSE_WHEEL)
+                            {
+                                StateBuf.Z += static_cast<signed short>(raw->data.mouse.usButtonData);
+                                if (StateBuf.Z < 0.0f)
+                                    StateBuf.wheelDown = true;
+                                else if (StateBuf.Z > 0.0f)
+                                    StateBuf.wheelUp = true;
+                            }
                         }
                     }
                 }
@@ -360,7 +381,7 @@ PluginInfo ParseElf(auto path)
     return info;
 }
 
-void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, bool bEnableEE128mbRam, int& WindowSizeX, int& WindowSizeY, bool& IsFullscreen, uint8_t& AspectRatioSetting)
+void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, void*& WindowHandle, int& WindowSizeX, int& WindowSizeY, bool& IsFullscreen, uint8_t& AspectRatioSetting)
 {
     spd::log()->info("Starting PCSX2PluginInjector, game crc: 0x{:X}", crc);
     spd::log()->info("EE Memory starts at: 0x{:X}", EEMainMemoryStart);
@@ -428,11 +449,6 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
         if (invoker.Base < _32mb)
         {
             spd::log()->warn("{} base address is within main memory, it may be overwritten by the game", invokerPath.filename().string());
-        }
-        else if (bEnableEE128mbRam != true)
-        {
-            spd::log()->error("\"Enable 128 MB of RAM\" option is not set in PCSX2 settings (EE/IOP), it is required to be on");
-            return;
         }
 
         auto count = 0;
@@ -518,7 +534,7 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
                         {
                             spd::log()->info("Some plugins has to be loaded in another elf, creating thread to handle it");
                             std::future<void> futureObj = exitSignal.get_future();
-                            std::thread th(&ElfSwitchWatcher, std::move(futureObj), ei_hook, ei_data, std::ref(crc), EEMainMemoryStart, EEMainMemorySize, GameElfTextBase, GameElfTextSize, bEnableEE128mbRam, std::ref(WindowSizeX), std::ref(WindowSizeY), std::ref(IsFullscreen), std::ref(AspectRatioSetting));
+                            std::thread th(&ElfSwitchWatcher, std::move(futureObj), ei_hook, ei_data, std::ref(crc), EEMainMemoryStart, EEMainMemorySize, GameElfTextBase, GameElfTextSize, std::ref(WindowHandle), std::ref(WindowSizeX), std::ref(WindowSizeY), std::ref(IsFullscreen), std::ref(AspectRatioSetting));
                             th.detach();
                             elf_thread_created = true;
                         }
@@ -618,7 +634,7 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
                 return NULL;
             };
 
-            auto hwnd = GetHwnd(GetCurrentProcessId());
+            auto hwnd = WindowHandle ? GetAncestor(reinterpret_cast<HWND>(WindowHandle), GA_ROOT) : GetHwnd(GetCurrentProcessId());
             if (hwnd)
             {
                 RegisterInputDevices(hwnd);
