@@ -6,7 +6,12 @@ EE_LINKFILE = linkfile
 EE_LIBS += -l:libc.a -l:libgcc.a
 EE_LDFLAGS = -Wl,--entry=init -Wl,-Map,../../data/PLUGINS/GTAVCS/PCSX2PluginDemo.map -nostdlib -nodefaultlibs -Wl,'--defsym=BASE_ADDRESS=$(BASE_ADDRESS)'
 
-all: $(EE_BIN)
+all: clean main-build
+
+main-build: $(EE_BIN)
+
+clean:
+	rm -f $(EE_OBJS) $(EE_BIN)
 
 PS2SDK = ../../external/ps2sdk/ps2sdk
 include $(PS2SDK)/samples/Makefile.pref

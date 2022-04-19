@@ -121,7 +121,12 @@ void RegisterInputDevices(HWND hWnd)
     RegisterRawInputDevices(&Rid[1], 1, sizeof(Rid[1]));
 }
 
-std::vector<std::pair<uintptr_t, std::pair<size_t, uint8_t>>> kbd_ptrs;
+struct InputDataT
+{
+    uint8_t Type;
+    uintptr_t Addr;
+    size_t Size;
+}; std::vector<InputDataT> InputData;
 LRESULT(WINAPI* WndProc)(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 LRESULT WINAPI CustomWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -134,12 +139,15 @@ LRESULT WINAPI CustomWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             RegisterInputDevices(hWnd);
             break;
         case WA_INACTIVE:
-            for (auto& it : kbd_ptrs)
+            for (auto& it : InputData)
             {
-                MEMORY_BASIC_INFORMATION MemoryInf;
-                if ((VirtualQuery((LPCVOID)it.first, &MemoryInf, sizeof(MemoryInf)) != 0 && MemoryInf.Protect != 0))
+                if (it.Type != PtrType::CheatStringData)
                 {
-                    injector::MemoryFill(it.first, 0x00, it.second.first, true);
+                    MEMORY_BASIC_INFORMATION MemoryInf;
+                    if ((VirtualQuery((LPCVOID)it.Addr, &MemoryInf, sizeof(MemoryInf)) != 0 && MemoryInf.Protect != 0))
+                    {
+                        injector::MemoryFill(it.Addr, 0x00, it.Size, true);
+                    }
                 }
             }
             break;
@@ -151,13 +159,13 @@ LRESULT WINAPI CustomWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         GetWindowThreadProcessId(GetActiveWindow(), &dwPID);
         if (dwPID == GetCurrentProcessId())
         {
-            for (auto& it : kbd_ptrs)
+            for (auto& it : InputData)
             {
                 MEMORY_BASIC_INFORMATION MemoryInf;
-                if ((VirtualQuery((LPCVOID)it.first, &MemoryInf, sizeof(MemoryInf)) != 0 && MemoryInf.Protect != 0))
+                if ((VirtualQuery((LPCVOID)it.Addr, &MemoryInf, sizeof(MemoryInf)) != 0 && MemoryInf.Protect != 0))
                 {
-                    auto VKeyStates = reinterpret_cast<char*>(it.first);
-                    auto VKeyStatesPrev = reinterpret_cast<char*>(it.first + KeyboardBufState::StateSize);
+                    auto VKeyStates = reinterpret_cast<char*>(it.Addr);
+                    auto VKeyStatesPrev = reinterpret_cast<char*>(it.Addr + KeyboardBufState::StateSize);
                     UINT dwSize = 0;
 
                     GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER));
@@ -171,59 +179,79 @@ LRESULT WINAPI CustomWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
                     if (raw->header.dwType == RIM_TYPEKEYBOARD)
                     {
-                        if (it.second.second == KeyboardData && raw->header.hDevice)
+                        if (raw->header.hDevice)
                         {
-                            switch (raw->data.keyboard.VKey)
+                            if (it.Type == PtrType::KeyboardData)
                             {
-                            case VK_CONTROL:
-                                if (raw->data.keyboard.Flags & RI_KEY_E0)
+                                switch (raw->data.keyboard.VKey)
                                 {
-                                    VKeyStatesPrev[VK_RCONTROL] = VKeyStates[VK_RCONTROL];
-                                    VKeyStates[VK_RCONTROL] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                case VK_CONTROL:
+                                    if (raw->data.keyboard.Flags & RI_KEY_E0)
+                                    {
+                                        VKeyStatesPrev[VK_RCONTROL] = VKeyStates[VK_RCONTROL];
+                                        VKeyStates[VK_RCONTROL] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                    }
+                                    else
+                                    {
+                                        VKeyStatesPrev[VK_LCONTROL] = VKeyStates[VK_LCONTROL];
+                                        VKeyStates[VK_LCONTROL] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                    }
+                                    break;
+                                case VK_MENU:
+                                    if (raw->data.keyboard.Flags & RI_KEY_E0)
+                                    {
+                                        VKeyStatesPrev[VK_RMENU] = VKeyStates[VK_RMENU];
+                                        VKeyStates[VK_RMENU] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                    }
+                                    else
+                                    {
+                                        VKeyStatesPrev[VK_LMENU] = VKeyStates[VK_LMENU];
+                                        VKeyStates[VK_LMENU] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                    }
+                                    break;
+                                case VK_SHIFT:
+                                    if (raw->data.keyboard.MakeCode == 0x36)
+                                    {
+                                        VKeyStatesPrev[VK_RSHIFT] = VKeyStates[VK_RSHIFT];
+                                        VKeyStates[VK_RSHIFT] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                    }
+                                    else
+                                    {
+                                        VKeyStatesPrev[VK_LSHIFT] = VKeyStates[VK_LSHIFT];
+                                        VKeyStates[VK_LSHIFT] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                    }
+                                    break;
+                                default:
+                                    VKeyStatesPrev[raw->data.keyboard.VKey] = VKeyStates[raw->data.keyboard.VKey];
+                                    VKeyStates[raw->data.keyboard.VKey] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                    break;
                                 }
-                                else
+                            }
+                            else if (it.Type == PtrType::CheatStringData)
+                            {
+                                if (raw->data.keyboard.Flags & RI_KEY_BREAK)
                                 {
-                                    VKeyStatesPrev[VK_LCONTROL] = VKeyStates[VK_LCONTROL];
-                                    VKeyStates[VK_LCONTROL] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                    auto keycode = raw->data.keyboard.VKey;
+                                    if ((keycode > 47 && keycode < 58) || (keycode > 64 && keycode < 91)) // number or letter keys
+                                    {
+                                        std::memcpy(&VKeyStates[1], &VKeyStates[0], it.Size - 2);
+                                        VKeyStates[0] = raw->data.keyboard.VKey;
+                                        VKeyStates[it.Size - 1] = 0;
+                                    }
+                                    else
+                                    {
+                                        VKeyStates[0] = 0;
+                                    }
                                 }
-                                break;
-                            case VK_MENU:
-                                if (raw->data.keyboard.Flags & RI_KEY_E0)
-                                {
-                                    VKeyStatesPrev[VK_RMENU] = VKeyStates[VK_RMENU];
-                                    VKeyStates[VK_RMENU] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
-                                }
-                                else
-                                {
-                                    VKeyStatesPrev[VK_LMENU] = VKeyStates[VK_LMENU];
-                                    VKeyStates[VK_LMENU] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
-                                }
-                                break;
-                            case VK_SHIFT:
-                                if (raw->data.keyboard.MakeCode == 0x36)
-                                {
-                                    VKeyStatesPrev[VK_RSHIFT] = VKeyStates[VK_RSHIFT];
-                                    VKeyStates[VK_RSHIFT] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
-                                }
-                                else
-                                {
-                                    VKeyStatesPrev[VK_LSHIFT] = VKeyStates[VK_LSHIFT];
-                                    VKeyStates[VK_LSHIFT] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
-                                }
-                                break;
-                            default:
-                                VKeyStatesPrev[raw->data.keyboard.VKey] = VKeyStates[raw->data.keyboard.VKey];
-                                VKeyStates[raw->data.keyboard.VKey] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
-                                break;
                             }
                         }
                     }
                     else if (raw->header.dwType == RIM_TYPEMOUSE)
                     {
-                        if (it.second.second == MouseData && raw->header.hDevice)
+                        if (it.Type == PtrType::MouseData && raw->header.hDevice)
                         {
-                            CMouseControllerState& StateBuf = *reinterpret_cast<CMouseControllerState*>(it.first);
-                            CMouseControllerState& StateBufPrev = *reinterpret_cast<CMouseControllerState*>(it.first + sizeof(CMouseControllerState));
+                            CMouseControllerState& StateBuf = *reinterpret_cast<CMouseControllerState*>(it.Addr);
+                            CMouseControllerState& StateBufPrev = *reinterpret_cast<CMouseControllerState*>(it.Addr + sizeof(CMouseControllerState));
 
                             StateBufPrev = StateBuf;
 
@@ -368,6 +396,11 @@ PluginInfo ParseElf(auto path)
                         info.MouseStateAddr = value;
                         info.MouseStateSize = size;
                     }
+                    else if (name == "CheatString")
+                    {
+                        info.CheatStringAddr = value;
+                        info.CheatStringSize = size;
+                    }
                     else if (name == "OSDText")
                     {
                         info.OSDTextAddr = value;
@@ -391,7 +424,7 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
     exitSignal.set_value();
     std::promise<void>().swap(exitSignal);
     GetOSDVector().clear();
-    kbd_ptrs.clear();
+    InputData.clear();
     uint32_t* ei_hook = nullptr;
     uint32_t ei_data = 0;
     uint32_t NewMinBase = 0;
@@ -588,15 +621,22 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
                     if (mod.KeyboardStateAddr)
                     {
                         spd::log()->info("{} requests keyboard state", plugin_path.filename().string());
-                        kbd_ptrs.emplace_back(EEMainMemoryStart + mod.KeyboardStateAddr, std::make_pair(mod.KeyboardStateSize, PtrType::KeyboardData));
+                        InputData.emplace_back(PtrType::KeyboardData, EEMainMemoryStart + mod.KeyboardStateAddr, mod.KeyboardStateSize);
                         injector::MemoryFill(EEMainMemoryStart + mod.KeyboardStateAddr, 0, mod.KeyboardStateSize, true);
                     }
 
                     if (mod.MouseStateAddr)
                     {
                         spd::log()->info("{} requests mouse state", plugin_path.filename().string());
-                        kbd_ptrs.emplace_back(EEMainMemoryStart + mod.MouseStateAddr, std::make_pair(mod.MouseStateSize, PtrType::MouseData));
+                        InputData.emplace_back(PtrType::MouseData, EEMainMemoryStart + mod.MouseStateAddr, mod.MouseStateSize);
                         injector::MemoryFill(EEMainMemoryStart + mod.MouseStateAddr, 0, mod.MouseStateSize, true);
+                    }
+
+                    if (mod.CheatStringAddr)
+                    {
+                        spd::log()->info("{} requests cheat string access", plugin_path.filename().string());
+                        InputData.emplace_back(PtrType::CheatStringData, EEMainMemoryStart + mod.CheatStringAddr, mod.CheatStringSize);
+                        injector::MemoryFill(EEMainMemoryStart + mod.CheatStringAddr, 0, mod.CheatStringSize, true);
                     }
 
                     if (mod.OSDTextAddr)
@@ -613,7 +653,7 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
             }
         }
 
-        if (!kbd_ptrs.empty())
+        if (!InputData.empty())
         {
             auto GetHwnd = [](DWORD dwProcessID) -> HWND
             {

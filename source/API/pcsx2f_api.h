@@ -20,6 +20,8 @@ struct PluginInfo
     uint32_t KeyboardStateSize;
     uint32_t MouseStateAddr;
     uint32_t MouseStateSize;
+    uint32_t CheatStringAddr;
+    uint32_t CheatStringSize;
     uint32_t OSDTextAddr;
     uint32_t OSDTextSize;
 
@@ -56,6 +58,7 @@ enum KeyboardBufState
 
     StateNum,
 
+    CheatStringLen = 25,
     StateSize = 256
 };
 
@@ -82,7 +85,8 @@ enum OSDString
 enum PtrType
 {
     KeyboardData,
-    MouseData
+    MouseData,
+    CheatStringData
 };
 
 enum
@@ -105,6 +109,7 @@ extern char PluginData[MaxIniSize];
 extern int PCSX2Data[PCSX2Data_Size];
 extern char KeyboardState[StateNum][StateSize];
 extern struct CMouseControllerState MouseState[StateNum];
+extern char CheatString[CheatStringLen];
 extern char OSDText[OSDStringNum][OSDStringSize];
 
 #endif
