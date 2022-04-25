@@ -155,9 +155,10 @@ LRESULT WINAPI CustomWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     }
     else if (msg == WM_INPUT)
     {
-        DWORD dwPID;
-        GetWindowThreadProcessId(GetActiveWindow(), &dwPID);
-        if (dwPID == GetCurrentProcessId())
+        //DWORD dwPID;
+        //GetWindowThreadProcessId(GetActiveWindow(), &dwPID);
+        //if (dwPID == GetCurrentProcessId())
+        if (hWnd == GetActiveWindow())
         {
             for (auto& it : InputData)
             {
@@ -549,11 +550,13 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
                         continue;
 
                     spd::log()->info("Loading {}", plugin_path.string());
-                    if (!mod.isValid() || mod.Base < _32mb)
+                    if (!mod.isValid() || mod.Base < _32mb || mod.Base < NewMinBase)
                     {
                         spd::log()->warn("{} could not be loaded", plugin_path.string());
                         if (mod.Base < _32mb)
                             spd::log()->error("{} base address can't be less than 32mb", file.path().filename().string());
+                        if (mod.Base < NewMinBase)
+                            spd::log()->error("{} base address can't be less than 0x{:X}, you have conflicting plugins", file.path().filename().string(), NewMinBase);
                         continue;
                     }
 

@@ -121,7 +121,7 @@ project "PCSX2PluginDemo"
    files { "source/%{prj.name}/*.c" }
    targetextension ".elf"
    setbuildpaths_ps2("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2x64.exe", "PLUGINS/GTAVCS/", "%{wks.location}/../external/ps2sdk/ee/bin/vsmake", "%{wks.location}/../source/%{prj.name}/", "PCSX2PluginDemo")
-   writemakefile("PCSX2PluginDemo", "PLUGINS/GTAVCS/", "0x02020000")
+   writemakefile("PCSX2PluginDemo", "PLUGINS/GTAVCS/", "0x02100000")
    writelinkfile("PCSX2PluginDemo")
    
 project "PCSX2PluginDemo2"
@@ -130,7 +130,7 @@ project "PCSX2PluginDemo2"
    files { "source/%{prj.name}/*.c" }
    targetextension ".elf"
    setbuildpaths_ps2("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2x64.exe", "PLUGINS/SCDA/", "%{wks.location}/../external/ps2sdk/ee/bin/vsmake", "%{wks.location}/../source/%{prj.name}/", "PCSX2PluginDemo2")
-   writemakefile("PCSX2PluginDemo2", "PLUGINS/SCDA/", "0x02020000")
+   writemakefile("PCSX2PluginDemo2", "PLUGINS/SCDA/", "0x02100000")
    writelinkfile("PCSX2PluginDemo2")
 
 project "PCSX2PluginDemo3"
@@ -139,7 +139,7 @@ project "PCSX2PluginDemo3"
    files { "source/%{prj.name}/*.c" }
    targetextension ".elf"
    setbuildpaths_ps2("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2x64.exe", "PLUGINS/MKD/", "%{wks.location}/../external/ps2sdk/ee/bin/vsmake", "%{wks.location}/../source/%{prj.name}/", "PCSX2PluginDemo3")
-   writemakefile("PCSX2PluginDemo3", "PLUGINS/MKD/", "0x02020000")
+   writemakefile("PCSX2PluginDemo3", "PLUGINS/MKD/", "0x02100000")
    writelinkfile("PCSX2PluginDemo3")
    
 project "PCSX2PluginDummy"
@@ -148,5 +148,5 @@ project "PCSX2PluginDummy"
    files { "source/%{prj.name}/*.c" }
    targetextension ".elf"
    setbuildpaths_ps2("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2x64.exe", "PLUGINS/", "%{wks.location}/../external/ps2sdk/ee/bin/vsmake", "%{wks.location}/../source/%{prj.name}/", "PCSX2PluginDummy")
-   writemakefile("PCSX2PluginDummy", "PLUGINS/", "0x02020000")
+   writemakefile("PCSX2PluginDummy", "PLUGINS/", "0x02100000")
    writelinkfile("PCSX2PluginDummy")
