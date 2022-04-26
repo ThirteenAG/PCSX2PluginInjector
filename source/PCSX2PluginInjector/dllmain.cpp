@@ -428,12 +428,11 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
     InputData.clear();
     uint32_t* ei_hook = nullptr;
     uint32_t ei_data = 0;
-    uint32_t NewMinBase = 0;
+    std::vector<std::pair<uintptr_t, uintptr_t>> PluginRegions = { { 0, EEMainMemorySize } };
 
     auto modulePath = std::filesystem::path(GetThisModulePath<std::wstring>());
     auto pluginsPath = modulePath.remove_filename() / L"PLUGINS/";
     auto invokerPath = pluginsPath / L"PCSX2PluginInvoker.elf";
-    constexpr auto _32mb = 0x02000000;
 
     if (std::filesystem::exists(pluginsPath))
     {
@@ -480,7 +479,7 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
         spd::log()->info("{} base address: 0x{:X}", invokerPath.filename().string(), invoker.Base);
         spd::log()->info("{} entry point: 0x{:X}", invokerPath.filename().string(), invoker.EntryPoint);
 
-        if (invoker.Base < _32mb)
+        if (invoker.Base < 1024 * 1024 * 32)
         {
             spd::log()->warn("{} base address is within main memory, it may be overwritten by the game", invokerPath.filename().string());
         }
@@ -492,7 +491,7 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
         injector::MemoryFill(EEMainMemoryStart + invoker.PluginDataAddr, 0x00, invoker.PluginDataSize, true);
         injector::WriteMemoryRaw(EEMainMemoryStart + invoker.PluginDataAddr + (sizeof(invoker) * count), &invoker, sizeof(invoker), true);
         spd::log()->info("Finished injecting {}, {} bytes written at 0x{:X}", invokerPath.filename().string(), invoker.Size, invoker.Base);
-        if (NewMinBase < invoker.Base + invoker.Size) NewMinBase = invoker.Base + invoker.Size;
+        PluginRegions.emplace_back(invoker.Base, invoker.Base + invoker.Size);
 
         spd::log()->info("Hooking game's entry point function...", invokerPath.filename().string());
         auto patched = false;
@@ -549,14 +548,16 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
                     if (!crc_compatible)
                         continue;
 
+                    auto BaseCheck = std::find_if(PluginRegions.begin(), PluginRegions.end(), [&mod](auto x) {
+                        return x.first >= mod.Base && x.second <= mod.Base + mod.Size; 
+                        }) != PluginRegions.end();
+
                     spd::log()->info("Loading {}", plugin_path.string());
-                    if (!mod.isValid() || mod.Base < _32mb || mod.Base < NewMinBase)
+                    if (!mod.isValid() || BaseCheck)
                     {
                         spd::log()->warn("{} could not be loaded", plugin_path.string());
-                        if (mod.Base < _32mb)
-                            spd::log()->error("{} base address can't be less than 32mb", file.path().filename().string());
-                        if (mod.Base < NewMinBase)
-                            spd::log()->error("{} base address can't be less than 0x{:X}, you have conflicting plugins", file.path().filename().string(), NewMinBase);
+                        if (BaseCheck)
+                            spd::log()->error("{} base address can't be 0x{:X}, you have conflicting or invalid plugins", file.path().filename().string(), mod.Base);
                         continue;
                     }
 
@@ -592,7 +593,7 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
                     injector::WriteMemoryRaw(EEMainMemoryStart + mod.Base, buffer.data() + mod.SegmentFileOffset, buffer.size() - mod.SegmentFileOffset, true);
                     injector::WriteMemoryRaw(EEMainMemoryStart + invoker.PluginDataAddr + (sizeof(invoker) * count), &mod, sizeof(mod), true);
                     spd::log()->info("Finished injecting {}, {} bytes written at 0x{:X}", plugin_path.filename().string(), mod.Size, mod.Base);
-                    if (NewMinBase < mod.Base + mod.Size) NewMinBase = mod.Base + mod.Size;
+                    PluginRegions.emplace_back(mod.Base, mod.Base + mod.Size);
 
                     auto iniPath = std::filesystem::path(file.path()).replace_extension(L".ini");
                     if (std::filesystem::exists(iniPath))
@@ -690,8 +691,9 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
                 }
             }
         }
-
-        spd::log()->info("Suggested minimum base address for new plugins: 0x{:X}", NewMinBase);
+        PluginRegions.erase(std::remove_if(PluginRegions.begin(), PluginRegions.end(), [](auto x) { return x.first == 0; }), PluginRegions.end());
+        auto NewBase = std::max_element(PluginRegions.begin(), PluginRegions.end(), [](auto a, auto b) { return a.second < b.second; })->second + 1000;
+        spd::log()->info("Suggested minimum base address for new plugins: 0x{:08X}", NewBase);
     }
     else
     {
