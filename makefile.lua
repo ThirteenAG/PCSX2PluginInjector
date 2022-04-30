@@ -2,7 +2,7 @@ function writemakefile(prj_name, scripts_addr, base, ...)
    local args = {...}
    local files = "main.o";
    for i, v in ipairs( args ) do
-       files = files .. " " .. v:gsub(v:match("^.+(%..+)$"), ".o")
+       files = files .. " " .. v:match("(.+)%..+") .. ".o"
    end
    files = string.gsub(files, "^%s*(.-)%s*$", "%1")
    file = io.open("source/" .. prj_name .. "/makefile", "w")
