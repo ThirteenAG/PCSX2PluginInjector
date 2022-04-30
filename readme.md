@@ -4,7 +4,7 @@
 
  - Download [PCSX2 Fork With Plugins](https://github.com/ASI-Factory/PCSX2-Fork-With-Plugins/releases/tag/latest), this project is already included in it. (**Windows only**).
 
- - Copy **.elf** plugins to **PLUGINS** directory, e.g. **GTAVCS.PCSX2.WidescreenFix.elf**.
+ - Copy **.elf** plugins to **PLUGINS** directory, e.g. **[GTAVCS.PCSX2.WidescreenFix.elf](https://thirteenag.github.io/wfp#gtavcs)**.
 
 ## Limitations
 
