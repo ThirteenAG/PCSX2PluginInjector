@@ -170,7 +170,7 @@ LRESULT WINAPI CustomWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
                     UINT dwSize = 0;
 
                     GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER));
-                    static std::vector<uint8_t> lbp(dwSize);
+                    std::vector<uint8_t> lbp(dwSize);
                     auto raw = reinterpret_cast<RAWINPUT*>(lbp.data());
 
                     if (GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, raw, &dwSize, sizeof(RAWINPUTHEADER)) != dwSize)
@@ -721,6 +721,11 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved)
     if (reason == DLL_PROCESS_ATTACH)
     {
         //if (!IsUALPresent()) { InitializeASI(); }
+    }
+
+    if (reason == DLL_PROCESS_DETACH)
+    {
+
     }
     return TRUE;
 }
