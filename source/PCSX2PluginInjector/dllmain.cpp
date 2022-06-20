@@ -534,7 +534,7 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
                 {
                     ei_hook = ei_lookup.get_first<uint32_t>();
                     ei_data = mips::jal(invoker.EntryPoint);
-                    injector::WriteMemory(ei_hook, ei_data, true);
+                    injector::WriteMemory<uint32_t>(ei_hook, ei_data, true);
                     patched = true;
                     return;
                 }
@@ -619,18 +619,6 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
                         }
                     }
 
-                    if (mod.FrameLimitUnthrottleAddr)
-                    {
-                        if (!fl_thread_created)
-                        {
-                            spd::log()->info("Some plugins can manage emulator's speed, creating thread to handle it");
-                            std::future<void> futureObj = exitSignal2.get_future();
-                            std::thread th(&UnthrottleWatcher, std::move(futureObj), (uint8_t*)(EEMainMemoryStart + mod.FrameLimitUnthrottleAddr), std::ref(crc), std::ref(FrameLimitUnthrottle));
-                            th.detach();
-                            fl_thread_created = true;
-                        }
-                    }
-
                     count++;
                     spd::log()->info("Injecting {}...", plugin_path.filename().string());
                     injector::WriteMemoryRaw(EEMainMemoryStart + mod.Base, buffer.data() + mod.SegmentFileOffset, buffer.size() - mod.SegmentFileOffset, true);
@@ -647,7 +635,7 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
                             auto ini = LoadFileToBuffer(iniPath);
                             spd::log()->info("Injecting {}...", iniPath.filename().string());
                             ini.resize(mod.PluginDataSize - sizeof(uint32_t));
-                            injector::WriteMemory(EEMainMemoryStart + mod.PluginDataAddr, ini.size(), true);
+                            injector::WriteMemory<uint32_t>(EEMainMemoryStart + mod.PluginDataAddr, ini.size(), true);
                             injector::WriteMemoryRaw(EEMainMemoryStart + mod.PluginDataAddr + sizeof(uint32_t), ini.data(), ini.size(), true);
                             spd::log()->info("{} was successfully injected", iniPath.filename().string());
                         }
@@ -657,12 +645,12 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
                     {
                         spd::log()->info("Writing PCSX2 Data to {}", plugin_path.filename().string());
                         auto [DesktopSizeX, DesktopSizeY] = GetDesktopRes();
-                        injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_DesktopSizeX), (uint32_t)DesktopSizeX, true);
-                        injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_DesktopSizeY), (uint32_t)DesktopSizeY, true);
-                        injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_WindowSizeX), (uint32_t)WindowSizeX, true);
-                        injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_WindowSizeY), (uint32_t)WindowSizeY, true);
-                        injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_IsFullscreen), (uint32_t)IsFullscreen, true);
-                        injector::WriteMemory(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_AspectRatioSetting), (uint32_t)AspectRatioSetting, true);
+                        injector::WriteMemory<uint32_t>(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_DesktopSizeX), (uint32_t)DesktopSizeX, true);
+                        injector::WriteMemory<uint32_t>(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_DesktopSizeY), (uint32_t)DesktopSizeY, true);
+                        injector::WriteMemory<uint32_t>(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_WindowSizeX), (uint32_t)WindowSizeX, true);
+                        injector::WriteMemory<uint32_t>(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_WindowSizeY), (uint32_t)WindowSizeY, true);
+                        injector::WriteMemory<uint32_t>(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_IsFullscreen), (uint32_t)IsFullscreen, true);
+                        injector::WriteMemory<uint32_t>(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_AspectRatioSetting), (uint32_t)AspectRatioSetting, true);
                     }
 
                     if (mod.KeyboardStateAddr)
@@ -694,6 +682,41 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
                             auto block = (char*)(EEMainMemoryStart + mod.OSDTextAddr + (OSDStringSize * i));
                             injector::MemoryFill(block, 0, OSDStringSize, true);
                             GetOSDVector().emplace_back(std::string_view(block, OSDStringSize));
+                        }
+                    }
+
+                    if (mod.FrameLimitUnthrottleAddr)
+                    {
+                        if (!fl_thread_created)
+                        {
+                            spd::log()->info("Some plugins can manage emulator's speed, creating thread to handle it");
+                            injector::MemoryFill(EEMainMemoryStart + mod.FrameLimitUnthrottleAddr, 0x00, mod.FrameLimitUnthrottleSize, true);
+                            std::future<void> futureObj = exitSignal2.get_future();
+                            std::thread th(&UnthrottleWatcher, std::move(futureObj), (uint8_t*)(EEMainMemoryStart + mod.FrameLimitUnthrottleAddr), std::ref(crc), std::ref(FrameLimitUnthrottle));
+                            th.detach();
+                            fl_thread_created = true;
+                        }
+                    }
+
+                    if (mod.CLEOScriptsAddr)
+                    {
+                        spd::log()->info("CLEO Plugin detected, injecting CLEO Scripts");
+                        injector::MemoryFill(EEMainMemoryStart + mod.CLEOScriptsAddr, 0x00, mod.CLEOScriptsSize, true);
+                        auto script_offset = mod.CLEOScriptsAddr;
+                        for (const auto& entry : std::filesystem::directory_iterator(pluginsPath / L"CLEO", std::filesystem::directory_options::skip_permission_denied))
+                        {
+                            if (iequals(entry.path().extension().wstring(), L".cs") || iequals(entry.path().extension().wstring(), L".csa"))
+                            {
+                                auto script = LoadFileToBuffer(entry.path());
+                                if (script_offset + sizeof(uint32_t) + script.size() <= mod.CLEOScriptsAddr + mod.CLEOScriptsSize)
+                                {
+                                    spd::log()->info("Injecting {}", entry.path().filename().string());
+                                    injector::WriteMemory<uint32_t>(EEMainMemoryStart + script_offset, script.size(), true);
+                                    script_offset += sizeof(uint32_t);
+                                    injector::WriteMemoryRaw(EEMainMemoryStart + script_offset, script.data(), script.size(), true);
+                                    script_offset += script.size();
+                                }
+                            }
                         }
                     }
                 }
