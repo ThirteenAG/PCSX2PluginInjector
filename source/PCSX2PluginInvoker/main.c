@@ -9,14 +9,16 @@ void init()
     asm("ei\n");
     asm("addiu $ra, -4\n");
 
+    struct PluginInfoInvoker* PluginDataInvoker = (struct PluginInfoInvoker*)(&PluginData);
+
     for (size_t i = 1; i < sizeof(PluginData); i++)
     {
-        if (PluginData[i].Base == 0)
+        if (PluginDataInvoker[i].Base == 0)
             break;
 
-        if (PluginData[i].EntryPoint != 0)
+        if (PluginDataInvoker[i].EntryPoint != 0)
         {
-            void (*callee)() = (void(*)())PluginData[i].EntryPoint;
+            void (*callee)() = (void(*)())PluginDataInvoker[i].EntryPoint;
             callee();
         }
     }

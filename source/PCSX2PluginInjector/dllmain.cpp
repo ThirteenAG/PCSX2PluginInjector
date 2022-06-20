@@ -12,7 +12,7 @@
 
 #define IDR_INVOKER    101
 
-std::promise<void> exitSignal;
+std::promise<void> exitSignal, exitSignal2;
 
 std::vector<std::string_view>& GetOSDVector()
 {
@@ -33,7 +33,7 @@ CEXP const char* GetOSDVectorData(size_t index)
         return GetOSDVector()[index].data();
 }
 
-CEXP void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, void*& WindowHandle, int& WindowSizeX, int& WindowSizeY, bool& IsFullscreen, uint8_t& AspectRatioSetting);
+CEXP void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, void*& WindowHandle, int& WindowSizeX, int& WindowSizeY, bool& IsFullscreen, uint8_t& AspectRatioSetting, bool& FrameLimitUnthrottle);
 
 void SuspendParentProcess(DWORD targetProcessId, DWORD targetThreadId, bool action)
 {
@@ -68,7 +68,7 @@ void SuspendParentProcess(DWORD targetProcessId, DWORD targetThreadId, bool acti
     }
 }
 
-void ElfSwitchWatcher(std::future<void> futureObj, uint32_t* addr, uint32_t data, uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, void*& WindowHandle, int& WindowSizeX, int& WindowSizeY, bool& IsFullscreen, uint8_t& AspectRatioSetting)
+void ElfSwitchWatcher(std::future<void> futureObj, uint32_t* addr, uint32_t data, uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, void*& WindowHandle, int& WindowSizeX, int& WindowSizeY, bool& IsFullscreen, uint8_t& AspectRatioSetting, bool& FrameLimitUnthrottle)
 {
     spd::log()->info("Starting thread ElfSwitchWatcher");
     volatile auto cur_crc = crc;
@@ -88,7 +88,7 @@ void ElfSwitchWatcher(std::future<void> futureObj, uint32_t* addr, uint32_t data
                     }
                 }
                 SuspendParentProcess(GetCurrentProcessId(), GetCurrentThreadId(), true);
-                LoadPlugins(crc, EEMainMemoryStart, EEMainMemorySize, GameElfTextBase, GameElfTextSize, WindowHandle, WindowSizeX, WindowSizeY, IsFullscreen, AspectRatioSetting);
+                LoadPlugins(crc, EEMainMemoryStart, EEMainMemorySize, GameElfTextBase, GameElfTextSize, WindowHandle, WindowSizeX, WindowSizeY, IsFullscreen, AspectRatioSetting, FrameLimitUnthrottle);
                 SuspendParentProcess(GetCurrentProcessId(), GetCurrentThreadId(), false);
                 spd::log()->info("Ending thread ElfSwitchWatcher");
                 return;
@@ -101,6 +101,23 @@ void ElfSwitchWatcher(std::future<void> futureObj, uint32_t* addr, uint32_t data
         std::this_thread::yield();
     }
     spd::log()->info("Ending thread ElfSwitchWatcher");
+}
+
+void UnthrottleWatcher(std::future<void> futureObj, uint8_t* addr, uint32_t& crc, bool& FrameLimitUnthrottle)
+{
+    spd::log()->info("Starting thread UnthrottleWatcher");
+    volatile auto cur_crc = crc;
+    while (futureObj.wait_for(std::chrono::milliseconds(1)) == std::future_status::timeout)
+    {
+        MEMORY_BASIC_INFORMATION MemoryInf;
+        if (cur_crc != crc || (VirtualQuery((LPCVOID)addr, &MemoryInf, sizeof(MemoryInf)) != 0 && MemoryInf.Protect != 0))
+            FrameLimitUnthrottle = *addr != 0;
+        else
+            break;
+        std::this_thread::yield();
+    }
+    FrameLimitUnthrottle = false;
+    spd::log()->info("Ending thread UnthrottleWatcher");
 }
 
 void RegisterInputDevices(HWND hWnd)
@@ -407,6 +424,16 @@ PluginInfo ParseElf(auto path)
                         info.OSDTextAddr = value;
                         info.OSDTextSize = size;
                     }
+                    else if (name == "FrameLimitUnthrottle")
+                    {
+                        info.FrameLimitUnthrottleAddr = value;
+                        info.FrameLimitUnthrottleSize = size;
+                    }
+                    else if (name == "CLEOScripts")
+                    {
+                        info.CLEOScriptsAddr = value;
+                        info.CLEOScriptsSize = size;
+                    }
                 }
             }
         }
@@ -415,15 +442,18 @@ PluginInfo ParseElf(auto path)
     return info;
 }
 
-void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, void*& WindowHandle, int& WindowSizeX, int& WindowSizeY, bool& IsFullscreen, uint8_t& AspectRatioSetting)
+void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, void*& WindowHandle, int& WindowSizeX, int& WindowSizeY, bool& IsFullscreen, uint8_t& AspectRatioSetting, bool& FrameLimitUnthrottle)
 {
+    auto x = &FrameLimitUnthrottle;
     spd::log()->info("Starting PCSX2PluginInjector, game crc: 0x{:X}", crc);
     spd::log()->info("EE Memory starts at: 0x{:X}", EEMainMemoryStart);
     spd::log()->info("Game Base Address: 0x{:X}", GameElfTextBase);
     spd::log()->info("Game Region End: 0x{:X}", GameElfTextBase + GameElfTextSize);
 
     exitSignal.set_value();
+    exitSignal2.set_value();
     std::promise<void>().swap(exitSignal);
+    std::promise<void>().swap(exitSignal2);
     GetOSDVector().clear();
     InputData.clear();
     uint32_t* ei_hook = nullptr;
@@ -489,7 +519,7 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
         spd::log()->info("Injecting {}...", invokerPath.filename().string());
         injector::WriteMemoryRaw(EEMainMemoryStart + invoker.Base, buffer.data() + invoker.SegmentFileOffset, buffer.size() - invoker.SegmentFileOffset, true);
         injector::MemoryFill(EEMainMemoryStart + invoker.PluginDataAddr, 0x00, invoker.PluginDataSize, true);
-        injector::WriteMemoryRaw(EEMainMemoryStart + invoker.PluginDataAddr + (sizeof(invoker) * count), &invoker, sizeof(invoker), true);
+        injector::WriteMemoryRaw(EEMainMemoryStart + invoker.PluginDataAddr + (sizeof(PluginInfoInvoker) * count), &invoker, sizeof(PluginInfoInvoker), true);
         spd::log()->info("Finished injecting {}, {} bytes written at 0x{:X}", invokerPath.filename().string(), invoker.Size, invoker.Base);
         PluginRegions.emplace_back(invoker.Base, invoker.Base + invoker.Size);
 
@@ -520,6 +550,7 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
         spd::log()->info("Looking for plugins in {}", pluginsPath.parent_path().filename().string());
 
         bool elf_thread_created = false;
+        bool fl_thread_created = false;
 
         for (const auto& file : std::filesystem::recursive_directory_iterator(pluginsPath, std::filesystem::directory_options::skip_permission_denied))
         {
@@ -571,7 +602,7 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
                         {
                             spd::log()->info("Some plugins has to be loaded in another elf, creating thread to handle it");
                             std::future<void> futureObj = exitSignal.get_future();
-                            std::thread th(&ElfSwitchWatcher, std::move(futureObj), ei_hook, ei_data, std::ref(crc), EEMainMemoryStart, EEMainMemorySize, GameElfTextBase, GameElfTextSize, std::ref(WindowHandle), std::ref(WindowSizeX), std::ref(WindowSizeY), std::ref(IsFullscreen), std::ref(AspectRatioSetting));
+                            std::thread th(&ElfSwitchWatcher, std::move(futureObj), ei_hook, ei_data, std::ref(crc), EEMainMemoryStart, EEMainMemorySize, GameElfTextBase, GameElfTextSize, std::ref(WindowHandle), std::ref(WindowSizeX), std::ref(WindowSizeY), std::ref(IsFullscreen), std::ref(AspectRatioSetting), std::ref(FrameLimitUnthrottle));
                             th.detach();
                             elf_thread_created = true;
                         }
@@ -588,10 +619,22 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
                         }
                     }
 
+                    if (mod.FrameLimitUnthrottleAddr)
+                    {
+                        if (!fl_thread_created)
+                        {
+                            spd::log()->info("Some plugins can manage emulator's speed, creating thread to handle it");
+                            std::future<void> futureObj = exitSignal2.get_future();
+                            std::thread th(&UnthrottleWatcher, std::move(futureObj), (uint8_t*)(EEMainMemoryStart + mod.FrameLimitUnthrottleAddr), std::ref(crc), std::ref(FrameLimitUnthrottle));
+                            th.detach();
+                            fl_thread_created = true;
+                        }
+                    }
+
                     count++;
                     spd::log()->info("Injecting {}...", plugin_path.filename().string());
                     injector::WriteMemoryRaw(EEMainMemoryStart + mod.Base, buffer.data() + mod.SegmentFileOffset, buffer.size() - mod.SegmentFileOffset, true);
-                    injector::WriteMemoryRaw(EEMainMemoryStart + invoker.PluginDataAddr + (sizeof(invoker) * count), &mod, sizeof(mod), true);
+                    injector::WriteMemoryRaw(EEMainMemoryStart + invoker.PluginDataAddr + (sizeof(PluginInfoInvoker) * count), &mod, sizeof(PluginInfoInvoker), true);
                     spd::log()->info("Finished injecting {}, {} bytes written at 0x{:X}", plugin_path.filename().string(), mod.Size, mod.Base);
                     PluginRegions.emplace_back(mod.Base, mod.Base + mod.Size);
 

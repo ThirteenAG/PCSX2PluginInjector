@@ -10,4 +10,5 @@ char KeyboardState[StateNum][StateSize] = { {1} };
 char CheatString[CheatStringLen] = { 1 };
 struct CMouseControllerState MouseState[StateNum] = { {1} };
 char OSDText[OSDStringNum][OSDStringSize] = { {1} };
+char FrameLimitUnthrottle;
 */
