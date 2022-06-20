@@ -114,7 +114,7 @@ void UnthrottleWatcher(std::future<void> futureObj, uint8_t* addr, uint32_t& crc
             FrameLimitUnthrottle = *addr != 0;
         else
             break;
-        std::this_thread::yield();
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
     FrameLimitUnthrottle = false;
     spd::log()->info("Ending thread UnthrottleWatcher");
