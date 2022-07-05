@@ -703,18 +703,22 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
                         spd::log()->info("CLEO Plugin detected, injecting CLEO Scripts");
                         injector::MemoryFill(EEMainMemoryStart + mod.CLEOScriptsAddr, 0x00, mod.CLEOScriptsSize, true);
                         auto script_offset = mod.CLEOScriptsAddr;
-                        for (const auto& entry : std::filesystem::directory_iterator(pluginsPath / L"CLEO", std::filesystem::directory_options::skip_permission_denied))
+                        auto cleo_path = pluginsPath / L"CLEO";
+                        if (std::filesystem::exists(cleo_path))
                         {
-                            if (iequals(entry.path().extension().wstring(), L".cs") || iequals(entry.path().extension().wstring(), L".csa"))
+                            for (const auto& entry : std::filesystem::directory_iterator(cleo_path, std::filesystem::directory_options::skip_permission_denied))
                             {
-                                auto script = LoadFileToBuffer(entry.path());
-                                if (script_offset + sizeof(uint32_t) + script.size() <= mod.CLEOScriptsAddr + mod.CLEOScriptsSize)
+                                if (iequals(entry.path().extension().wstring(), L".cs") || iequals(entry.path().extension().wstring(), L".csa"))
                                 {
-                                    spd::log()->info("Injecting {}", entry.path().filename().string());
-                                    injector::WriteMemory<uint32_t>(EEMainMemoryStart + script_offset, script.size(), true);
-                                    script_offset += sizeof(uint32_t);
-                                    injector::WriteMemoryRaw(EEMainMemoryStart + script_offset, script.data(), script.size(), true);
-                                    script_offset += script.size();
+                                    auto script = LoadFileToBuffer(entry.path());
+                                    if (script_offset + sizeof(uint32_t) + script.size() <= mod.CLEOScriptsAddr + mod.CLEOScriptsSize)
+                                    {
+                                        spd::log()->info("Injecting {}", entry.path().filename().string());
+                                        injector::WriteMemory<uint32_t>(EEMainMemoryStart + script_offset, script.size(), true);
+                                        script_offset += sizeof(uint32_t);
+                                        injector::WriteMemoryRaw(EEMainMemoryStart + script_offset, script.data(), script.size(), true);
+                                        script_offset += script.size();
+                                    }
                                 }
                             }
                         }
