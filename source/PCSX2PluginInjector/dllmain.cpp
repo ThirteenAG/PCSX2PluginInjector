@@ -33,7 +33,7 @@ CEXP const char* GetOSDVectorData(size_t index)
         return GetOSDVector()[index].data();
 }
 
-CEXP void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, void*& WindowHandle, int& WindowSizeX, int& WindowSizeY, bool& IsFullscreen, uint8_t& AspectRatioSetting, bool& FrameLimitUnthrottle);
+CEXP void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, void* WindowHandle, int& WindowSizeX, int& WindowSizeY, bool& IsFullscreen, uint8_t& AspectRatioSetting, bool& FrameLimitUnthrottle);
 
 void SuspendParentProcess(DWORD targetProcessId, DWORD targetThreadId, bool action)
 {
@@ -68,56 +68,74 @@ void SuspendParentProcess(DWORD targetProcessId, DWORD targetThreadId, bool acti
     }
 }
 
-void ElfSwitchWatcher(std::future<void> futureObj, uint32_t* addr, uint32_t data, uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, void*& WindowHandle, int& WindowSizeX, int& WindowSizeY, bool& IsFullscreen, uint8_t& AspectRatioSetting, bool& FrameLimitUnthrottle)
+void ElfSwitchWatcher(std::future<void> futureObj, uint32_t* addr, uint32_t data, uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, void* WindowHandle, int& WindowSizeX, int& WindowSizeY, bool& IsFullscreen, uint8_t& AspectRatioSetting, bool& FrameLimitUnthrottle)
 {
-    spd::log()->info("Starting thread ElfSwitchWatcher");
-    volatile auto cur_crc = crc;
-    while (futureObj.wait_for(std::chrono::milliseconds(1)) == std::future_status::timeout)
+    [&]()
     {
-        MEMORY_BASIC_INFORMATION MemoryInf;
-        if (cur_crc != crc || (VirtualQuery((LPCVOID)addr, &MemoryInf, sizeof(MemoryInf)) != 0 && MemoryInf.Protect != 0))
+        __try
         {
-            if (cur_crc != crc || *addr != data)
+            spd::log()->info("Starting thread ElfSwitchWatcher");
+            volatile auto cur_crc = crc;
+            while (futureObj.wait_for(std::chrono::milliseconds(1)) == std::future_status::timeout)
             {
-                while (*addr == 0)
+                MEMORY_BASIC_INFORMATION MemoryInf;
+                if (cur_crc != crc || (VirtualQuery((LPCVOID)addr, &MemoryInf, sizeof(MemoryInf)) != 0 && MemoryInf.Protect != 0))
                 {
-                    if (cur_crc != crc)
+                    if (cur_crc != crc || *addr != data)
                     {
+                        while (*addr == 0)
+                        {
+                            if (cur_crc != crc)
+                            {
+                                spd::log()->info("Ending thread ElfSwitchWatcher");
+                                return;
+                            }
+                        }
+                        SuspendParentProcess(GetCurrentProcessId(), GetCurrentThreadId(), true);
+                        LoadPlugins(crc, EEMainMemoryStart, EEMainMemorySize, GameElfTextBase, GameElfTextSize, WindowHandle, WindowSizeX, WindowSizeY, IsFullscreen, AspectRatioSetting, FrameLimitUnthrottle);
+                        SuspendParentProcess(GetCurrentProcessId(), GetCurrentThreadId(), false);
                         spd::log()->info("Ending thread ElfSwitchWatcher");
                         return;
                     }
                 }
-                SuspendParentProcess(GetCurrentProcessId(), GetCurrentThreadId(), true);
-                LoadPlugins(crc, EEMainMemoryStart, EEMainMemorySize, GameElfTextBase, GameElfTextSize, WindowHandle, WindowSizeX, WindowSizeY, IsFullscreen, AspectRatioSetting, FrameLimitUnthrottle);
-                SuspendParentProcess(GetCurrentProcessId(), GetCurrentThreadId(), false);
-                spd::log()->info("Ending thread ElfSwitchWatcher");
-                return;
+                else
+                {
+                    break;
+                }
+                std::this_thread::yield();
             }
+            spd::log()->info("Ending thread ElfSwitchWatcher");
         }
-        else
+        __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
         {
-            break;
         }
-        std::this_thread::yield();
-    }
-    spd::log()->info("Ending thread ElfSwitchWatcher");
+    }();
 }
 
 void UnthrottleWatcher(std::future<void> futureObj, uint8_t* addr, uint32_t& crc, bool& FrameLimitUnthrottle)
 {
-    spd::log()->info("Starting thread UnthrottleWatcher");
-    volatile auto cur_crc = crc;
-    while (futureObj.wait_for(std::chrono::milliseconds(1)) == std::future_status::timeout)
+    [&]()
     {
-        MEMORY_BASIC_INFORMATION MemoryInf;
-        if (cur_crc != crc || (VirtualQuery((LPCVOID)addr, &MemoryInf, sizeof(MemoryInf)) != 0 && MemoryInf.Protect != 0))
-            FrameLimitUnthrottle = *addr != 0;
-        else
-            break;
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    }
-    FrameLimitUnthrottle = false;
-    spd::log()->info("Ending thread UnthrottleWatcher");
+        __try
+        {
+            spd::log()->info("Starting thread UnthrottleWatcher");
+            volatile auto cur_crc = crc;
+            while (futureObj.wait_for(std::chrono::milliseconds(1)) == std::future_status::timeout)
+            {
+                MEMORY_BASIC_INFORMATION MemoryInf;
+                if (cur_crc != crc || (VirtualQuery((LPCVOID)addr, &MemoryInf, sizeof(MemoryInf)) != 0 && MemoryInf.Protect != 0))
+                    FrameLimitUnthrottle = *addr != 0;
+                else
+                    break;
+                std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            }
+            FrameLimitUnthrottle = false;
+            spd::log()->info("Ending thread UnthrottleWatcher");
+        }
+        __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
+        {
+        }
+    }();
 }
 
 void RegisterInputDevices(HWND hWnd)
@@ -138,6 +156,7 @@ void RegisterInputDevices(HWND hWnd)
     RegisterRawInputDevices(&Rid[1], 1, sizeof(Rid[1]));
 }
 
+HWND* gHWND;
 struct InputDataT
 {
     uint8_t Type;
@@ -147,181 +166,190 @@ struct InputDataT
 LRESULT(WINAPI* WndProc)(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 LRESULT WINAPI CustomWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-    if (msg == WM_ACTIVATE)
+    std::vector<uint8_t> lbp(255);
+    [&]()
     {
-        switch (wParam)
+        __try
         {
-        case WA_ACTIVE:
-        case WA_CLICKACTIVE:
-            RegisterInputDevices(hWnd);
-            break;
-        case WA_INACTIVE:
-            for (auto& it : InputData)
+            if (msg == WM_ACTIVATE)
             {
-                if (it.Type != PtrType::CheatStringData)
+                switch (wParam)
                 {
-                    MEMORY_BASIC_INFORMATION MemoryInf;
-                    if ((VirtualQuery((LPCVOID)it.Addr, &MemoryInf, sizeof(MemoryInf)) != 0 && MemoryInf.Protect != 0))
+                case WA_ACTIVE:
+                case WA_CLICKACTIVE:
+                    RegisterInputDevices(hWnd);
+                    break;
+                case WA_INACTIVE:
+                    for (auto& it : InputData)
                     {
-                        injector::MemoryFill(it.Addr, 0x00, it.Size, true);
+                        if (it.Type != PtrType::CheatStringData)
+                        {
+                            MEMORY_BASIC_INFORMATION MemoryInf;
+                            if ((VirtualQuery((LPCVOID)it.Addr, &MemoryInf, sizeof(MemoryInf)) != 0 && MemoryInf.Protect != 0))
+                            {
+                                injector::MemoryFill(it.Addr, 0x00, it.Size, true);
+                            }
+                        }
                     }
+                    break;
                 }
             }
-            break;
-        }
-    }
-    else if (msg == WM_INPUT)
-    {
-        //DWORD dwPID;
-        //GetWindowThreadProcessId(GetActiveWindow(), &dwPID);
-        //if (dwPID == GetCurrentProcessId())
-        if (hWnd == GetActiveWindow())
-        {
-            for (auto& it : InputData)
+            else if (msg == WM_INPUT)
             {
-                MEMORY_BASIC_INFORMATION MemoryInf;
-                if ((VirtualQuery((LPCVOID)it.Addr, &MemoryInf, sizeof(MemoryInf)) != 0 && MemoryInf.Protect != 0))
+                auto awnd = GetActiveWindow();
+                if (hWnd == awnd || *gHWND == awnd)
                 {
-                    auto VKeyStates = reinterpret_cast<char*>(it.Addr);
-                    auto VKeyStatesPrev = reinterpret_cast<char*>(it.Addr + KeyboardBufState::StateSize);
-                    UINT dwSize = 0;
-
-                    GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER));
-                    std::vector<uint8_t> lbp(dwSize);
-                    auto raw = reinterpret_cast<RAWINPUT*>(lbp.data());
-
-                    if (GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, raw, &dwSize, sizeof(RAWINPUTHEADER)) != dwSize)
+                    for (auto& it : InputData)
                     {
-                        OutputDebugString(TEXT("GetRawInputData does not return correct size !\n"));
-                    }
-
-                    if (raw->header.dwType == RIM_TYPEKEYBOARD)
-                    {
-                        if (raw->header.hDevice)
+                        MEMORY_BASIC_INFORMATION MemoryInf;
+                        if ((VirtualQuery((LPCVOID)it.Addr, &MemoryInf, sizeof(MemoryInf)) != 0 && MemoryInf.Protect != 0))
                         {
-                            if (it.Type == PtrType::KeyboardData)
+                            auto VKeyStates = reinterpret_cast<char*>(it.Addr);
+                            auto VKeyStatesPrev = reinterpret_cast<char*>(it.Addr + KeyboardBufState::StateSize);
+                            UINT dwSize = 0;
+
+                            GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER));
+                            lbp.resize(dwSize);
+                            auto raw = reinterpret_cast<RAWINPUT*>(lbp.data());
+
+                            if (GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, raw, &dwSize, sizeof(RAWINPUTHEADER)) != dwSize)
                             {
-                                switch (raw->data.keyboard.VKey)
+                                OutputDebugString(TEXT("GetRawInputData does not return correct size !\n"));
+                            }
+
+                            if (raw->header.dwType == RIM_TYPEKEYBOARD)
+                            {
+                                if (raw->header.hDevice)
                                 {
-                                case VK_CONTROL:
-                                    if (raw->data.keyboard.Flags & RI_KEY_E0)
+                                    if (it.Type == PtrType::KeyboardData)
                                     {
-                                        VKeyStatesPrev[VK_RCONTROL] = VKeyStates[VK_RCONTROL];
-                                        VKeyStates[VK_RCONTROL] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                        switch (raw->data.keyboard.VKey)
+                                        {
+                                        case VK_CONTROL:
+                                            if (raw->data.keyboard.Flags & RI_KEY_E0)
+                                            {
+                                                VKeyStatesPrev[VK_RCONTROL] = VKeyStates[VK_RCONTROL];
+                                                VKeyStates[VK_RCONTROL] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                            }
+                                            else
+                                            {
+                                                VKeyStatesPrev[VK_LCONTROL] = VKeyStates[VK_LCONTROL];
+                                                VKeyStates[VK_LCONTROL] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                            }
+                                            break;
+                                        case VK_MENU:
+                                            if (raw->data.keyboard.Flags & RI_KEY_E0)
+                                            {
+                                                VKeyStatesPrev[VK_RMENU] = VKeyStates[VK_RMENU];
+                                                VKeyStates[VK_RMENU] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                            }
+                                            else
+                                            {
+                                                VKeyStatesPrev[VK_LMENU] = VKeyStates[VK_LMENU];
+                                                VKeyStates[VK_LMENU] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                            }
+                                            break;
+                                        case VK_SHIFT:
+                                            if (raw->data.keyboard.MakeCode == 0x36)
+                                            {
+                                                VKeyStatesPrev[VK_RSHIFT] = VKeyStates[VK_RSHIFT];
+                                                VKeyStates[VK_RSHIFT] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                            }
+                                            else
+                                            {
+                                                VKeyStatesPrev[VK_LSHIFT] = VKeyStates[VK_LSHIFT];
+                                                VKeyStates[VK_LSHIFT] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                            }
+                                            break;
+                                        default:
+                                            VKeyStatesPrev[raw->data.keyboard.VKey] = VKeyStates[raw->data.keyboard.VKey];
+                                            VKeyStates[raw->data.keyboard.VKey] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                            break;
+                                        }
                                     }
-                                    else
+                                    else if (it.Type == PtrType::CheatStringData)
                                     {
-                                        VKeyStatesPrev[VK_LCONTROL] = VKeyStates[VK_LCONTROL];
-                                        VKeyStates[VK_LCONTROL] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                        if (raw->data.keyboard.Flags & RI_KEY_BREAK)
+                                        {
+                                            auto keycode = raw->data.keyboard.VKey;
+                                            if ((keycode > 47 && keycode < 58) || (keycode > 64 && keycode < 91)) // number or letter keys
+                                            {
+                                                std::memcpy(&VKeyStates[1], &VKeyStates[0], it.Size - 2);
+                                                VKeyStates[0] = raw->data.keyboard.VKey;
+                                                VKeyStates[it.Size - 1] = 0;
+                                            }
+                                            else
+                                            {
+                                                VKeyStates[0] = 0;
+                                            }
+                                        }
                                     }
-                                    break;
-                                case VK_MENU:
-                                    if (raw->data.keyboard.Flags & RI_KEY_E0)
-                                    {
-                                        VKeyStatesPrev[VK_RMENU] = VKeyStates[VK_RMENU];
-                                        VKeyStates[VK_RMENU] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
-                                    }
-                                    else
-                                    {
-                                        VKeyStatesPrev[VK_LMENU] = VKeyStates[VK_LMENU];
-                                        VKeyStates[VK_LMENU] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
-                                    }
-                                    break;
-                                case VK_SHIFT:
-                                    if (raw->data.keyboard.MakeCode == 0x36)
-                                    {
-                                        VKeyStatesPrev[VK_RSHIFT] = VKeyStates[VK_RSHIFT];
-                                        VKeyStates[VK_RSHIFT] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
-                                    }
-                                    else
-                                    {
-                                        VKeyStatesPrev[VK_LSHIFT] = VKeyStates[VK_LSHIFT];
-                                        VKeyStates[VK_LSHIFT] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
-                                    }
-                                    break;
-                                default:
-                                    VKeyStatesPrev[raw->data.keyboard.VKey] = VKeyStates[raw->data.keyboard.VKey];
-                                    VKeyStates[raw->data.keyboard.VKey] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
-                                    break;
                                 }
                             }
-                            else if (it.Type == PtrType::CheatStringData)
+                            else if (raw->header.dwType == RIM_TYPEMOUSE)
                             {
-                                if (raw->data.keyboard.Flags & RI_KEY_BREAK)
+                                if (it.Type == PtrType::MouseData && raw->header.hDevice)
                                 {
-                                    auto keycode = raw->data.keyboard.VKey;
-                                    if ((keycode > 47 && keycode < 58) || (keycode > 64 && keycode < 91)) // number or letter keys
-                                    {
-                                        std::memcpy(&VKeyStates[1], &VKeyStates[0], it.Size - 2);
-                                        VKeyStates[0] = raw->data.keyboard.VKey;
-                                        VKeyStates[it.Size - 1] = 0;
-                                    }
+                                    CMouseControllerState& StateBuf = *reinterpret_cast<CMouseControllerState*>(it.Addr);
+                                    CMouseControllerState& StateBufPrev = *reinterpret_cast<CMouseControllerState*>(it.Addr + sizeof(CMouseControllerState));
+
+                                    StateBufPrev = StateBuf;
+
+                                    // Movement
+                                    StateBuf.X += static_cast<float>(raw->data.mouse.lLastX);
+                                    StateBuf.Y += static_cast<float>(raw->data.mouse.lLastY);
+
+                                    // LMB
+                                    if (!StateBuf.lmb)
+                                        StateBuf.lmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN) != false;
                                     else
+                                        StateBuf.lmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP) == false;
+
+                                    // RMB
+                                    if (!StateBuf.rmb)
+                                        StateBuf.rmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN) != false;
+                                    else
+                                        StateBuf.rmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_UP) == false;
+
+                                    // MMB
+                                    if (!StateBuf.mmb)
+                                        StateBuf.mmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN) != false;
+                                    else
+                                        StateBuf.mmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP) == false;
+
+                                    // 4th button
+                                    if (!StateBuf.bmx1)
+                                        StateBuf.bmx1 = (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_4_DOWN) != false;
+                                    else
+                                        StateBuf.bmx1 = (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_4_UP) == false;
+
+                                    // 5th button
+                                    if (!StateBuf.bmx2)
+                                        StateBuf.bmx2 = (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_5_DOWN) != false;
+                                    else
+                                        StateBuf.bmx2 = (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_5_UP) == false;
+
+                                    // Scroll
+                                    if (raw->data.mouse.usButtonFlags & RI_MOUSE_WHEEL)
                                     {
-                                        VKeyStates[0] = 0;
+                                        StateBuf.Z += static_cast<signed short>(raw->data.mouse.usButtonData);
+                                        if (StateBuf.Z < 0.0f)
+                                            StateBuf.wheelDown = true;
+                                        else if (StateBuf.Z > 0.0f)
+                                            StateBuf.wheelUp = true;
                                     }
                                 }
                             }
                         }
                     }
-                    else if (raw->header.dwType == RIM_TYPEMOUSE)
-                    {
-                        if (it.Type == PtrType::MouseData && raw->header.hDevice)
-                        {
-                            CMouseControllerState& StateBuf = *reinterpret_cast<CMouseControllerState*>(it.Addr);
-                            CMouseControllerState& StateBufPrev = *reinterpret_cast<CMouseControllerState*>(it.Addr + sizeof(CMouseControllerState));
-
-                            StateBufPrev = StateBuf;
-
-                            // Movement
-                            StateBuf.X += static_cast<float>(raw->data.mouse.lLastX);
-                            StateBuf.Y += static_cast<float>(raw->data.mouse.lLastY);
-
-                            // LMB
-                            if (!StateBuf.lmb)
-                                StateBuf.lmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN) != false;
-                            else
-                                StateBuf.lmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP) == false;
-
-                            // RMB
-                            if (!StateBuf.rmb)
-                                StateBuf.rmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN) != false;
-                            else
-                                StateBuf.rmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_UP) == false;
-
-                            // MMB
-                            if (!StateBuf.mmb)
-                                StateBuf.mmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN) != false;
-                            else
-                                StateBuf.mmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP) == false;
-
-                            // 4th button
-                            if (!StateBuf.bmx1)
-                                StateBuf.bmx1 = (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_4_DOWN) != false;
-                            else
-                                StateBuf.bmx1 = (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_4_UP) == false;
-
-                            // 5th button
-                            if (!StateBuf.bmx2)
-                                StateBuf.bmx2 = (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_5_DOWN) != false;
-                            else
-                                StateBuf.bmx2 = (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_5_UP) == false;
-
-                            // Scroll
-                            if (raw->data.mouse.usButtonFlags & RI_MOUSE_WHEEL)
-                            {
-                                StateBuf.Z += static_cast<signed short>(raw->data.mouse.usButtonData);
-                                if (StateBuf.Z < 0.0f)
-                                    StateBuf.wheelDown = true;
-                                else if (StateBuf.Z > 0.0f)
-                                    StateBuf.wheelUp = true;
-                            }
-                        }
-                    }
                 }
             }
         }
-    }
+        __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
+        {
+        }
+    }();
+
     return WndProc(hWnd, msg, wParam, lParam);
 }
 
@@ -442,7 +470,7 @@ PluginInfo ParseElf(auto path)
     return info;
 }
 
-void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, void*& WindowHandle, int& WindowSizeX, int& WindowSizeY, bool& IsFullscreen, uint8_t& AspectRatioSetting, bool& FrameLimitUnthrottle)
+void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemorySize, uintptr_t GameElfTextBase, uintptr_t GameElfTextSize, void* WindowHandle, int& WindowSizeX, int& WindowSizeY, bool& IsFullscreen, uint8_t& AspectRatioSetting, bool& FrameLimitUnthrottle)
 {
     auto x = &FrameLimitUnthrottle;
     spd::log()->info("Starting PCSX2PluginInjector, game crc: 0x{:X}", crc);
@@ -708,7 +736,8 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
                         {
                             for (const auto& entry : std::filesystem::directory_iterator(cleo_path, std::filesystem::directory_options::skip_permission_denied))
                             {
-                                if (iequals(entry.path().extension().wstring(), L".cs") || iequals(entry.path().extension().wstring(), L".csa"))
+                                auto ext = entry.path().extension().wstring();
+                                if (iequals(ext, L".cs") || iequals(ext, L".csa") || iequals(ext, L".csi"))
                                 {
                                     auto script = LoadFileToBuffer(entry.path());
                                     if (script_offset + sizeof(uint32_t) + script.size() <= mod.CLEOScriptsAddr + mod.CLEOScriptsSize)
@@ -748,7 +777,8 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
                 return NULL;
             };
 
-            auto hwnd = WindowHandle ? GetAncestor(reinterpret_cast<HWND>(WindowHandle), GA_ROOT) : GetHwnd(GetCurrentProcessId());
+            gHWND = (HWND*)WindowHandle;
+            auto hwnd = *(HWND*)WindowHandle ? GetAncestor(reinterpret_cast<HWND>(*(HWND*)WindowHandle), GA_ROOT) : GetHwnd(GetCurrentProcessId());
             if (hwnd)
             {
                 RegisterInputDevices(hwnd);
