@@ -553,24 +553,35 @@ void LoadPlugins(uint32_t& crc, uintptr_t EEMainMemoryStart, size_t EEMainMemory
 
         spd::log()->info("Hooking game's entry point function...", invokerPath.filename().string());
         auto patched = false;
-        constexpr auto start_pattern = "28 ? 00 70 28 ? 00 70 28 ? 00 70 28 ? 00 70 28";
-        auto pattern = hook::pattern(EEMainMemoryStart, EEMainMemoryStart + EEMainMemorySize, start_pattern);
-        pattern.for_each_result([&ei_hook, &ei_data, &invoker, &patched](hook::pattern_match match)
-            {
-                auto ei_lookup = hook::pattern((uintptr_t)match.get<void>(0), (uintptr_t)match.get<void>(2000), "38 00 00 42");
-                if (!ei_lookup.empty())
-                {
-                    ei_hook = ei_lookup.get_first<uint32_t>();
-                    ei_data = mips::jal(invoker.EntryPoint);
-                    injector::WriteMemory<uint32_t>(ei_hook, ei_data, true);
-                    patched = true;
-                    return;
-                }
-            });
+        static const char* patterns[] = {
+             "28 ? 00 70 28 ? 00 70 28 ? 00 70 28 ? 00 70 28",
+             "0C 00 00 00 ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? 0C 00 00 00 ? ? ? ? 00 00 00 00 ? ? ? ?",
+        };
 
+        for (auto& pat : patterns)
+        {
+            if (patched)
+                break;
+
+            auto pattern = hook::pattern(EEMainMemoryStart, EEMainMemoryStart + EEMainMemorySize, pat);
+            pattern.for_each_result([&ei_hook, &ei_data, &invoker, &patched](hook::pattern_match match)
+                {
+                    auto ei_lookup = hook::pattern((uintptr_t)match.get<void>(0), (uintptr_t)match.get<void>(2000), "38 00 00 42");
+                    if (!ei_lookup.empty())
+                    {
+                        ei_hook = ei_lookup.get_first<uint32_t>();
+                        ei_data = mips::jal(invoker.EntryPoint);
+                        injector::WriteMemory<uint32_t>(ei_hook, ei_data, true);
+                        patched = true;
+                        return;
+                    }
+                });
+
+        }
+       
         if (!patched)
         {
-            spd::log()->error("{} can't hook the game with CRC {}, exiting...", modulePath.filename().string(), crc);
+            spd::log()->error("{} can't hook the game with CRC 0x{:X}, exiting...", modulePath.filename().string(), crc);
             return;
         }
 
