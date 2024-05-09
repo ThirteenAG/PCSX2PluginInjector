@@ -10,6 +10,46 @@
 
 #include <pcsx2f_api.h>
 
+enum class VMState
+{
+    Shutdown,
+    Initializing,
+    Running,
+    Paused,
+    Resetting,
+    Stopping,
+};
+
+using InitCB = void (*)(
+    const char* s_disc_serial,
+    const char* s_disc_elf,
+    const char* s_disc_version,
+    const char* s_title,
+    const char* s_elf_path,
+    const uint32_t s_disc_crc,
+    const uint32_t s_current_crc,
+    const uint32_t s_elf_entry_point,
+    uint8_t* EEMainMemoryStart,
+    size_t EEMainMemorySize,
+    const void* WindowHandle,
+    const uint32_t WindowSizeX,
+    const uint32_t WindowSizeY,
+    const bool IsFullscreen,
+    const AspectRatioType AspectRatioSetting);
+using ShutdownCB = void (*)();
+
+using tGetIsThrottlerTempDisabled = bool(*)();
+using tSetIsThrottlerTempDisabled = void(*)(bool);
+using tGetVMState = VMState(*)();
+using tAddOnGameElfInitCallback = void(*)(InitCB callback);
+using tAddOnGameShutdownCallback = void(*)(ShutdownCB callback);
+
+tGetIsThrottlerTempDisabled GetIsThrottlerTempDisabled = nullptr;
+tSetIsThrottlerTempDisabled SetIsThrottlerTempDisabled = nullptr;
+tGetVMState GetVMState = nullptr;
+tAddOnGameElfInitCallback AddOnGameElfInitCallback = nullptr;
+tAddOnGameShutdownCallback AddOnGameShutdownCallback = nullptr;
+
 #define IDR_INVOKER    101
 
 std::promise<void> exitSignal;
@@ -42,61 +82,38 @@ CEXP void LoadPlugins(
     const char* s_disc_version,
     const char* s_title,
     const char* s_elf_path,
-    const uint32_t& s_disc_crc,
-    const uint32_t& s_current_crc,
-    const uint32_t& s_elf_entry_point,
+    const uint32_t s_disc_crc,
+    const uint32_t s_current_crc,
+    const uint32_t s_elf_entry_point,
     uint8_t* EEMainMemoryStart,
     size_t EEMainMemorySize,
     const void* WindowHandle,
-    const uint32_t& WindowSizeX,
-    const uint32_t& WindowSizeY,
+    const uint32_t WindowSizeX,
+    const uint32_t WindowSizeY,
     const bool IsFullscreen,
-    const uint8_t& AspectRatioSetting,
-    bool& FrameLimitUnthrottle
+    const AspectRatioType AspectRatioSetting
 );
-
-enum class VMState
-{
-    Shutdown,
-    Initializing,
-    Running,
-    Paused,
-    Resetting,
-    Stopping,
-};
-
-std::atomic<VMState>* s_state;
 
 CEXP bool VMStateIsRunning()
 {
-    if (s_state)
-        return s_state->load(std::memory_order_acquire) == VMState::Running;
-    return true;
+    if (GetVMState)
+        return GetVMState() == VMState::Running;
+    return false;
 }
 
-CEXP void SetVMStatePtr(std::atomic<VMState>* ptr)
-{
-    s_state = ptr;
-}
-
-void UnthrottleWatcher(std::future<void> futureObj, uint8_t* addr, const uint32_t& crc, bool& FrameLimitUnthrottle)
+void UnthrottleWatcher(std::future<void> futureObj, uint8_t* addr, const uint32_t& crc)
 {
     [&]()
     {
         __try
         {
             spd::log()->info("Starting thread UnthrottleWatcher");
-            volatile auto cur_crc = crc;
             while (futureObj.wait_for(std::chrono::milliseconds(1)) == std::future_status::timeout)
             {
-                MEMORY_BASIC_INFORMATION MemoryInf;
-                if (cur_crc != crc || (VirtualQuery((LPCVOID)addr, &MemoryInf, sizeof(MemoryInf)) != 0 && MemoryInf.Protect != 0))
-                    FrameLimitUnthrottle = *addr != 0;
-                else
-                    break;
+                SetIsThrottlerTempDisabled(*addr != 0);
                 std::this_thread::sleep_for(std::chrono::milliseconds(500));
             }
-            FrameLimitUnthrottle = false;
+            SetIsThrottlerTempDisabled(false);
             spd::log()->info("Ending thread UnthrottleWatcher");
         }
         __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
@@ -443,17 +460,16 @@ void LoadPlugins(
     const char* s_disc_version,
     const char* s_title,
     const char* s_elf_path,
-    const uint32_t& s_disc_crc,
-    const uint32_t& s_current_crc,
-    const uint32_t& s_elf_entry_point,
+    const uint32_t s_disc_crc,
+    const uint32_t s_current_crc,
+    const uint32_t s_elf_entry_point,
     uint8_t* EEMainMemoryStart,
     size_t EEMainMemorySize,
     const void* WindowHandle,
-    const uint32_t& WindowSizeX,
-    const uint32_t& WindowSizeY,
+    const uint32_t WindowSizeX,
+    const uint32_t WindowSizeY,
     const bool IsFullscreen,
-    const uint8_t& AspectRatioSetting,
-    bool& FrameLimitUnthrottle
+    const AspectRatioType AspectRatioSetting
 )
 {
     spd::log()->info("Starting PCSX2PluginInjector");
@@ -466,6 +482,15 @@ void LoadPlugins(
     spd::log()->info("Current ELF CRC: 0x{:X}", s_current_crc);
     spd::log()->info("ELF Entry Point Address: 0x{:X}", s_elf_entry_point);
     spd::log()->info("EE Memory starts at: 0x{:X}", (uintptr_t)EEMainMemoryStart);
+    spd::log()->info("EE Memory Size is: {}", (uintptr_t)EEMainMemorySize);
+
+    if (EEMainMemorySize < 0x0000000008000000)
+    {
+        constexpr auto ramerr = "Enable 128 MB RAM option is Settings -> Advanced. Plugins will not be loaded at this time.";
+        spd::log()->error(ramerr);
+        MessageBoxA(NULL, ramerr, "PCSX2PluginInjector", MB_ICONERROR);
+        return;
+    }
 
     gEEMainMemoryStart = (uintptr_t)EEMainMemoryStart;
     gEEMainMemorySize = (size_t)EEMainMemorySize;
@@ -696,7 +721,7 @@ void LoadPlugins(
                             spd::log()->info("Some plugins can manage emulator's speed, creating thread to handle it");
                             injector::MemoryFill(EEMainMemoryStart + mod.FrameLimitUnthrottleAddr, 0x00, mod.FrameLimitUnthrottleSize, true);
                             std::future<void> futureObj = exitSignal.get_future();
-                            std::thread th(&UnthrottleWatcher, std::move(futureObj), (uint8_t*)(EEMainMemoryStart + mod.FrameLimitUnthrottleAddr), std::ref(s_current_crc), std::ref(FrameLimitUnthrottle));
+                            std::thread th(&UnthrottleWatcher, std::move(futureObj), (uint8_t*)(EEMainMemoryStart + mod.FrameLimitUnthrottleAddr), std::ref(s_current_crc));
                             th.detach();
                             fl_thread_created = true;
                         }
@@ -848,19 +873,32 @@ void Init()
 
 }
 
+void ExitSignal()
+{
+    exitSignal.set_value();
+    std::promise<void>().swap(exitSignal);
+}
+
 CEXP void InitializeASI()
 {
-    //std::call_once(CallbackHandler::flag, []()
-    //{
-    //    CallbackHandler::RegisterCallback(Init, hook::pattern(""));
-    //});
+    std::call_once(CallbackHandler::flag, []()
+    {
+        GetIsThrottlerTempDisabled = (tGetIsThrottlerTempDisabled)GetProcAddress(GetModuleHandle(NULL), "GetIsThrottlerTempDisabled");
+        SetIsThrottlerTempDisabled = (tSetIsThrottlerTempDisabled)GetProcAddress(GetModuleHandle(NULL), "SetIsThrottlerTempDisabled");
+        GetVMState = (tGetVMState)GetProcAddress(GetModuleHandle(NULL), "GetVMState");
+        AddOnGameElfInitCallback = (tAddOnGameElfInitCallback)GetProcAddress(GetModuleHandle(NULL), "AddOnGameElfInitCallback");
+        AddOnGameShutdownCallback = (tAddOnGameShutdownCallback)GetProcAddress(GetModuleHandle(NULL), "AddOnGameShutdownCallback");
+
+        AddOnGameElfInitCallback(LoadPlugins);
+        AddOnGameShutdownCallback(ExitSignal);
+    });
 }
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved)
 {
     if (reason == DLL_PROCESS_ATTACH)
     {
-        //if (!IsUALPresent()) { InitializeASI(); }
+        if (!IsUALPresent()) { InitializeASI(); }
     }
 
     if (reason == DLL_PROCESS_DETACH)

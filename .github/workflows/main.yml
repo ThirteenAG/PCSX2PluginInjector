@@ -12,10 +12,9 @@ jobs:
         buildtype: [Release]
 
     steps:
-    - uses: actions/checkout@v2
     - name: Add msbuild to PATH
-      uses: microsoft/setup-msbuild@v1.1
-    - uses: actions/checkout@v2
+      uses: microsoft/setup-msbuild@v2
+    - uses: actions/checkout@v4
       with:
         submodules: 'true'
     - name: Configure build
@@ -26,29 +25,18 @@ jobs:
       shell: cmd
       run: |
         msbuild -m build/PCSX2PluginInjector.sln /property:Configuration=${{matrix.buildtype}} /property:Platform=${{matrix.platform}}
-    - name: Pack binaries (Main)
-      uses: ThirteenAG/zip-release@master
-      with:
-        path: ./data/*
-        type: 'zip'
-        filename: 'PCSX2PluginInjector.zip'
-        exclusions: '*.pdb *.lib *.exp *.map PCSX2PluginInvoker.elf PCSX2PluginDummy.elf GTAVCS MKD SCDA'
-    - name: Pack binaries (With Demo Plugins)
-      uses: ThirteenAG/zip-release@master
-      with:
-        path: ./data/*
-        type: 'zip'
-        filename: 'PCSX2PluginInjectorDemo.zip'
-        exclusions: '*.pdb *.lib *.exp *.map'
+    - name: Pack binaries
+      run: |
+        ./release.bat
     - name: Get release info
       id: release_info
-      uses: cardinalby/git-get-release-action@1.1.1
+      uses: cardinalby/git-get-release-action@1.2.4
       env:
        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag: latest
     - name: Upload Release
-      uses: ncipollo/release-action@v1
+      uses: ncipollo/release-action@v1.14.0
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         allowUpdates: true

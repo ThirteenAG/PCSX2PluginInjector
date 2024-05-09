@@ -321,4 +321,5 @@ __pycache__/
 # tools/**
 # !tools/packages.config
 
-!source/*.PPSSPP.*/**/*.exp
+PCSX2PluginInjector.zip
+PCSX2PluginInjectorDemo.zip
