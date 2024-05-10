@@ -38,18 +38,35 @@ using InitCB = void (*)(
     const AspectRatioType AspectRatioSetting);
 using ShutdownCB = void (*)();
 
+using tWriteBytes = void(*)(uint32_t mem, const void* src, uint32_t size);
 using tGetIsThrottlerTempDisabled = bool(*)();
 using tSetIsThrottlerTempDisabled = void(*)(bool);
 using tGetVMState = VMState(*)();
 using tAddOnGameElfInitCallback = void(*)(InitCB callback);
 using tAddOnGameShutdownCallback = void(*)(ShutdownCB callback);
 
+tWriteBytes WriteBytes = nullptr;
 tGetIsThrottlerTempDisabled GetIsThrottlerTempDisabled = nullptr;
 tSetIsThrottlerTempDisabled SetIsThrottlerTempDisabled = nullptr;
 tGetVMState GetVMState = nullptr;
 tAddOnGameElfInitCallback AddOnGameElfInitCallback = nullptr;
 tAddOnGameShutdownCallback AddOnGameShutdownCallback = nullptr;
 
+void MemoryFill(uint32_t addr, uint8_t value, uint32_t size)
+{
+    std::vector<uint8_t> temp(size, value);
+    WriteBytes(addr, temp.data(), temp.size());
+}
+
+void WriteMemory32(uint32_t addr, uint32_t value)
+{
+    WriteBytes(addr, &value, sizeof(value));
+}
+
+void WriteMemoryRaw(uint32_t addr, void* value, uint32_t size)
+{
+    WriteBytes(addr, value, size);
+}
 #define IDR_INVOKER    101
 
 std::promise<void> exitSignal;
@@ -171,7 +188,7 @@ LRESULT WINAPI CustomWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
                             MEMORY_BASIC_INFORMATION MemoryInf;
                             if ((VirtualQuery((LPCVOID)it.Addr, &MemoryInf, sizeof(MemoryInf)) != 0 && MemoryInf.Protect != 0))
                             {
-                                injector::MemoryFill(it.Addr, 0x00, it.Size, true);
+                                MemoryFill(it.Addr, 0x00, it.Size);
                             }
                         }
                     }
@@ -561,9 +578,9 @@ void LoadPlugins(
         auto count = 0;
 
         spd::log()->info("Injecting {}...", invokerPath.filename().string());
-        injector::WriteMemoryRaw(EEMainMemoryStart + invoker.Base, buffer.data() + invoker.SegmentFileOffset, buffer.size() - invoker.SegmentFileOffset, true);
-        injector::MemoryFill(EEMainMemoryStart + invoker.PluginDataAddr, 0x00, invoker.PluginDataSize, true);
-        injector::WriteMemoryRaw(EEMainMemoryStart + invoker.PluginDataAddr + (sizeof(PluginInfoInvoker) * count), &invoker, sizeof(PluginInfoInvoker), true);
+        WriteMemoryRaw(invoker.Base, buffer.data() + invoker.SegmentFileOffset, buffer.size() - invoker.SegmentFileOffset);
+        MemoryFill(invoker.PluginDataAddr, 0x00, invoker.PluginDataSize);
+        WriteMemoryRaw(invoker.PluginDataAddr + (sizeof(PluginInfoInvoker) * count), &invoker, sizeof(PluginInfoInvoker));
         spd::log()->info("Finished injecting {}, {} bytes written at 0x{:X}", invokerPath.filename().string(), invoker.Size, invoker.Base);
         PluginRegions.emplace_back(invoker.Base, invoker.Base + invoker.Size);
 
@@ -575,7 +592,7 @@ void LoadPlugins(
         {
             ei_hook = ei_lookup.get_first<uint32_t>();
             ei_data = mips::jal(invoker.EntryPoint);
-            injector::WriteMemory<uint32_t>(ei_hook, ei_data, true);
+            WriteMemory32(uint32_t((uintptr_t)ei_hook - (uintptr_t)EEMainMemoryStart), ei_data);
             patched = true;
         }
        
@@ -650,8 +667,8 @@ void LoadPlugins(
 
                     count++;
                     spd::log()->info("Injecting {}...", plugin_path.filename().string());
-                    injector::WriteMemoryRaw(EEMainMemoryStart + mod.Base, buffer.data() + mod.SegmentFileOffset, buffer.size() - mod.SegmentFileOffset, true);
-                    injector::WriteMemoryRaw(EEMainMemoryStart + invoker.PluginDataAddr + (sizeof(PluginInfoInvoker) * count), &mod, sizeof(PluginInfoInvoker), true);
+                    WriteMemoryRaw(mod.Base, buffer.data() + mod.SegmentFileOffset, buffer.size() - mod.SegmentFileOffset);
+                    WriteMemoryRaw(invoker.PluginDataAddr + (sizeof(PluginInfoInvoker) * count), &mod, sizeof(PluginInfoInvoker));
                     spd::log()->info("Finished injecting {}, {} bytes written at 0x{:X}", plugin_path.filename().string(), mod.Size, mod.Base);
                     PluginRegions.emplace_back(mod.Base, mod.Base + mod.Size);
 
@@ -664,8 +681,8 @@ void LoadPlugins(
                             auto ini = LoadFileToBuffer(iniPath);
                             spd::log()->info("Injecting {}...", iniPath.filename().string());
                             ini.resize(mod.PluginDataSize - sizeof(uint32_t));
-                            injector::WriteMemory<uint32_t>(EEMainMemoryStart + mod.PluginDataAddr, ini.size(), true);
-                            injector::WriteMemoryRaw(EEMainMemoryStart + mod.PluginDataAddr + sizeof(uint32_t), ini.data(), ini.size(), true);
+                            WriteMemory32(mod.PluginDataAddr, ini.size());
+                            WriteMemoryRaw(mod.PluginDataAddr + sizeof(uint32_t), ini.data(), ini.size());
                             spd::log()->info("{} was successfully injected", iniPath.filename().string());
                         }
                     }
@@ -674,33 +691,33 @@ void LoadPlugins(
                     {
                         spd::log()->info("Writing PCSX2 Data to {}", plugin_path.filename().string());
                         auto [DesktopSizeX, DesktopSizeY] = GetDesktopRes();
-                        injector::WriteMemory<uint32_t>(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_DesktopSizeX), (uint32_t)DesktopSizeX, true);
-                        injector::WriteMemory<uint32_t>(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_DesktopSizeY), (uint32_t)DesktopSizeY, true);
-                        injector::WriteMemory<uint32_t>(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_WindowSizeX), (uint32_t)WindowSizeX, true);
-                        injector::WriteMemory<uint32_t>(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_WindowSizeY), (uint32_t)WindowSizeY, true);
-                        injector::WriteMemory<uint32_t>(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_IsFullscreen), (uint32_t)IsFullscreen, true);
-                        injector::WriteMemory<uint32_t>(EEMainMemoryStart + mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_AspectRatioSetting), (uint32_t)AspectRatioSetting, true);
+                        WriteMemory32(mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_DesktopSizeX), (uint32_t)DesktopSizeX);
+                        WriteMemory32(mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_DesktopSizeY), (uint32_t)DesktopSizeY);
+                        WriteMemory32(mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_WindowSizeX), (uint32_t)WindowSizeX);
+                        WriteMemory32(mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_WindowSizeY), (uint32_t)WindowSizeY);
+                        WriteMemory32(mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_IsFullscreen), (uint32_t)IsFullscreen);
+                        WriteMemory32(mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_AspectRatioSetting), (uint32_t)AspectRatioSetting);
                     }
 
                     if (mod.KeyboardStateAddr)
                     {
                         spd::log()->info("{} requests keyboard state", plugin_path.filename().string());
                         InputData.emplace_back(PtrType::KeyboardData, (uintptr_t)(EEMainMemoryStart + mod.KeyboardStateAddr), mod.KeyboardStateSize);
-                        injector::MemoryFill(EEMainMemoryStart + mod.KeyboardStateAddr, 0, mod.KeyboardStateSize, true);
+                        MemoryFill(mod.KeyboardStateAddr, 0, mod.KeyboardStateSize);
                     }
 
                     if (mod.MouseStateAddr)
                     {
                         spd::log()->info("{} requests mouse state", plugin_path.filename().string());
                         InputData.emplace_back(PtrType::MouseData, (uintptr_t)(EEMainMemoryStart + mod.MouseStateAddr), mod.MouseStateSize);
-                        injector::MemoryFill(EEMainMemoryStart + mod.MouseStateAddr, 0, mod.MouseStateSize, true);
+                        MemoryFill(mod.MouseStateAddr, 0, mod.MouseStateSize);
                     }
 
                     if (mod.CheatStringAddr)
                     {
                         spd::log()->info("{} requests cheat string access", plugin_path.filename().string());
                         InputData.emplace_back(PtrType::CheatStringData, (uintptr_t)(EEMainMemoryStart + mod.CheatStringAddr), mod.CheatStringSize);
-                        injector::MemoryFill(EEMainMemoryStart + mod.CheatStringAddr, 0, mod.CheatStringSize, true);
+                        MemoryFill(mod.CheatStringAddr, 0, mod.CheatStringSize);
                     }
 
                     if (mod.OSDTextAddr)
@@ -708,8 +725,8 @@ void LoadPlugins(
                         spd::log()->info("{} requests OSD drawings", plugin_path.filename().string());
                         for (size_t i = 0; i < mod.OSDTextSize / OSDStringSize; i++)
                         {
+                            MemoryFill(mod.OSDTextAddr + (OSDStringSize * i), 0, OSDStringSize);
                             auto block = (char*)(EEMainMemoryStart + mod.OSDTextAddr + (OSDStringSize * i));
-                            injector::MemoryFill(block, 0, OSDStringSize, true);
                             GetOSDVector().emplace_back(std::string_view(block, OSDStringSize));
                         }
                     }
@@ -719,7 +736,7 @@ void LoadPlugins(
                         if (!fl_thread_created)
                         {
                             spd::log()->info("Some plugins can manage emulator's speed, creating thread to handle it");
-                            injector::MemoryFill(EEMainMemoryStart + mod.FrameLimitUnthrottleAddr, 0x00, mod.FrameLimitUnthrottleSize, true);
+                            MemoryFill(mod.FrameLimitUnthrottleAddr, 0x00, mod.FrameLimitUnthrottleSize);
                             std::future<void> futureObj = exitSignal.get_future();
                             std::thread th(&UnthrottleWatcher, std::move(futureObj), (uint8_t*)(EEMainMemoryStart + mod.FrameLimitUnthrottleAddr), std::ref(s_current_crc));
                             th.detach();
@@ -730,7 +747,7 @@ void LoadPlugins(
                     if (mod.CLEOScriptsAddr)
                     {
                         spd::log()->info("CLEO Plugin detected, injecting CLEO Scripts");
-                        injector::MemoryFill(EEMainMemoryStart + mod.CLEOScriptsAddr, 0x00, mod.CLEOScriptsSize, true);
+                        MemoryFill(mod.CLEOScriptsAddr, 0x00, mod.CLEOScriptsSize);
                         auto script_offset = mod.CLEOScriptsAddr;
                         auto cleo_path = pluginsPath / L"CLEO";
                         if (std::filesystem::exists(cleo_path, ec))
@@ -744,9 +761,9 @@ void LoadPlugins(
                                     if (script_offset + sizeof(uint32_t) + script.size() <= mod.CLEOScriptsAddr + mod.CLEOScriptsSize)
                                     {
                                         spd::log()->info("Injecting {}", entry.path().filename().string());
-                                        injector::WriteMemory<uint32_t>(EEMainMemoryStart + script_offset, script.size(), true);
+                                        WriteMemory32(script_offset, script.size());
                                         script_offset += sizeof(uint32_t);
-                                        injector::WriteMemoryRaw(EEMainMemoryStart + script_offset, script.data(), script.size(), true);
+                                        WriteMemoryRaw(script_offset, script.data(), script.size());
                                         script_offset += script.size();
                                     }
                                 }
@@ -883,6 +900,7 @@ CEXP void InitializeASI()
 {
     std::call_once(CallbackHandler::flag, []()
     {
+        WriteBytes = (tWriteBytes)GetProcAddress(GetModuleHandle(NULL), "WriteBytes");
         GetIsThrottlerTempDisabled = (tGetIsThrottlerTempDisabled)GetProcAddress(GetModuleHandle(NULL), "GetIsThrottlerTempDisabled");
         SetIsThrottlerTempDisabled = (tSetIsThrottlerTempDisabled)GetProcAddress(GetModuleHandle(NULL), "SetIsThrottlerTempDisabled");
         GetVMState = (tGetVMState)GetProcAddress(GetModuleHandle(NULL), "GetVMState");
