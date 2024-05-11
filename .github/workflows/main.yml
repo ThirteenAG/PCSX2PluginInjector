@@ -25,12 +25,23 @@ jobs:
       shell: cmd
       run: |
         msbuild -m build/PCSX2PluginInjector.sln /property:Configuration=${{matrix.buildtype}} /property:Platform=${{matrix.platform}}
+    - name: Download Ultimate ASI Loader x64
+      uses: robinraju/release-downloader@v1.10
+      with:
+        repository: "ThirteenAG/Ultimate-ASI-Loader"
+        tag: "x64-latest"
+        fileName: "version-x64.zip"
+    - name: Unpack dependencies
+      run: |
+          7z x version-x64.zip -odata/ -y
+          del version-x64.zip
+          del data\version-x64.SHA512
     - name: Pack binaries
       run: |
         ./release.bat
     - name: Get release info
       id: release_info
-      uses: cardinalby/git-get-release-action@1.2.4
+      uses: cardinalby/git-get-release-action@master
       env:
        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:

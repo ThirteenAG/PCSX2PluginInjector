@@ -10,6 +10,30 @@
 
 #include <pcsx2f_api.h>
 
+#define C_FFI
+#include "pine.h"
+PINE::PCSX2* ipc;
+
+HWND FallbackWindowHandle;
+static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
+{
+    DWORD lpdwProcessId;
+    GetWindowThreadProcessId(hwnd, &lpdwProcessId);
+    auto str = reinterpret_cast<const char*>(lParam);
+
+    if (lpdwProcessId == GetCurrentProcessId())
+    {
+        if (IsWindowVisible(hwnd))
+        {
+            std::string title(GetWindowTextLengthA(hwnd) + 1, '\0');
+            GetWindowTextA(hwnd, title.data(), title.size());
+            if (title.contains(str) || title.starts_with("Slot:") || title.starts_with("Booting PS2 BIOS..."))
+                FallbackWindowHandle = hwnd;
+        }
+    }
+    return TRUE;
+}
+
 enum class VMState
 {
     Shutdown,
@@ -31,7 +55,7 @@ using InitCB = void (*)(
     const uint32_t s_elf_entry_point,
     uint8_t* EEMainMemoryStart,
     size_t EEMainMemorySize,
-    const void* WindowHandle,
+    const void* pWindowHandle,
     const uint32_t WindowSizeX,
     const uint32_t WindowSizeY,
     const bool IsFullscreen,
@@ -52,26 +76,60 @@ tGetVMState GetVMState = nullptr;
 tAddOnGameElfInitCallback AddOnGameElfInitCallback = nullptr;
 tAddOnGameShutdownCallback AddOnGameShutdownCallback = nullptr;
 
+uintptr_t gEEMainMemoryStart;
+size_t gEEMainMemorySize;
+
 void MemoryFill(uint32_t addr, uint8_t value, uint32_t size)
 {
     std::vector<uint8_t> temp(size, value);
+
+    if (ipc)
+    {
+        //topkek
+        //ipc->InitializeBatch();
+        //for (auto i = 0; i < size; i++)
+        //{
+        //    ipc->Write<uint8_t, true>(addr + i, temp[i]);
+        //}
+        //ipc->SendCommand(ipc->FinalizeBatch());
+        return injector::MemoryFill(addr + gEEMainMemoryStart, value, size, true);
+    }
+
     WriteBytes(addr, temp.data(), temp.size());
 }
 
 void WriteMemory32(uint32_t addr, uint32_t value)
 {
+    if (ipc)
+    {
+        //ipc->InitializeBatch();
+        //ipc->Write<uint32_t, true>(addr, value);
+        //ipc->SendCommand(ipc->FinalizeBatch());
+        return injector::WriteMemory<uint32_t>(addr + gEEMainMemoryStart, value, true);
+    }
+
     WriteBytes(addr, &value, sizeof(value));
 }
 
 void WriteMemoryRaw(uint32_t addr, void* value, uint32_t size)
 {
+    if (ipc)
+    {
+        auto temp = reinterpret_cast<uint8_t*>(value);
+        //ipc->InitializeBatch();
+        //for (auto i = 0; i < size; i++)
+        //{
+        //    ipc->Write<uint8_t, true>(addr + i, temp[i]);
+        //}
+        //ipc->SendCommand(ipc->FinalizeBatch());
+        return injector::WriteMemoryRaw(addr + gEEMainMemoryStart, temp, size, true);
+    }
+
     WriteBytes(addr, value, size);
 }
 #define IDR_INVOKER    101
 
 std::promise<void> exitSignal;
-uintptr_t gEEMainMemoryStart;
-size_t gEEMainMemorySize;
 const void* gWindowHandle;
 
 std::vector<std::string_view>& GetOSDVector()
@@ -104,7 +162,7 @@ CEXP void LoadPlugins(
     const uint32_t s_elf_entry_point,
     uint8_t* EEMainMemoryStart,
     size_t EEMainMemorySize,
-    const void* WindowHandle,
+    const void* pWindowHandle,
     const uint32_t WindowSizeX,
     const uint32_t WindowSizeY,
     const bool IsFullscreen,
@@ -113,6 +171,11 @@ CEXP void LoadPlugins(
 
 CEXP bool VMStateIsRunning()
 {
+    if (ipc)
+    {
+        return ipc->Status() == PINE::Shared::EmuStatus::Running;
+    }
+
     if (GetVMState)
         return GetVMState() == VMState::Running;
     return false;
@@ -157,7 +220,6 @@ void RegisterInputDevices(HWND hWnd)
     RegisterRawInputDevices(&Rid[1], 1, sizeof(Rid[1]));
 }
 
-HWND* gHWND;
 struct InputDataT
 {
     uint8_t Type;
@@ -198,7 +260,7 @@ LRESULT WINAPI CustomWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             else if (msg == WM_INPUT)
             {
                 auto awnd = GetActiveWindow();
-                if (hWnd == awnd || *gHWND == awnd)
+                if (hWnd == awnd || *(HWND*)gWindowHandle == awnd)
                 {
                     for (auto& it : InputData)
                     {
@@ -482,7 +544,7 @@ void LoadPlugins(
     const uint32_t s_elf_entry_point,
     uint8_t* EEMainMemoryStart,
     size_t EEMainMemorySize,
-    const void* WindowHandle,
+    const void* pWindowHandle,
     const uint32_t WindowSizeX,
     const uint32_t WindowSizeY,
     const bool IsFullscreen,
@@ -503,7 +565,7 @@ void LoadPlugins(
 
     if (EEMainMemorySize < 0x0000000008000000)
     {
-        constexpr auto ramerr = "Enable 128 MB RAM option is Settings -> Advanced. Plugins will not be loaded at this time.";
+        constexpr auto ramerr = "Enable 128 MB RAM option in Settings -> Advanced and restart the emulator. Plugins will not be loaded at this time.";
         spd::log()->error(ramerr);
         MessageBoxA(NULL, ramerr, "PCSX2PluginInjector", MB_ICONERROR);
         return;
@@ -511,7 +573,7 @@ void LoadPlugins(
 
     gEEMainMemoryStart = (uintptr_t)EEMainMemoryStart;
     gEEMainMemorySize = (size_t)EEMainMemorySize;
-    gWindowHandle = WindowHandle;
+    gWindowHandle = pWindowHandle;
     exitSignal.set_value();
     std::promise<void>().swap(exitSignal);
     GetOSDVector().clear();
@@ -587,6 +649,16 @@ void LoadPlugins(
         spd::log()->info("Hooking game's entry point function...", invokerPath.filename().string());
         auto patched = false;
         
+        while (!s_elf_entry_point)
+        {
+            auto pattern = hook::pattern((uintptr_t)(EEMainMemoryStart), (uintptr_t)(EEMainMemoryStart + 0x2000000), "28 0C 00 70 28 14 00 70 28 1C 00 70");
+            if (pattern.count_hint(2).size() >= 2)
+            {
+                *(uint32_t*)&s_elf_entry_point = uint32_t((uintptr_t)pattern.get(1).get<uint32_t>(0) - (uintptr_t)EEMainMemoryStart);
+                break;
+            }
+        }
+
         auto ei_lookup = hook::pattern((uintptr_t)(EEMainMemoryStart + s_elf_entry_point), (uintptr_t)(EEMainMemoryStart + s_elf_entry_point + 2000), "38 00 00 42");
         if (!ei_lookup.empty())
         {
@@ -776,27 +848,13 @@ void LoadPlugins(
 
         if (!InputData.empty())
         {
-            auto GetHwnd = [](DWORD dwProcessID) -> HWND
+            if (!gWindowHandle)
             {
-                HWND hCurWnd = nullptr;
-                do
-                {
-                    hCurWnd = FindWindowEx(nullptr, hCurWnd, nullptr, nullptr);
-                    DWORD checkProcessID = 0;
-                    GetWindowThreadProcessId(hCurWnd, &checkProcessID);
-                    if (checkProcessID == dwProcessID)
-                    {
-                        std::wstring title(GetWindowTextLength(hCurWnd) + 1, L'\0');
-                        GetWindowTextW(hCurWnd, &title[0], title.size());
-                        if (title.starts_with(L"Slot:") || title.starts_with(L"Booting PS2 BIOS..."))
-                            return hCurWnd;
-                    }
-                } while (hCurWnd != nullptr);
-                return NULL;
-            };
+                EnumWindows(EnumWindowsProc, reinterpret_cast<LPARAM>(s_title));
+                gWindowHandle = &FallbackWindowHandle;
+            }
 
-            gHWND = (HWND*)WindowHandle;
-            auto hwnd = *(HWND*)WindowHandle ? GetAncestor(reinterpret_cast<HWND>(*(HWND*)WindowHandle), GA_ROOT) : GetHwnd(GetCurrentProcessId());
+            auto hwnd = GetAncestor(*(HWND*)gWindowHandle, GA_ROOT);
             if (hwnd)
             {
                 RegisterInputDevices(hwnd);
@@ -906,9 +964,149 @@ CEXP void InitializeASI()
         GetVMState = (tGetVMState)GetProcAddress(GetModuleHandle(NULL), "GetVMState");
         AddOnGameElfInitCallback = (tAddOnGameElfInitCallback)GetProcAddress(GetModuleHandle(NULL), "AddOnGameElfInitCallback");
         AddOnGameShutdownCallback = (tAddOnGameShutdownCallback)GetProcAddress(GetModuleHandle(NULL), "AddOnGameShutdownCallback");
+        
+        if (WriteBytes && GetIsThrottlerTempDisabled && SetIsThrottlerTempDisabled && GetVMState && AddOnGameElfInitCallback && AddOnGameShutdownCallback)
+        {
+            AddOnGameElfInitCallback(LoadPlugins);
+            AddOnGameShutdownCallback(ExitSignal);
+        }
+        else
+        {
+            // cringe
+            ipc = new PINE::PCSX2();
 
-        AddOnGameElfInitCallback(LoadPlugins);
-        AddOnGameShutdownCallback(ExitSignal);
+            std::thread([]()
+            {
+                static std::string s_title("UNAVAILABLE");
+                auto start = std::chrono::high_resolution_clock::now();
+
+                while (true)
+                {
+                    auto status = ipc->GetError();
+
+                    if (status == PINE::Shared::IPCStatus::NoConnection)
+                    {
+                        constexpr auto err = "Enable PINE option in Settings -> Advanced(Port 28011) and restart the emulator. Plugins will not be loaded at this time.";
+                        spd::log()->error(err);
+                        MessageBoxA(NULL, err, "PCSX2PluginInjector", MB_ICONERROR);
+                        break;
+                    }
+
+                    static auto old = ipc->Status();
+                    auto cur = ipc->Status();
+                    if (cur != old)
+                    {
+                        if (ipc->Status() == PINE::Shared::EmuStatus::Running)
+                        {
+                            std::string s_disc_serial("UNAVAILABLE");
+                            std::string s_disc_elf("UNAVAILABLE");
+                            std::string s_disc_version("UNAVAILABLE");
+                            //std::string s_title("UNAVAILABLE");
+                            std::string s_elf_path("UNAVAILABLE");
+                            uint32_t s_disc_crc = 0;
+                            uint32_t s_current_crc = 0;
+                            uint32_t s_elf_entry_point = 0;
+                            uint8_t* EEMainMemoryStart = 0;
+                            size_t EEMainMemorySize = 0;
+                            void* WindowHandle = nullptr;
+                            uint32_t WindowSizeX = 1280;
+                            uint32_t WindowSizeY = 720;
+                            bool IsFullscreen = false;
+                            AspectRatioType AspectRatioSetting = Stretch;
+
+                            auto EEmem = (uint8_t**)GetProcAddress(GetModuleHandle(NULL), "EEmem");
+                            if (EEmem)
+                            {
+                                EEMainMemoryStart = *EEmem;
+                                EEMainMemorySize = 0x8000000;
+
+                                // not really needed but whatever
+                                while (ipc->Read<uint8_t>(0x3200000) != 77)
+                                {
+                                    ipc->Write<uint8_t>(0x3200000, 77);
+
+                                    auto now = std::chrono::high_resolution_clock::now();
+                                    auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - start);
+
+                                    if (duration.count() >= 2)
+                                    {
+                                        EEMainMemorySize = 0x2000000;
+                                        start = std::chrono::high_resolution_clock::now();
+                                    }
+                                    std::this_thread::yield();
+                                }
+                                ipc->Write<uint8_t>(0x3200000, 0);
+                            }
+
+                            auto Title = ipc->GetGameTitle();
+                            s_title = Title;
+                            auto GameID = ipc->GetGameID();
+                            s_disc_serial = GameID;
+                            auto GameUUID = ipc->GetGameUUID();
+                            s_disc_crc = std::stoul(GameUUID, nullptr, 16);
+                            s_current_crc = s_disc_crc; // INVALID, s_current_crc is not exposed because exposing it will break all threads, set your house on fire, and kill your dog
+                            auto GameVersion = ipc->GetGameVersion();
+                            s_disc_version = GameVersion;
+
+                            EnumWindows(EnumWindowsProc, reinterpret_cast<LPARAM>(s_title.c_str()));
+
+                            if (FallbackWindowHandle)
+                            {
+                                WindowHandle = &FallbackWindowHandle;
+                                RECT ClientRect = {};
+                                GetClientRect(FallbackWindowHandle, &ClientRect);
+                                WindowSizeX = ClientRect.right;
+                                WindowSizeY = ClientRect.bottom;
+                            }
+
+                            AspectRatioSetting = Stretch; // not exposed
+                            s_elf_entry_point = 0; // not exposed
+
+                            delete[] Title;
+                            delete[] GameID;
+                            delete[] GameUUID;
+                            delete[] GameVersion;
+
+                            LoadPlugins(
+                                s_disc_serial.c_str(),
+                                s_disc_elf.c_str(),
+                                s_disc_version.c_str(),
+                                s_title.c_str(),
+                                s_elf_path.c_str(),
+                                s_disc_crc,
+                                s_current_crc,
+                                s_elf_entry_point,
+                                EEMainMemoryStart,
+                                EEMainMemorySize,
+                                WindowHandle,
+                                WindowSizeX,
+                                WindowSizeY,
+                                IsFullscreen,
+                                AspectRatioSetting);
+                        }
+                        else
+                        {
+                            ExitSignal();
+                            FallbackWindowHandle = {};
+                        }
+                    }
+                    old = cur;
+
+                    auto now = std::chrono::high_resolution_clock::now();
+                    auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - start);
+
+                    if (duration.count() >= 1)
+                    {
+                        EnumWindows(EnumWindowsProc, reinterpret_cast<LPARAM>(s_title.c_str()));
+                        start = std::chrono::high_resolution_clock::now();
+                    }
+
+                    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                }
+
+                delete ipc;
+            }).detach();
+        }
     });
 }
 
