@@ -667,6 +667,17 @@ void LoadPlugins(
             WriteMemory32(uint32_t((uintptr_t)ei_hook - (uintptr_t)EEMainMemoryStart), ei_data);
             patched = true;
         }
+
+        auto syscall7F_lookup = hook::pattern((uintptr_t)EEMainMemoryStart, (uintptr_t)(EEMainMemoryStart + 0x2000000), "7F 00 03 24 0C 00 00 00 08 00 E0 03 00 00 00 00");
+        if (syscall7F_lookup.count_hint(2).size() >= 2)
+        {
+            auto syscall_hook = syscall7F_lookup.get(1).get<uint32_t>(0);
+            auto syscall_data1 = mips::lui(mips::v0, HIWORD(0x2000000));
+            auto syscall_data2 = mips::addiu(mips::v0, mips::v0, LOWORD(0x2000000));
+            WriteMemory32(uint32_t((uintptr_t)syscall_hook - (uintptr_t)EEMainMemoryStart), syscall_data1);
+            WriteMemory32(uint32_t((uintptr_t)syscall_hook + 4 - (uintptr_t)EEMainMemoryStart), syscall_data2);
+            spd::log()->info("Syscall::GetMemorySize switched to return 0x{:X}", 0x2000000);
+        }
        
         if (!patched)
         {
@@ -943,11 +954,6 @@ CEXP uintptr_t GetPluginSymbolAddr(const char* path, const char* sym_name)
     return 0;
 }
 
-void Init()
-{
-
-}
-
 void ExitSignal()
 {
     exitSignal.set_value();
@@ -996,6 +1002,7 @@ CEXP void InitializeASI()
                     auto cur = ipc->Status();
                     if (cur != old)
                     {
+                        // status doesn't change when switching elf, so no way to know
                         if (ipc->Status() == PINE::Shared::EmuStatus::Running)
                         {
                             std::string s_disc_serial("UNAVAILABLE");
@@ -1028,7 +1035,7 @@ CEXP void InitializeASI()
                                     auto now = std::chrono::high_resolution_clock::now();
                                     auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - start);
 
-                                    if (duration.count() >= 2)
+                                    if (duration.count() >= 5)
                                     {
                                         EEMainMemorySize = 0x2000000;
                                         start = std::chrono::high_resolution_clock::now();
@@ -1067,7 +1074,7 @@ CEXP void InitializeASI()
                             delete[] GameUUID;
                             delete[] GameVersion;
 
-                            LoadPlugins(
+                            LoadPlugins( // race condition, let's set them threads on fire
                                 s_disc_serial.c_str(),
                                 s_disc_elf.c_str(),
                                 s_disc_version.c_str(),
