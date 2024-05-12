@@ -22,3 +22,6 @@
 [submodule "external/elfio"]
 	path = external/elfio
 	url = https://github.com/serge1/ELFIO
+[submodule "external/injector"]
+	path = external/injector
+	url = https://github.com/ThirteenAG/injector
