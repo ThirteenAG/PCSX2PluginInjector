@@ -14,6 +14,7 @@
 #include "pine.h"
 PINE::PCSX2* ipc;
 
+uint32_t FallbackEntryPointChecker;
 HWND FallbackWindowHandle;
 static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
 {
@@ -26,7 +27,7 @@ static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
         if (IsWindowVisible(hwnd))
         {
             std::string title(GetWindowTextLengthA(hwnd) + 1, '\0');
-            GetWindowTextA(hwnd, title.data(), title.size());
+            GetWindowTextA(hwnd, title.data(), static_cast<int>(title.size()));
             if (title.contains(str) || title.starts_with("Slot:") || title.starts_with("Booting PS2 BIOS..."))
                 FallbackWindowHandle = hwnd;
         }
@@ -95,7 +96,7 @@ void MemoryFill(uint32_t addr, uint8_t value, uint32_t size)
         return injector::MemoryFill(addr + gEEMainMemoryStart, value, size, true);
     }
 
-    WriteBytes(addr, temp.data(), temp.size());
+    WriteBytes(addr, temp.data(), static_cast<uint32_t>(temp.size()));
 }
 
 void WriteMemory32(uint32_t addr, uint32_t value)
@@ -250,7 +251,7 @@ LRESULT WINAPI CustomWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
                             MEMORY_BASIC_INFORMATION MemoryInf;
                             if ((VirtualQuery((LPCVOID)it.Addr, &MemoryInf, sizeof(MemoryInf)) != 0 && MemoryInf.Protect != 0))
                             {
-                                MemoryFill(it.Addr, 0x00, it.Size);
+                                MemoryFill(static_cast<uint32_t>(it.Addr), 0x00, static_cast<uint32_t>(it.Size));
                             }
                         }
                     }
@@ -440,7 +441,7 @@ PluginInfo ParseElf(auto path)
         Elf_Half sec_num = reader.sections.size();
         for (int i = 0; i < sec_num; ++i) {
             section* psec = reader.sections[i];
-            info.Size += psec->get_size();
+            info.Size += static_cast<uint32_t>(psec->get_size());
         }
 
         Elf_Half seg_num = reader.segments.size();
@@ -448,16 +449,16 @@ PluginInfo ParseElf(auto path)
             const segment* pseg = reader.segments[i];
 
             if (info.SegmentFileOffset == 0)
-                info.SegmentFileOffset = pseg->get_offset();
+                info.SegmentFileOffset = static_cast<uint32_t>(pseg->get_offset());
             else
-                info.SegmentFileOffset = min(pseg->get_offset(), info.SegmentFileOffset);
+                info.SegmentFileOffset = min(static_cast<uint32_t>(pseg->get_offset()), info.SegmentFileOffset);
 
             if (info.Base == 0)
-                info.Base = pseg->get_virtual_address();
+                info.Base = static_cast<uint32_t>(pseg->get_virtual_address());
             else
-                info.Base = min(pseg->get_virtual_address(), info.Base);
+                info.Base = min(static_cast<uint32_t>(pseg->get_virtual_address()), info.Base);
 
-            info.Size += pseg->get_memory_size();
+            info.Size += static_cast<uint32_t>(pseg->get_memory_size());
         }
 
         for (int i = 0; i < sec_num; ++i) {
@@ -477,58 +478,58 @@ PluginInfo ParseElf(auto path)
 
                     if (name == "PluginData")
                     {
-                        info.PluginDataAddr = value;
-                        info.PluginDataSize = size;
+                        info.PluginDataAddr = static_cast<uint32_t>(value);
+                        info.PluginDataSize = static_cast<uint32_t>(size);
                     }
                     else if (name == "PCSX2Data")
                     {
-                        info.PCSX2DataAddr = value;
-                        info.PCSX2DataSize = size;
+                        info.PCSX2DataAddr = static_cast<uint32_t>(value);
+                        info.PCSX2DataSize = static_cast<uint32_t>(size);
                     }
                     else if (name == "CompatibleCRCList")
                     {
-                        info.CompatibleCRCListAddr = value;
-                        info.CompatibleCRCListSize = size;
+                        info.CompatibleCRCListAddr = static_cast<uint32_t>(value);
+                        info.CompatibleCRCListSize = static_cast<uint32_t>(size);
                     }
                     else if (name == "CompatibleElfCRCList")
                     {
-                        info.CompatibleElfCRCListAddr = value;
-                        info.CompatibleElfCRCListSize = size;
+                        info.CompatibleElfCRCListAddr = static_cast<uint32_t>(value);
+                        info.CompatibleElfCRCListSize = static_cast<uint32_t>(size);
                     }
                     else if (name == "KeyboardState")
                     {
-                        info.KeyboardStateAddr = value;
-                        info.KeyboardStateSize = size;
+                        info.KeyboardStateAddr = static_cast<uint32_t>(value);
+                        info.KeyboardStateSize = static_cast<uint32_t>(size);
                     }
                     else if (name == "MouseState")
                     {
-                        info.MouseStateAddr = value;
-                        info.MouseStateSize = size;
+                        info.MouseStateAddr = static_cast<uint32_t>(value);
+                        info.MouseStateSize = static_cast<uint32_t>(size);
                     }
                     else if (name == "CheatString")
                     {
-                        info.CheatStringAddr = value;
-                        info.CheatStringSize = size;
+                        info.CheatStringAddr = static_cast<uint32_t>(value);
+                        info.CheatStringSize = static_cast<uint32_t>(size);
                     }
                     else if (name == "OSDText")
                     {
-                        info.OSDTextAddr = value;
-                        info.OSDTextSize = size;
+                        info.OSDTextAddr = static_cast<uint32_t>(value);
+                        info.OSDTextSize = static_cast<uint32_t>(size);
                     }
                     else if (name == "FrameLimitUnthrottle")
                     {
-                        info.FrameLimitUnthrottleAddr = value;
-                        info.FrameLimitUnthrottleSize = size;
+                        info.FrameLimitUnthrottleAddr = static_cast<uint32_t>(value);
+                        info.FrameLimitUnthrottleSize = static_cast<uint32_t>(size);
                     }
                     else if (name == "CLEOScripts")
                     {
-                        info.CLEOScriptsAddr = value;
-                        info.CLEOScriptsSize = size;
+                        info.CLEOScriptsAddr = static_cast<uint32_t>(value);
+                        info.CLEOScriptsSize = static_cast<uint32_t>(size);
                     }
                 }
             }
         }
-        info.EntryPoint = reader.get_entry();
+        info.EntryPoint = static_cast<uint32_t>(reader.get_entry());
     }
     return info;
 }
@@ -640,7 +641,7 @@ void LoadPlugins(
         auto count = 0;
 
         spd::log()->info("Injecting {}...", invokerPath.filename().string());
-        WriteMemoryRaw(invoker.Base, buffer.data() + invoker.SegmentFileOffset, buffer.size() - invoker.SegmentFileOffset);
+        WriteMemoryRaw(invoker.Base, buffer.data() + invoker.SegmentFileOffset, static_cast<uint32_t>(buffer.size()) - invoker.SegmentFileOffset);
         MemoryFill(invoker.PluginDataAddr, 0x00, invoker.PluginDataSize);
         WriteMemoryRaw(invoker.PluginDataAddr + (sizeof(PluginInfoInvoker) * count), &invoker, sizeof(PluginInfoInvoker));
         spd::log()->info("Finished injecting {}, {} bytes written at 0x{:X}", invokerPath.filename().string(), invoker.Size, invoker.Base);
@@ -648,21 +649,31 @@ void LoadPlugins(
 
         spd::log()->info("Hooking game's entry point function...", invokerPath.filename().string());
         auto patched = false;
-        
+
         while (!s_elf_entry_point)
         {
-            auto pattern = hook::pattern((uintptr_t)(EEMainMemoryStart), (uintptr_t)(EEMainMemoryStart + 0x2000000), "28 0C 00 70 28 14 00 70 28 1C 00 70");
-            if (pattern.count_hint(2).size() >= 2)
+            constexpr auto base = 0x100000;
+            auto pattern = hook::pattern((uintptr_t)(EEMainMemoryStart) + base, (uintptr_t)(EEMainMemoryStart) + 0x2000000 - base, "28 0C 00 70 28 14 00 70 28 1C 00 70");
+            if (!pattern.count_hint(1).empty())
             {
-                *(uint32_t*)&s_elf_entry_point = uint32_t((uintptr_t)pattern.get(1).get<uint32_t>(0) - (uintptr_t)EEMainMemoryStart);
+                *(uint32_t*)&s_elf_entry_point = uint32_t((uintptr_t)pattern.get_first(0) - (uintptr_t)EEMainMemoryStart);
+                FallbackEntryPointChecker = s_elf_entry_point;
+                break;
+            }
+
+            pattern = hook::pattern((uintptr_t)(EEMainMemoryStart) + base, (uintptr_t)(EEMainMemoryStart) + 0x2000000 - base, "3C 00 03 24 0C 00 00 00");
+            if (!pattern.count_hint(1).empty())
+            {
+                *(uint32_t*)&s_elf_entry_point = uint32_t((uintptr_t)pattern.get_first(0) - (uintptr_t)EEMainMemoryStart);
+                FallbackEntryPointChecker = s_elf_entry_point;
                 break;
             }
         }
 
-        auto ei_lookup = hook::pattern((uintptr_t)(EEMainMemoryStart + s_elf_entry_point), (uintptr_t)(EEMainMemoryStart + s_elf_entry_point + 2000), "38 00 00 42");
-        if (!ei_lookup.empty())
+        auto ei_lookup = hook::pattern((uintptr_t)(EEMainMemoryStart) + s_elf_entry_point, (uintptr_t)(EEMainMemoryStart) + s_elf_entry_point + 2000, "38 00 00 42");
+        if (!ei_lookup.count_hint(1).empty())
         {
-            ei_hook = ei_lookup.get_first<uint32_t>();
+            ei_hook = ei_lookup.count_hint(1).get_first<uint32_t>();
             ei_data = mips::jal(invoker.EntryPoint);
             WriteMemory32(uint32_t((uintptr_t)ei_hook - (uintptr_t)EEMainMemoryStart), ei_data);
             patched = true;
@@ -750,7 +761,7 @@ void LoadPlugins(
 
                     count++;
                     spd::log()->info("Injecting {}...", plugin_path.filename().string());
-                    WriteMemoryRaw(mod.Base, buffer.data() + mod.SegmentFileOffset, buffer.size() - mod.SegmentFileOffset);
+                    WriteMemoryRaw(mod.Base, buffer.data() + mod.SegmentFileOffset, static_cast<uint32_t>(buffer.size()) - mod.SegmentFileOffset);
                     WriteMemoryRaw(invoker.PluginDataAddr + (sizeof(PluginInfoInvoker) * count), &mod, sizeof(PluginInfoInvoker));
                     spd::log()->info("Finished injecting {}, {} bytes written at 0x{:X}", plugin_path.filename().string(), mod.Size, mod.Base);
                     PluginRegions.emplace_back(mod.Base, mod.Base + mod.Size);
@@ -764,8 +775,8 @@ void LoadPlugins(
                             auto ini = LoadFileToBuffer(iniPath);
                             spd::log()->info("Injecting {}...", iniPath.filename().string());
                             ini.resize(mod.PluginDataSize - sizeof(uint32_t));
-                            WriteMemory32(mod.PluginDataAddr, ini.size());
-                            WriteMemoryRaw(mod.PluginDataAddr + sizeof(uint32_t), ini.data(), ini.size());
+                            WriteMemory32(mod.PluginDataAddr, static_cast<uint32_t>(ini.size()));
+                            WriteMemoryRaw(mod.PluginDataAddr + sizeof(uint32_t), ini.data(), static_cast<uint32_t>(ini.size()));
                             spd::log()->info("{} was successfully injected", iniPath.filename().string());
                         }
                     }
@@ -806,7 +817,7 @@ void LoadPlugins(
                     if (mod.OSDTextAddr)
                     {
                         spd::log()->info("{} requests OSD drawings", plugin_path.filename().string());
-                        for (size_t i = 0; i < mod.OSDTextSize / OSDStringSize; i++)
+                        for (uint32_t i = 0; i < mod.OSDTextSize / OSDStringSize; i++)
                         {
                             MemoryFill(mod.OSDTextAddr + (OSDStringSize * i), 0, OSDStringSize);
                             auto block = (char*)(EEMainMemoryStart + mod.OSDTextAddr + (OSDStringSize * i));
@@ -844,10 +855,10 @@ void LoadPlugins(
                                     if (script_offset + sizeof(uint32_t) + script.size() <= mod.CLEOScriptsAddr + mod.CLEOScriptsSize)
                                     {
                                         spd::log()->info("Injecting {}", entry.path().filename().string());
-                                        WriteMemory32(script_offset, script.size());
+                                        WriteMemory32(script_offset, static_cast<uint32_t>(script.size()));
                                         script_offset += sizeof(uint32_t);
-                                        WriteMemoryRaw(script_offset, script.data(), script.size());
-                                        script_offset += script.size();
+                                        WriteMemoryRaw(script_offset, script.data(), static_cast<uint32_t>(script.size()));
+                                        script_offset += static_cast<uint32_t>(script.size());
                                     }
                                 }
                             }
@@ -872,7 +883,7 @@ void LoadPlugins(
                 auto wp = (LRESULT(WINAPI*)(HWND, UINT, WPARAM, LPARAM))GetWindowLongPtr(hwnd, GWLP_WNDPROC);
                 if (wp != CustomWndProc)
                 {
-                    spd::log()->info("Keyboard and mouse data requested by plugins, replacing WndProc for HWND {}", (uint32_t)hwnd);
+                    spd::log()->info("Keyboard and mouse data requested by plugins, replacing WndProc for HWND {}", reinterpret_cast<uint64_t>(hwnd));
                     WndProc = wp;
                     SetWindowLongPtr(hwnd, GWLP_WNDPROC, (LONG_PTR)&CustomWndProc);
                 }
@@ -983,6 +994,7 @@ CEXP void InitializeASI()
 
             std::thread([]()
             {
+                static bool bElfChanged = false;
                 static std::string s_title("UNAVAILABLE");
                 auto start = std::chrono::high_resolution_clock::now();
 
@@ -998,11 +1010,33 @@ CEXP void InitializeASI()
                         break;
                     }
 
+                    if (ipc->Status() == PINE::Shared::EmuStatus::Running && FallbackEntryPointChecker)
+                    {
+                        auto EEmem = (uint8_t**)GetProcAddress(GetModuleHandle(NULL), "EEmem");
+                        auto curData = *(uint32_t*)(*EEmem + FallbackEntryPointChecker);
+                        static auto oldData = *(uint32_t*)(*EEmem + FallbackEntryPointChecker);
+                        if (curData != oldData)
+                        {
+                            if (oldData == 0x70000C28 || oldData == 0x2403003C) {
+                                bElfChanged = true;
+                                //spd::log()->info("ELF Switch detected, trying to load plugins...");
+                            }
+                        }
+                        oldData = curData;
+                    }
+
                     static auto old = ipc->Status();
                     auto cur = ipc->Status();
-                    if (cur != old)
+                    if (cur != old || bElfChanged)
                     {
-                        // status doesn't change when switching elf, so no way to know
+                        if (bElfChanged)
+                        {
+                            bElfChanged = false;
+                            ExitSignal();
+                            FallbackWindowHandle = {};
+                            FallbackEntryPointChecker = {};
+                        }
+
                         if (ipc->Status() == PINE::Shared::EmuStatus::Running)
                         {
                             std::string s_disc_serial("UNAVAILABLE");
@@ -1095,6 +1129,7 @@ CEXP void InitializeASI()
                         {
                             ExitSignal();
                             FallbackWindowHandle = {};
+                            FallbackEntryPointChecker = {};
                         }
                     }
                     old = cur;

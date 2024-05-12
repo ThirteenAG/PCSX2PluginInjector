@@ -18,7 +18,7 @@ It is not recommended to use Plugin Injector with regular PCSX2 builds, however 
  - Under **Settings** -> **Advanced**, toggle **Enable 128 MB RAM**.
  - Scroll down below and under **Settings** -> **Advanced** -> **PINE Settings**, toggle **Enable**, and make sure to have **slot** with value **28011**.
  - Copy **.elf** plugins to **PLUGINS** directory, e.g. **[GTAVCS.PCSX2.WidescreenFix.elf](https://thirteenag.github.io/wfp#gtavcs)**.
- - Not all plugins are compatible, and not all features are available, due to PCSX2 limitations: unthrottle is not available, loading plugins for games with multiple elf executables is not available (e.g. Splinter Cell Double Agent).
+ - Not all plugins may be compatible, and not all features are available(e.g. unthrottle). Use Fork version for full compatibility.
 
 ## Limitations
 
