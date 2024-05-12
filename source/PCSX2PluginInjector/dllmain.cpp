@@ -60,7 +60,7 @@ using InitCB = void (*)(
     const uint32_t WindowSizeX,
     const uint32_t WindowSizeY,
     const bool IsFullscreen,
-    const AspectRatioType AspectRatioSetting);
+    const uint8_t AspectRatioSetting);
 using ShutdownCB = void (*)();
 
 using tWriteBytes = void(*)(uint32_t mem, const void* src, uint32_t size);
@@ -167,7 +167,7 @@ CEXP void LoadPlugins(
     const uint32_t WindowSizeX,
     const uint32_t WindowSizeY,
     const bool IsFullscreen,
-    const AspectRatioType AspectRatioSetting
+    const uint8_t AspectRatioSetting
 );
 
 CEXP bool VMStateIsRunning()
@@ -549,7 +549,7 @@ void LoadPlugins(
     const uint32_t WindowSizeX,
     const uint32_t WindowSizeY,
     const bool IsFullscreen,
-    const AspectRatioType AspectRatioSetting
+    const uint8_t AspectRatioSetting
 )
 {
     spd::log()->info("Starting PCSX2PluginInjector");
@@ -1053,7 +1053,7 @@ CEXP void InitializeASI()
                             uint32_t WindowSizeX = 1280;
                             uint32_t WindowSizeY = 720;
                             bool IsFullscreen = false;
-                            AspectRatioType AspectRatioSetting = Stretch;
+                            uint8_t AspectRatioSetting = uint8_t(Stretch);
 
                             auto EEmem = (uint8_t**)GetProcAddress(GetModuleHandle(NULL), "EEmem");
                             if (EEmem)
@@ -1100,7 +1100,7 @@ CEXP void InitializeASI()
                                 WindowSizeY = ClientRect.bottom;
                             }
 
-                            AspectRatioSetting = Stretch; // not exposed
+                            AspectRatioSetting = uint8_t(Stretch); // not exposed
                             s_elf_entry_point = 0; // not exposed
 
                             delete[] Title;
