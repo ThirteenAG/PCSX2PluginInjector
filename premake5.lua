@@ -26,10 +26,13 @@ workspace "PCSX2PluginInjector"
    files { "Resources/*.rc" }
    files { "external/hooking/Hooking.Patterns.h", "external/hooking/Hooking.Patterns.cpp" }
    files { "includes/stdafx.h", "includes/stdafx.cpp" }
+   files { "external/injector/safetyhook/*.h", "external/injector/safetyhook/*.hpp" }
+   files { "external/injector/safetyhook/*.c", "external/injector/safetyhook/*.cpp" }
    includedirs { "includes" }
    includedirs { "source/api" }
    includedirs { "external/hooking" }
    includedirs { "external/injector/include" }
+   includedirs { "external/injector/safetyhook" }
    includedirs { "external/inireader" }
    includedirs { "external/spdlog/include" }
    includedirs { "external/filewatch" }
@@ -88,7 +91,18 @@ workspace "PCSX2PluginInjector"
       files { "external/asmjit/src/**.cpp" }
       includedirs { "external/asmjit/src" }
    end
-      
+
+   function add_kananlib()
+      defines { "BDDISASM_HAS_MEMSET", "BDDISASM_HAS_VSNPRINTF" }
+      files { "external/injector/kananlib/include/utility/*.hpp", "external/injector/kananlib/src/*.cpp" }
+      files { "external/injector/kananlib/include/utility/thirdparty/*.hpp" }
+      files { "external/injector/kananlib/include/utility/thirdparty/bddisasm/bddisasm/*.c" }
+      files { "external/injector/kananlib/include/utility/thirdparty/bddisasm/bdshemu/*.c" }
+      includedirs { "external/injector/kananlib/include" }
+      includedirs { "external/injector/kananlib/include/utility/thirdparty/bddisasm/inc" }
+      includedirs { "external/injector/kananlib/include/utility/thirdparty/bddisasm/bddisasm/include" }
+   end
+
    filter "configurations:Debug*"
       defines "DEBUG"
       symbols "On"
@@ -101,7 +115,7 @@ workspace "PCSX2PluginInjector"
 project "PCSX2PluginInjector"
    buildoptions { "/bigobj" }
    includedirs { "external/elfio" }
-   --add_asmjit()
+   add_kananlib()
    dependson { "PCSX2PluginInvoker" }
    files { "source/%{prj.name}/invoker.rc" }
    setpaths("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2x64.exe", "")

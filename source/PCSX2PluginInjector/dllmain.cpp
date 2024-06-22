@@ -6,6 +6,7 @@
 #include <future>
 #include <filesystem>
 #include <tlhelp32.h>
+#include "safetyhook.hpp"
 #include <pcsx2/mips.hpp>
 
 #include <pcsx2f_api.h>
