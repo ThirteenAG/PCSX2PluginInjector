@@ -66,17 +66,46 @@ workspace "PCSX2PluginInjector"
    end
    
    function setbuildpaths_ps2(gamepath, exepath, scriptspath, ps2sdkpath, sourcepath, prj_name)
-      local pbcmd = {}
-      for k,v in pairs(pbcommands) do
-        pbcmd[k] = v
-      end
+      -- local pbcmd = {}
+      -- for k,v in pairs(pbcommands) do
+      --   pbcmd[k] = v
+      -- end
       if (gamepath) then
-         cmdcopy = { "set \"path=" .. gamepath .. scriptspath .. "\"" }
-         pbcmd[2] = "set \"file=../data/" .. scriptspath .. prj_name ..".elf\""
-         table.insert(cmdcopy, pbcmd)
-         buildcommands   { "call " .. ps2sdkpath .. " -C " .. sourcepath, cmdcopy }
-         rebuildcommands { "call " .. ps2sdkpath .. " -C " .. sourcepath .. " clean && " .. ps2sdkpath .. " -C " .. sourcepath, cmdcopy }
-         cleancommands   { "call " .. ps2sdkpath .. " -C " .. sourcepath .. " clean" }
+        buildcommands {"setlocal EnableDelayedExpansion"}
+        rebuildcommands {"setlocal EnableDelayedExpansion"}
+        local pcsx2fpath = os.getenv "PCSX2FDir"
+        if (pcsx2fpath == nil) then
+            buildcommands {"set _PCSX2FDir=" .. gamepath}
+            rebuildcommands {"set _PCSX2FDir=" .. gamepath}
+        else
+            buildcommands {"set _PCSX2FDir=!PCSX2FDir!"}
+            rebuildcommands {"set _PCSX2FDir=!PCSX2FDir!"}
+        end
+        buildcommands {
+        "powershell -ExecutionPolicy Bypass -File \"" .. ps2sdkpath .. "\" -C \"" .. sourcepath .. "\"\r\n" ..
+        "if !errorlevel! neq 0 exit /b !errorlevel!\r\n" ..
+        "if not defined _PCSX2FDir goto :eof\r\n" ..
+        "if not exist !_PCSX2FDir! goto :eof\r\n" ..
+        "if not exist !_PCSX2FDir!/PLUGINS mkdir !_PCSX2FDir!/PLUGINS\r\n" ..
+        "set target=!_PCSX2FDir!/PLUGINS/\r\n" ..
+        "copy /y $(NMakeOutput) \"!target!\"\r\n"
+        }
+        rebuildcommands {
+        "powershell -ExecutionPolicy Bypass -File \"" .. ps2sdkpath .. "\" -C \"" .. sourcepath .. "\" clean\r\n" ..
+        "powershell -ExecutionPolicy Bypass -File \"" .. ps2sdkpath .. "\" -C \"" .. sourcepath .. "\"\r\n" ..
+        "if !errorlevel! neq 0 exit /b !errorlevel!\r\n" ..
+        "if not defined _PCSX2FDir goto :eof\r\n" ..
+        "if not exist !_PCSX2FDir! goto :eof\r\n" ..
+        "if not exist !_PCSX2FDir!/PLUGINS mkdir !_PCSX2FDir!/PLUGINS\r\n" ..
+        "set target=!_PCSX2FDir!/PLUGINS/\r\n" ..
+        "copy /y $(NMakeOutput) \"!target!\"\r\n"
+        }
+        cleancommands {
+        "setlocal EnableDelayedExpansion\r\n" ..
+        "powershell -ExecutionPolicy Bypass -File \"" .. ps2sdkpath .. "\" -C \"" .. sourcepath .. "\" clean\r\n" ..
+        "if !errorlevel! neq 0 exit /b !errorlevel!"
+        }
+         
          debugdir (gamepath)
          if (exepath) then
             debugcommand (gamepath .. exepath)
@@ -118,14 +147,14 @@ project "PCSX2PluginInjector"
    add_kananlib()
    dependson { "PCSX2PluginInvoker" }
    files { "source/%{prj.name}/invoker.rc" }
-   setpaths("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2x64.exe", "")
+   setpaths("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2-qt.exe", "")
 
 project "PCSX2PluginInvoker"
    kind "Makefile"
    includedirs { "external/ps2sdk/ps2sdk/ee" }
    files { "source/%{prj.name}/*.c" }
    targetextension ".elf"
-   setbuildpaths_ps2("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2x64.exe", "PLUGINS/", "%{wks.location}/../external/ps2sdk/ee/bin/vsmake", "%{wks.location}/../source/%{prj.name}/", "PCSX2PluginInvoker")
+   setbuildpaths_ps2("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2-qt.exe", "PLUGINS/", "%{wks.location}/../external/ps2sdk/ee/bin/vsmake.ps1", "%{wks.location}/../source/%{prj.name}/", "PCSX2PluginInvoker")
    writemakefile("PCSX2PluginInvoker", "PLUGINS/", "0x02000000")
    writelinkfile("PCSX2PluginInvoker")
 
@@ -134,7 +163,7 @@ project "PCSX2PluginDemo"
    includedirs { "external/ps2sdk/ps2sdk/ee" }
    files { "source/%{prj.name}/*.c" }
    targetextension ".elf"
-   setbuildpaths_ps2("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2x64.exe", "PLUGINS/GTAVCS/", "%{wks.location}/../external/ps2sdk/ee/bin/vsmake", "%{wks.location}/../source/%{prj.name}/", "PCSX2PluginDemo")
+   setbuildpaths_ps2("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2-qt.exe", "PLUGINS/GTAVCS/", "%{wks.location}/../external/ps2sdk/ee/bin/vsmake.ps1", "%{wks.location}/../source/%{prj.name}/", "PCSX2PluginDemo")
    writemakefile("PCSX2PluginDemo", "PLUGINS/GTAVCS/", "0x02100000")
    writelinkfile("PCSX2PluginDemo")
    
@@ -143,7 +172,7 @@ project "PCSX2PluginDemo2"
    includedirs { "external/ps2sdk/ps2sdk/ee" }
    files { "source/%{prj.name}/*.c" }
    targetextension ".elf"
-   setbuildpaths_ps2("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2x64.exe", "PLUGINS/SCDA/", "%{wks.location}/../external/ps2sdk/ee/bin/vsmake", "%{wks.location}/../source/%{prj.name}/", "PCSX2PluginDemo2")
+   setbuildpaths_ps2("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2-qt.exe", "PLUGINS/SCDA/", "%{wks.location}/../external/ps2sdk/ee/bin/vsmake.ps1", "%{wks.location}/../source/%{prj.name}/", "PCSX2PluginDemo2")
    writemakefile("PCSX2PluginDemo2", "PLUGINS/SCDA/", "0x02100000")
    writelinkfile("PCSX2PluginDemo2")
 
@@ -152,7 +181,7 @@ project "PCSX2PluginDemo3"
    includedirs { "external/ps2sdk/ps2sdk/ee" }
    files { "source/%{prj.name}/*.c" }
    targetextension ".elf"
-   setbuildpaths_ps2("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2x64.exe", "PLUGINS/MKD/", "%{wks.location}/../external/ps2sdk/ee/bin/vsmake", "%{wks.location}/../source/%{prj.name}/", "PCSX2PluginDemo3")
+   setbuildpaths_ps2("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2-qt.exe", "PLUGINS/MKD/", "%{wks.location}/../external/ps2sdk/ee/bin/vsmake.ps1", "%{wks.location}/../source/%{prj.name}/", "PCSX2PluginDemo3")
    writemakefile("PCSX2PluginDemo3", "PLUGINS/MKD/", "0x02100000")
    writelinkfile("PCSX2PluginDemo3")
    
@@ -161,6 +190,6 @@ project "PCSX2PluginDummy"
    includedirs { "external/ps2sdk/ps2sdk/ee" }
    files { "source/%{prj.name}/*.c" }
    targetextension ".elf"
-   setbuildpaths_ps2("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2x64.exe", "PLUGINS/", "%{wks.location}/../external/ps2sdk/ee/bin/vsmake", "%{wks.location}/../source/%{prj.name}/", "PCSX2PluginDummy")
+   setbuildpaths_ps2("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2-qt.exe", "PLUGINS/", "%{wks.location}/../external/ps2sdk/ee/bin/vsmake.ps1", "%{wks.location}/../source/%{prj.name}/", "PCSX2PluginDummy")
    writemakefile("PCSX2PluginDummy", "PLUGINS/", "0x02100000")
    writelinkfile("PCSX2PluginDummy")

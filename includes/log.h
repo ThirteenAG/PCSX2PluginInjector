@@ -23,7 +23,7 @@ private:
         GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCWSTR)&GetLogName, &hm);
         std::wstring ret;
         ret.resize(MAX_PATH);
-        GetModuleFileNameW(hm, &ret[0], ret.size());
+        GetModuleFileNameW(hm, &ret[0], (DWORD)ret.size());
         ret = ret.substr(0, ret.find_last_of('.')) + L".log";
         return ret;
     }

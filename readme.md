@@ -8,23 +8,20 @@
 
 ## Compatibility with regular PCSX2 builds
 
-It is not recommended to use Plugin Injector with regular PCSX2 builds, however there's a limited compatibility mode.
+It is not recommended to use Plugin Injector with regular PCSX2 builds, however there's a compatibility mode.
 
  - Download [PCSX2 Latest Pre-Release v1.7.x](https://github.com/PCSX2/PCSX2/releases/).
  - Download [PCSX2PluginInjector.zip](https://github.com/ThirteenAG/PCSX2PluginInjector/releases/tag/latest) (**Windows only**).
  - Unpack [PCSX2PluginInjector.zip](https://github.com/ThirteenAG/PCSX2PluginInjector/releases/tag/latest) to PCSX2 root directory, where the exe is located.
- - Under **Settings** -> **Graphics**, select **Fit to Window / Fullscreen**.
  - Under **Tools**, toggle **Show Advanced Settings**.
  - Under **Settings** -> **Advanced**, toggle **Enable 128 MB RAM**.
- - Scroll down below and under **Settings** -> **Advanced** -> **PINE Settings**, toggle **Enable**, and make sure to have **slot** with value **28011**.
  - Copy **.elf** plugins to **PLUGINS** directory, e.g. **[GTAVCS.PCSX2.WidescreenFix.elf](https://thirteenag.github.io/wfp#gtavcs)**.
- - Not all plugins may be compatible, and not all features are available(e.g. unthrottle). Use Fork version for full compatibility.
 
 ## Limitations
 
  - Only Windows version is supported.
 
- - Save states between regular PCSX2 version and the fork will not be compatible.
+ - Save states between regular PCSX2 version and the fork likely will not be compatible.
 
  - Do not open issues in PCSX2 repository when using the fork. Reproduce them in regular PCSX2 build first.
 

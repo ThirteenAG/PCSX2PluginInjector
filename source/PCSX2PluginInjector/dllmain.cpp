@@ -9,6 +9,8 @@
 #include "safetyhook.hpp"
 #include <pcsx2/mips.hpp>
 
+#include <utility/Scan.hpp>
+
 #include <pcsx2f_api.h>
 
 #define C_FFI
@@ -340,7 +342,7 @@ LRESULT WINAPI CustomWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
                                             if ((keycode > 47 && keycode < 58) || (keycode > 64 && keycode < 91)) // number or letter keys
                                             {
                                                 std::memcpy(&VKeyStates[1], &VKeyStates[0], it.Size - 2);
-                                                VKeyStates[0] = raw->data.keyboard.VKey;
+                                                VKeyStates[0] = (char)raw->data.keyboard.VKey;
                                                 VKeyStates[it.Size - 1] = 0;
                                             }
                                             else
@@ -972,9 +974,654 @@ void ExitSignal()
     std::promise<void>().swap(exitSignal);
 }
 
+namespace PCSX2F
+{
+    class VMEvent
+    {
+    public:
+        template <typename... Args>
+        class Event : public std::function<void(Args...)>
+        {
+        public:
+            using std::function<void(Args...)>::function;
+
+        private:
+            std::vector<std::function<void(Args...)>> handlers;
+
+        public:
+            void operator+=(std::function<void(Args...)>&& handler)
+            {
+                handlers.push_back(handler);
+            }
+
+            void executeAll(Args... args) const
+            {
+                if (!handlers.empty())
+                {
+                    for (auto& handler : handlers)
+                    {
+                        handler(args...);
+                    }
+                }
+            }
+        };
+
+    public:
+        static auto& onGameElfInit()
+        {
+            static Event<const char*, const char*, const char*, const char*, const char*,
+                const uint32_t, const uint32_t, const uint32_t, uint8_t*, size_t, const void*,
+                const uint32_t, const uint32_t, const bool, const uint8_t> eventEntryPointCompilingOnCPUThread;
+            return eventEntryPointCompilingOnCPUThread;
+        }
+        static auto& onGameShutdown()
+        {
+            static Event<> eventShutdown;
+            return eventShutdown;
+        }
+    };
+
+    static volatile bool s_is_throttler_temp_disabled = false;
+
+    using InitCB = void (*)(
+        const char* s_disc_serial,
+        const char* s_disc_elf,
+        const char* s_disc_version,
+        const char* s_title,
+        const char* s_elf_path,
+        const uint32_t s_disc_crc,
+        const uint32_t s_current_crc,
+        const uint32_t s_elf_entry_point,
+        uint8_t* EEMainMemoryStart,
+        size_t EEMainMemorySize,
+        const void* WindowHandle,
+        const uint32_t WindowSizeX,
+        const uint32_t WindowSizeY,
+        const bool IsFullscreen,
+        const uint8_t AspectRatioSetting);
+    using ShutdownCB = void (*)();
+
+    void(__fastcall* vtlb_memWrite8)(uint32_t addr, uint8_t data);
+    void WriteBytes(uint32_t mem, const void* src, uint32_t size)
+    {
+        auto src8 = (uint8_t*)src;
+        for (uint32_t i = 0; i < size; i++)
+        {
+            vtlb_memWrite8(mem + i, src8[i]);
+        }
+    }
+
+    bool GetIsThrottlerTempDisabled()
+    {
+        return s_is_throttler_temp_disabled;
+    }
+
+    void SetIsThrottlerTempDisabled(bool disable)
+    {
+        s_is_throttler_temp_disabled = disable;
+    }
+
+    VMState* pVMSate = nullptr;
+    VMState GetVMState()
+    {
+        if (pVMSate)
+            return *pVMSate;
+        return VMState::Running;
+    }
+
+    void AddOnGameElfInitCallback(InitCB callback)
+    {
+        VMEvent::onGameElfInit() += callback;
+    }
+
+    void AddOnGameShutdownCallback(ShutdownCB callback)
+    {
+        VMEvent::onGameShutdown() += callback;
+    }
+
+    std::string s_disc_serial("UNAVAILABLE");
+    std::string s_disc_elf("UNAVAILABLE");
+    std::string s_disc_version("UNAVAILABLE");
+    const char** s_title;
+    std::string s_elf_path("UNAVAILABLE");
+    const uint32_t* s_disc_crc;
+    const uint32_t* s_current_crc;
+    const uint32_t* s_elf_entry_point;
+    uint8_t* EEMainMemoryStart;
+    const uint32_t* EEMainMemorySize;
+    const uint8_t* AspectRatioSetting;
+
+    bool Find_memWrite8()
+    {
+        bool result = false;
+        __try
+        {
+            [&result]()
+            {
+                const auto current_module = GetModuleHandleW(NULL);
+                const auto candidate_string = utility::scan_string(current_module, "Warning: GetOsdConfigParam2 Reading extended language/version configs, may be incorrect!");
+                if (candidate_string)
+                {
+                    auto candidate_stringref = utility::scan_displacement_reference(current_module, *candidate_string);
+                    if (candidate_stringref)
+                    {
+                        auto ip = *candidate_stringref + 4;
+                        auto next_call = utility::scan_mnemonic(ip, 100, "CALL");
+                        if (next_call)
+                        {
+                            next_call = utility::scan_mnemonic(*next_call + 5, 100, "CALL");
+
+                            const auto disp = utility::resolve_displacement(*next_call);
+
+                            if (disp.has_value())
+                            {
+                                vtlb_memWrite8 = (void(__fastcall*)(uint32_t, uint8_t))disp.value();
+                                result = true;
+                                return;
+                            }
+                        }
+                    }
+                }
+            }();
+        }
+        __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
+        {
+        }
+
+        if (!result)
+            spd::log()->error("memWrite8 could not be located.");
+
+        return result;
+    }
+
+    bool Find_VMState()
+    {
+        bool result = false;
+        __try
+        {
+            [&result]()
+            {
+                const auto current_module = GetModuleHandleW(NULL);
+                const auto candidate_string = utility::scan_string(current_module, "Applying settings...");
+                if (candidate_string)
+                {
+                    auto candidate_stringref = utility::scan_displacement_reference(current_module, *candidate_string);
+                    if (candidate_stringref)
+                    {
+                        auto ip = *candidate_stringref + 4;
+                        const auto next_mov = utility::scan_mnemonic(ip, 100, "MOV");
+                        if (next_mov)
+                        {
+                            const auto disp = utility::resolve_displacement(*next_mov);
+
+                            if (disp.has_value())
+                            {
+                                pVMSate = (VMState*)disp.value();
+                                result = true;
+                                return;
+                            }
+                        }
+                    }
+                }
+            }();
+        }
+        __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
+        {
+        }
+
+        if (!result)
+            spd::log()->error("VMState could not be located.");
+
+        return result;
+    }
+
+    bool Find_AspectRatioSetting()
+    {
+        bool result = false;
+        __try
+        {
+            [&result]()
+            {
+                const auto current_module = GetModuleHandleW(NULL);
+                auto candidate_stringref = utility::find_function_from_string_ref(current_module, "Patch: Setting aspect ratio to {} by patch request.", true);
+                if (candidate_stringref)
+                {
+                    auto ip = *candidate_stringref;
+                    for (size_t i = 0; i < 4000; ++i) {
+                        INSTRUX ix{};
+                        const auto status = NdDecodeEx(&ix, (uint8_t*)ip, 1000, ND_CODE_64, ND_DATA_64);
+
+                        if (!ND_SUCCESS(status)) {
+                            break;
+                        }
+
+                        if (std::string_view{ ix.Mnemonic } == "CMP")
+                        {
+                            if (injector::ReadMemory<uint8_t>(ip + 6, true) == 0x1)
+                            {
+                                const auto disp = utility::resolve_displacement(ip);
+
+                                if (disp.has_value())
+                                {
+                                    AspectRatioSetting = (const uint8_t*)disp.value();
+                                    result = true;
+                                    return;
+                                }
+                            }
+                        }
+
+                        ip += ix.Length;
+                    }
+                }
+            }();
+        }
+        __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
+        {
+        }
+
+        if (!result)
+            spd::log()->error("AspectRatioSetting could not be located.");
+
+        return result;
+    }
+
+    bool Find_ExposedRam()
+    {
+        bool result = false;
+        __try
+        {
+            [&result]()
+            {
+                const auto current_module = GetModuleHandleW(NULL);
+                auto candidate_stringref = utility::find_function_from_string_ref(current_module, "MTVU: SPR Accessing VU1 Memory", true);
+                if (candidate_stringref)
+                {
+                    auto ip = *candidate_stringref;
+                    for (size_t i = 0; i < 4000; ++i) {
+                        INSTRUX ix{};
+                        const auto status = NdDecodeEx(&ix, (uint8_t*)ip, 1000, ND_CODE_64, ND_DATA_64);
+
+                        if (!ND_SUCCESS(status)) {
+                            break;
+                        }
+
+                        if (std::string_view{ ix.Mnemonic } == "AND")
+                        {
+                            if (injector::ReadMemory<uint32_t>(ip + 1, true) == 0x1FFFFFF0)
+                            {
+                                auto counter = 0;
+                                auto disp = std::optional<uintptr_t>();
+                                do
+                                {
+                                    counter++;
+                                    ip += ix.Length;
+                                    disp = utility::resolve_displacement(ip);
+                                    if (counter > 50)
+                                        break;
+
+                                } while (!disp.has_value());
+
+                                if (disp.has_value())
+                                {
+                                    EEMainMemorySize = (const uint32_t*)disp.value();
+                                    result = true;
+                                    return;
+                                }
+                            }
+                        }
+
+                        ip += ix.Length;
+                    }
+                }
+            }();
+        }
+        __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
+        {
+        }
+
+        if (!result)
+            spd::log()->error("ExposedRam could not be located.");
+
+        return result;
+    }
+
+    bool Find_s_disc_crc()
+    {
+        bool result = false;
+        __try
+        {
+            [&result]()
+            {
+                const auto current_module = GetModuleHandleW(NULL);
+                const auto candidate_string = utility::scan_string(current_module, "PS2 BIOS ({})");
+                if (candidate_string)
+                {
+                    auto candidate_stringref = utility::scan_displacement_reference(current_module, *candidate_string);
+                    if (candidate_stringref)
+                    {
+                        auto ip = *candidate_stringref + 4;
+                        for (auto i = 0; i < 4; i++)
+                        {
+                            do
+                            {
+                                ip -= 1;
+                            } while (injector::ReadMemory<uint32_t>(ip, true) != 0);
+                            ip -= 6;
+
+                            INSTRUX ix{};
+                            const auto status = NdDecodeEx(&ix, (uint8_t*)ip, 1000, ND_CODE_64, ND_DATA_64);
+
+                            if (ND_SUCCESS(status))
+                            {
+                                if (std::string_view{ ix.Mnemonic } == "MOV")
+                                {
+                                    const auto disp = utility::resolve_displacement(ip);
+
+                                    if (disp.has_value())
+                                    {
+                                        s_disc_crc = (const uint32_t*)disp.value();
+                                        result = true;
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }();
+        }
+        __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
+        {
+        }
+
+        if (!result)
+            spd::log()->error("s_disc_crc could not be located.");
+
+        return result;
+    }
+
+    bool Find_s_current_crc()
+    {
+        bool result = false;
+        __try
+        {
+            [&result]()
+            {
+                const auto current_module = GetModuleHandleW(NULL);
+                const auto candidate_string = utility::scan_string(current_module, "Failed to read ELF being loaded: {}: {}");
+                if (candidate_string)
+                {
+                    auto candidate_stringref = utility::scan_displacement_reference(current_module, *candidate_string);
+                    if (candidate_stringref)
+                    {
+                        auto ip = *candidate_stringref + 4;
+                        for (size_t i = 0; i < 4000; ++i) {
+                            INSTRUX ix{};
+                            const auto status = NdDecodeEx(&ix, (uint8_t*)ip, 1000, ND_CODE_64, ND_DATA_64);
+
+                            if (!ND_SUCCESS(status)) {
+                                break;
+                            }
+
+                            if (std::string_view{ ix.Mnemonic } == "MOV")
+                            {
+                                if (injector::ReadMemory<uint32_t>(ip + 6, true) == 0xFFFFFFFF)
+                                {
+                                    const auto disp = utility::resolve_displacement(ip);
+                                    const auto disp2 = utility::resolve_displacement(ip + ix.Length);
+
+                                    if (disp.has_value() && disp2.has_value())
+                                    {
+                                        s_elf_entry_point = (const uint32_t*)disp.value();
+                                        s_current_crc = (const uint32_t*)disp2.value();
+                                        result = true;
+                                        return;
+                                    }
+                                }
+                            }
+
+                            ip += ix.Length;
+                        }
+                    }
+                }
+            }();
+        }
+        __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
+        {
+        }
+
+        if (!result)
+            spd::log()->error("s_current_crc could not be located.");
+
+        return result;
+    }
+
+    bool Find_s_title()
+    {
+        bool result = false;
+        __try
+        {
+            [&result]()
+            {
+                const auto current_module = GetModuleHandleW(NULL);
+                const auto candidate_string = utility::scan_string(current_module, "PCSX2 Emulator");
+                if (candidate_string)
+                {
+                    auto candidate_stringref = utility::scan_displacement_reference(current_module, *candidate_string);
+                    if (candidate_stringref)
+                    {
+                        auto ip = *candidate_stringref + 4;
+                        auto next_cmp = utility::scan_mnemonic(ip, 100, "LEA");
+                        if (next_cmp)
+                        {
+                            const auto disp = utility::resolve_displacement(*next_cmp);
+
+                            if (disp.has_value())
+                            {
+                                s_title = (const char**)disp.value();
+                                result = true;
+                                return;
+                            }
+                        }
+                    }
+                }
+            }();
+        }
+        __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
+        {
+        }
+
+        if (!result)
+            spd::log()->error("memWrite8 could not be located.");
+
+        return result;
+    }
+
+    bool Hook__VMManager__Internal__EntryPointCompilingOnCPUThread()
+    {
+        bool result = false;
+        __try
+        {
+            [&result]()
+            {
+                const auto current_module = GetModuleHandleW(NULL);
+                const auto candidate_string = utility::scan_string(current_module, "ELF {} with entry point at 0x{:08X} is executing.");
+                if (candidate_string)
+                {
+                    std::optional<uintptr_t> prev_call;
+                    auto candidate_stringref = utility::scan_displacement_reference(current_module, *candidate_string);
+                    if (candidate_stringref)
+                    {
+                        uintptr_t call = 0;
+                        auto ip = *candidate_stringref + 4;
+                        for (size_t i = 0; i < 4000; ++i) {
+                            INSTRUX ix{};
+                            const auto status = NdDecodeEx(&ix, (uint8_t*)ip, 1000, ND_CODE_64, ND_DATA_64);
+
+                            if (!ND_SUCCESS(status)) {
+                                break;
+                            }
+
+                            if (std::string_view{ ix.Mnemonic } == "CALL") {
+                                call = ip;
+                            }
+                            else if (std::string_view{ ix.Mnemonic } == "MOV")
+                            {
+                                if (injector::ReadMemory<uint32_t>(ip + 2, true) == 0x40000)
+                                {
+                                    static auto EntryPointCompilingOnCPUThreadHook = safetyhook::create_mid(call,
+                                    [](SafetyHookContext& ctx)
+                                    {
+                                        auto EEmem = (uint8_t**)GetProcAddress(GetModuleHandle(NULL), "EEmem");
+                                        auto ExposedRam = *PCSX2F::EEMainMemorySize;
+                                        void* WindowHandle = nullptr;
+                                        uint32_t WindowSizeX = 1280;
+                                        uint32_t WindowSizeY = 720;
+
+                                        EnumWindows(EnumWindowsProc, reinterpret_cast<LPARAM>(*PCSX2F::s_title));
+
+                                        if (FallbackWindowHandle)
+                                        {
+                                            WindowHandle = &FallbackWindowHandle;
+                                            RECT ClientRect = {};
+                                            GetClientRect(FallbackWindowHandle, &ClientRect);
+                                            WindowSizeX = ClientRect.right;
+                                            WindowSizeY = ClientRect.bottom;
+                                        }
+
+                                        VMEvent::onGameElfInit().executeAll(
+                                            PCSX2F::s_disc_serial.data(), PCSX2F::s_disc_elf.data(), PCSX2F::s_disc_version.data(), *PCSX2F::s_title,
+                                            PCSX2F::s_elf_path.data(), *PCSX2F::s_disc_crc, *PCSX2F::s_current_crc, *PCSX2F::s_elf_entry_point,
+                                            *EEmem, ExposedRam, WindowHandle,
+                                            WindowSizeX, WindowSizeY,
+                                            false, *PCSX2F::AspectRatioSetting
+                                        );
+                                    });
+                                    result = true;
+                                    return;
+                                }
+                            }
+
+                            ip += ix.Length;
+                        }
+                    }
+                }
+            }();
+        }
+        __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
+        {
+        }
+
+        if (!result)
+            spd::log()->error("VMManager::Internal::EntryPointCompilingOnCPUThread could not be located.");
+
+        return result;
+    }
+
+    SafetyHookInline g_ThrottleHook{};
+    void __fastcall Throttle(void* vmmanager, void* edx)
+    {
+        if (GetIsThrottlerTempDisabled())
+            return;
+        return g_ThrottleHook.fastcall(vmmanager, edx);
+    }
+
+    bool Hook__VMManager__Internal__Throttle()
+    {
+        bool result = false;
+        __try
+        {
+            [&result]()
+            {
+                const auto current_module = GetModuleHandleW(NULL);
+                const auto candidate_string = utility::scan_string(current_module, "    ================  EE COUNTER VSYNC START (frame: %d)  =======");
+                if (candidate_string)
+                {
+                    std::optional<uintptr_t> prev_call;
+                    auto candidate_stringref = utility::scan_displacement_reference(current_module, *candidate_string);
+                    if (candidate_stringref)
+                    {
+                        auto counter = 0;
+                        auto ip = *candidate_stringref;
+                        do
+                        {
+                            ip -= 1;
+
+                            INSTRUX ix{};
+                            const auto status = NdDecodeEx(&ix, (uint8_t*)ip, 1000, ND_CODE_64, ND_DATA_64);
+
+                            if (ND_SUCCESS(status))
+                            {
+                                if (std::string_view{ ix.Mnemonic } == "CALL")
+                                {
+                                    const auto disp = utility::resolve_displacement(ip);
+
+                                    if (disp.has_value())
+                                    {
+                                        counter++;
+                                    }
+                                }
+                            }
+                        } while (counter < 3);
+
+                        const auto disp = utility::resolve_displacement(ip);
+
+                        if (disp)
+                        {
+                            g_ThrottleHook = safetyhook::create_inline(*disp, Throttle);
+                            result = true;
+                            return;
+                        }
+                    }
+                }
+            }();
+        }
+        __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
+        {
+        }
+
+        if (!result)
+            spd::log()->error("VMManager::Internal::Throttle could not be located.");
+
+        return result;
+    }
+
+    bool Hook__VMManager__Shutdown()
+    {
+        bool result = false;
+        __try
+        {
+            [&result]()
+            {
+                const auto current_module = GetModuleHandleW(NULL);
+                auto candidate_stringref = utility::find_function_from_string_ref(current_module, "Failed to save resume state", true);
+                if (candidate_stringref)
+                {
+                    static auto ShutdownHook = safetyhook::create_mid(*candidate_stringref,
+                    [](SafetyHookContext& ctx)
+                    {
+                        VMEvent::onGameShutdown().executeAll();
+                    });
+                    result = true;
+                    return;
+                }
+            }();
+        }
+        __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
+        {
+        }
+
+        if (!result)
+            spd::log()->error("VMManager::Shutdown could not be located.");
+
+        return result;
+    }
+}
+
 CEXP void InitializeASI()
 {
-    std::call_once(CallbackHandler::flag, []()
+    static std::once_flag flag;
+    std::call_once(flag, []()
     {
         WriteBytes = (tWriteBytes)GetProcAddress(GetModuleHandle(NULL), "WriteBytes");
         GetIsThrottlerTempDisabled = (tGetIsThrottlerTempDisabled)GetProcAddress(GetModuleHandle(NULL), "GetIsThrottlerTempDisabled");
@@ -990,165 +1637,186 @@ CEXP void InitializeASI()
         }
         else
         {
-            // cringe
-            ipc = new PINE::PCSX2();
-
-            std::thread([]()
+            if (PCSX2F::Find_s_current_crc() && PCSX2F::Find_s_disc_crc() &&
+                PCSX2F::Find_ExposedRam() && PCSX2F::Find_AspectRatioSetting() &&
+                PCSX2F::Find_VMState() && PCSX2F::Find_memWrite8() && PCSX2F::Find_s_title() &&
+                PCSX2F::Hook__VMManager__Internal__EntryPointCompilingOnCPUThread() &&
+                PCSX2F::Hook__VMManager__Internal__Throttle() &&
+                PCSX2F::Hook__VMManager__Shutdown())
             {
-                static bool bElfChanged = false;
-                static std::string s_title("UNAVAILABLE");
-                auto start = std::chrono::high_resolution_clock::now();
+                WriteBytes = PCSX2F::WriteBytes;
+                GetIsThrottlerTempDisabled = PCSX2F::GetIsThrottlerTempDisabled;
+                SetIsThrottlerTempDisabled = PCSX2F::SetIsThrottlerTempDisabled;
+                GetVMState = PCSX2F::GetVMState;
+                AddOnGameElfInitCallback = PCSX2F::AddOnGameElfInitCallback;
+                AddOnGameShutdownCallback = PCSX2F::AddOnGameShutdownCallback;
 
-                while (true)
+                AddOnGameElfInitCallback(LoadPlugins);
+                AddOnGameShutdownCallback(ExitSignal);
+                AddOnGameShutdownCallback([] { FallbackWindowHandle = {}; });
+            }
+            else
+            {
+                // cringe
+                ipc = new PINE::PCSX2();
+
+                std::thread([]()
                 {
-                    auto status = ipc->GetError();
+                    static bool bElfChanged = false;
+                    static std::string s_title("UNAVAILABLE");
+                    auto start = std::chrono::high_resolution_clock::now();
 
-                    if (status == PINE::Shared::IPCStatus::NoConnection)
+                    while (true)
                     {
-                        constexpr auto err = "Enable PINE option in Settings -> Advanced(Port 28011) and restart the emulator. Plugins will not be loaded at this time.";
-                        spd::log()->error(err);
-                        MessageBoxA(NULL, err, "PCSX2PluginInjector", MB_ICONERROR);
-                        break;
-                    }
+                        auto status = ipc->GetError();
 
-                    if (ipc->Status() == PINE::Shared::EmuStatus::Running && FallbackEntryPointChecker)
-                    {
-                        auto EEmem = (uint8_t**)GetProcAddress(GetModuleHandle(NULL), "EEmem");
-                        auto curData = *(uint32_t*)(*EEmem + FallbackEntryPointChecker);
-                        static auto oldData = *(uint32_t*)(*EEmem + FallbackEntryPointChecker);
-                        if (curData != oldData)
+                        if (status == PINE::Shared::IPCStatus::NoConnection)
                         {
-                            if (oldData == 0x70000C28 || oldData == 0x2403003C) {
-                                bElfChanged = true;
-                                //spd::log()->info("ELF Switch detected, trying to load plugins...");
-                            }
-                        }
-                        oldData = curData;
-                    }
-
-                    static auto old = ipc->Status();
-                    auto cur = ipc->Status();
-                    if (cur != old || bElfChanged)
-                    {
-                        if (bElfChanged)
-                        {
-                            bElfChanged = false;
-                            ExitSignal();
-                            FallbackWindowHandle = {};
-                            FallbackEntryPointChecker = {};
+                            constexpr auto err = "Enable PINE option in Settings -> Advanced(Port 28011) and restart the emulator. Plugins will not be loaded at this time.";
+                            spd::log()->error(err);
+                            MessageBoxA(NULL, err, "PCSX2PluginInjector", MB_ICONERROR);
+                            break;
                         }
 
-                        if (ipc->Status() == PINE::Shared::EmuStatus::Running)
+                        if (ipc->Status() == PINE::Shared::EmuStatus::Running && FallbackEntryPointChecker)
                         {
-                            std::string s_disc_serial("UNAVAILABLE");
-                            std::string s_disc_elf("UNAVAILABLE");
-                            std::string s_disc_version("UNAVAILABLE");
-                            //std::string s_title("UNAVAILABLE");
-                            std::string s_elf_path("UNAVAILABLE");
-                            uint32_t s_disc_crc = 0;
-                            uint32_t s_current_crc = 0;
-                            uint32_t s_elf_entry_point = 0;
-                            uint8_t* EEMainMemoryStart = 0;
-                            size_t EEMainMemorySize = 0;
-                            void* WindowHandle = nullptr;
-                            uint32_t WindowSizeX = 1280;
-                            uint32_t WindowSizeY = 720;
-                            bool IsFullscreen = false;
-                            uint8_t AspectRatioSetting = uint8_t(Stretch);
-
                             auto EEmem = (uint8_t**)GetProcAddress(GetModuleHandle(NULL), "EEmem");
-                            if (EEmem)
+                            auto curData = *(uint32_t*)(*EEmem + FallbackEntryPointChecker);
+                            static auto oldData = *(uint32_t*)(*EEmem + FallbackEntryPointChecker);
+                            if (curData != oldData)
                             {
-                                EEMainMemoryStart = *EEmem;
-                                EEMainMemorySize = 0x8000000;
-
-                                // not really needed but whatever
-                                while (ipc->Read<uint8_t>(0x3200000) != 77)
-                                {
-                                    ipc->Write<uint8_t>(0x3200000, 77);
-
-                                    auto now = std::chrono::high_resolution_clock::now();
-                                    auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - start);
-
-                                    if (duration.count() >= 5)
-                                    {
-                                        EEMainMemorySize = 0x2000000;
-                                        start = std::chrono::high_resolution_clock::now();
-                                    }
-                                    std::this_thread::yield();
+                                if (oldData == 0x70000C28 || oldData == 0x2403003C) {
+                                    bElfChanged = true;
+                                    //spd::log()->info("ELF Switch detected, trying to load plugins...");
                                 }
-                                ipc->Write<uint8_t>(0x3200000, 0);
                             }
-
-                            auto Title = ipc->GetGameTitle();
-                            s_title = Title;
-                            auto GameID = ipc->GetGameID();
-                            s_disc_serial = GameID;
-                            auto GameUUID = ipc->GetGameUUID();
-                            s_disc_crc = std::stoul(GameUUID, nullptr, 16);
-                            s_current_crc = s_disc_crc; // INVALID, s_current_crc is not exposed because exposing it will break all threads, set your house on fire, and kill your dog
-                            auto GameVersion = ipc->GetGameVersion();
-                            s_disc_version = GameVersion;
-
-                            EnumWindows(EnumWindowsProc, reinterpret_cast<LPARAM>(s_title.c_str()));
-
-                            if (FallbackWindowHandle)
-                            {
-                                WindowHandle = &FallbackWindowHandle;
-                                RECT ClientRect = {};
-                                GetClientRect(FallbackWindowHandle, &ClientRect);
-                                WindowSizeX = ClientRect.right;
-                                WindowSizeY = ClientRect.bottom;
-                            }
-
-                            AspectRatioSetting = uint8_t(Stretch); // not exposed
-                            s_elf_entry_point = 0; // not exposed
-
-                            delete[] Title;
-                            delete[] GameID;
-                            delete[] GameUUID;
-                            delete[] GameVersion;
-
-                            LoadPlugins( // race condition, let's set them threads on fire
-                                s_disc_serial.c_str(),
-                                s_disc_elf.c_str(),
-                                s_disc_version.c_str(),
-                                s_title.c_str(),
-                                s_elf_path.c_str(),
-                                s_disc_crc,
-                                s_current_crc,
-                                s_elf_entry_point,
-                                EEMainMemoryStart,
-                                EEMainMemorySize,
-                                WindowHandle,
-                                WindowSizeX,
-                                WindowSizeY,
-                                IsFullscreen,
-                                AspectRatioSetting);
+                            oldData = curData;
                         }
-                        else
+
+                        static auto old = ipc->Status();
+                        auto cur = ipc->Status();
+                        if (cur != old || bElfChanged)
                         {
-                            ExitSignal();
-                            FallbackWindowHandle = {};
-                            FallbackEntryPointChecker = {};
+                            if (bElfChanged)
+                            {
+                                bElfChanged = false;
+                                ExitSignal();
+                                FallbackWindowHandle = {};
+                                FallbackEntryPointChecker = {};
+                            }
+
+                            if (ipc->Status() == PINE::Shared::EmuStatus::Running)
+                            {
+                                std::string s_disc_serial("UNAVAILABLE");
+                                std::string s_disc_elf("UNAVAILABLE");
+                                std::string s_disc_version("UNAVAILABLE");
+                                //std::string s_title("UNAVAILABLE");
+                                std::string s_elf_path("UNAVAILABLE");
+                                uint32_t s_disc_crc = 0;
+                                uint32_t s_current_crc = 0;
+                                uint32_t s_elf_entry_point = 0;
+                                uint8_t* EEMainMemoryStart = 0;
+                                size_t EEMainMemorySize = 0;
+                                void* WindowHandle = nullptr;
+                                uint32_t WindowSizeX = 1280;
+                                uint32_t WindowSizeY = 720;
+                                bool IsFullscreen = false;
+                                uint8_t AspectRatioSetting = uint8_t(Stretch);
+
+                                auto EEmem = (uint8_t**)GetProcAddress(GetModuleHandle(NULL), "EEmem");
+                                if (EEmem)
+                                {
+                                    EEMainMemoryStart = *EEmem;
+                                    EEMainMemorySize = 0x8000000;
+
+                                    // not really needed but whatever
+                                    while (ipc->Read<uint8_t>(0x3200000) != 77)
+                                    {
+                                        ipc->Write<uint8_t>(0x3200000, 77);
+
+                                        auto now = std::chrono::high_resolution_clock::now();
+                                        auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - start);
+
+                                        if (duration.count() >= 5)
+                                        {
+                                            EEMainMemorySize = 0x2000000;
+                                            start = std::chrono::high_resolution_clock::now();
+                                        }
+                                        std::this_thread::yield();
+                                    }
+                                    ipc->Write<uint8_t>(0x3200000, 0);
+                                }
+
+                                auto Title = ipc->GetGameTitle();
+                                s_title = Title;
+                                auto GameID = ipc->GetGameID();
+                                s_disc_serial = GameID;
+                                auto GameUUID = ipc->GetGameUUID();
+                                s_disc_crc = std::stoul(GameUUID, nullptr, 16);
+                                s_current_crc = s_disc_crc; // INVALID, s_current_crc is not exposed because exposing it will break all threads, set your house on fire, and kill your dog
+                                auto GameVersion = ipc->GetGameVersion();
+                                s_disc_version = GameVersion;
+
+                                EnumWindows(EnumWindowsProc, reinterpret_cast<LPARAM>(s_title.c_str()));
+
+                                if (FallbackWindowHandle)
+                                {
+                                    WindowHandle = &FallbackWindowHandle;
+                                    RECT ClientRect = {};
+                                    GetClientRect(FallbackWindowHandle, &ClientRect);
+                                    WindowSizeX = ClientRect.right;
+                                    WindowSizeY = ClientRect.bottom;
+                                }
+
+                                AspectRatioSetting = uint8_t(Stretch); // not exposed
+                                s_elf_entry_point = 0; // not exposed
+
+                                delete[] Title;
+                                delete[] GameID;
+                                delete[] GameUUID;
+                                delete[] GameVersion;
+
+                                LoadPlugins( // race condition, let's set them threads on fire
+                                    s_disc_serial.c_str(),
+                                    s_disc_elf.c_str(),
+                                    s_disc_version.c_str(),
+                                    s_title.c_str(),
+                                    s_elf_path.c_str(),
+                                    s_disc_crc,
+                                    s_current_crc,
+                                    s_elf_entry_point,
+                                    EEMainMemoryStart,
+                                    EEMainMemorySize,
+                                    WindowHandle,
+                                    WindowSizeX,
+                                    WindowSizeY,
+                                    IsFullscreen,
+                                    AspectRatioSetting);
+                            }
+                            else
+                            {
+                                ExitSignal();
+                                FallbackWindowHandle = {};
+                                FallbackEntryPointChecker = {};
+                            }
                         }
+                        old = cur;
+
+                        auto now = std::chrono::high_resolution_clock::now();
+                        auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - start);
+
+                        if (duration.count() >= 1)
+                        {
+                            EnumWindows(EnumWindowsProc, reinterpret_cast<LPARAM>(s_title.c_str()));
+                            start = std::chrono::high_resolution_clock::now();
+                        }
+
+                        std::this_thread::sleep_for(std::chrono::milliseconds(500));
                     }
-                    old = cur;
 
-                    auto now = std::chrono::high_resolution_clock::now();
-                    auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - start);
-
-                    if (duration.count() >= 1)
-                    {
-                        EnumWindows(EnumWindowsProc, reinterpret_cast<LPARAM>(s_title.c_str()));
-                        start = std::chrono::high_resolution_clock::now();
-                    }
-
-                    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-                }
-
-                delete ipc;
-            }).detach();
+                    delete ipc;
+                }).detach();
+            }
         }
     });
 }
