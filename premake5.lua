@@ -26,13 +26,14 @@ workspace "PCSX2PluginInjector"
    files { "Resources/*.rc" }
    files { "external/hooking/Hooking.Patterns.h", "external/hooking/Hooking.Patterns.cpp" }
    files { "includes/stdafx.h", "includes/stdafx.cpp" }
-   files { "external/injector/safetyhook/*.h", "external/injector/safetyhook/*.hpp" }
-   files { "external/injector/safetyhook/*.c", "external/injector/safetyhook/*.cpp" }
+   files { "external/injector/safetyhook/include/**.hpp", "external/injector/safetyhook/src/**.cpp" }
+   files { "external/injector/zydis/**.h", "external/injector/zydis/**.c" }
    includedirs { "includes" }
    includedirs { "source/api" }
+   includedirs { "external/injector/safetyhook/include" }
+   includedirs { "external/injector/zydis" }
    includedirs { "external/hooking" }
    includedirs { "external/injector/include" }
-   includedirs { "external/injector/safetyhook" }
    includedirs { "external/inireader" }
    includedirs { "external/spdlog/include" }
    includedirs { "external/filewatch" }
@@ -115,21 +116,15 @@ workspace "PCSX2PluginInjector"
       end
       targetdir ("data/" .. scriptspath)
    end
-   
-   function add_asmjit()
-      files { "external/asmjit/src/**.cpp" }
-      includedirs { "external/asmjit/src" }
-   end
 
    function add_kananlib()
       defines { "BDDISASM_HAS_MEMSET", "BDDISASM_HAS_VSNPRINTF" }
-      files { "external/injector/kananlib/include/utility/*.hpp", "external/injector/kananlib/src/*.cpp" }
-      files { "external/injector/kananlib/include/utility/thirdparty/*.hpp" }
-      files { "external/injector/kananlib/include/utility/thirdparty/bddisasm/bddisasm/*.c" }
-      files { "external/injector/kananlib/include/utility/thirdparty/bddisasm/bdshemu/*.c" }
+      files { "external/injector/kananlib/include/utility/**.hpp", "external/injector/kananlib/src/**.cpp" }
+      files { "external/injector/bddisasm/bddisasm/*.c" }
+      files { "external/injector/bddisasm/bdshemu/*.c" }
       includedirs { "external/injector/kananlib/include" }
-      includedirs { "external/injector/kananlib/include/utility/thirdparty/bddisasm/inc" }
-      includedirs { "external/injector/kananlib/include/utility/thirdparty/bddisasm/bddisasm/include" }
+      includedirs { "external/injector/bddisasm/inc" }
+      includedirs { "external/injector/bddisasm/bddisasm/include" }
    end
 
    filter "configurations:Debug*"
