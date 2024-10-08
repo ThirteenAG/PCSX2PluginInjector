@@ -2,6 +2,10 @@ name: GitHub Actions Build
 
 on:
   push:
+    branches:
+      - '**'
+  pull_request:
+  workflow_dispatch:
 
 jobs:
   build:
@@ -26,7 +30,7 @@ jobs:
       run: |
         msbuild -m build/PCSX2PluginInjector.sln /property:Configuration=${{matrix.buildtype}} /property:Platform=${{matrix.platform}}
     - name: Download Ultimate ASI Loader x64
-      uses: robinraju/release-downloader@v1.10
+      uses: robinraju/release-downloader@v1.11
       with:
         repository: "ThirteenAG/Ultimate-ASI-Loader"
         tag: "x64-latest"
@@ -40,6 +44,9 @@ jobs:
       run: |
         ./release.bat
     - name: Get release info
+      if: |
+        github.ref_name == 'main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+        github.repository == 'ThirteenAG/PCSX2PluginInjector'
       id: release_info
       uses: cardinalby/git-get-release-action@master
       env:
@@ -47,6 +54,9 @@ jobs:
       with:
         tag: latest
     - name: Upload Release
+      if: |
+        github.ref_name == 'main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+        github.repository == 'ThirteenAG/PCSX2PluginInjector'
       uses: ncipollo/release-action@v1.14.0
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
