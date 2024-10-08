@@ -529,6 +529,18 @@ PluginInfo ParseElf(auto path)
                         info.CLEOScriptsAddr = static_cast<uint32_t>(value);
                         info.CLEOScriptsSize = static_cast<uint32_t>(size);
                     }
+                    else if (name == "_ps2sdk_libc_init")
+                    {
+                        info.ps2sdk_libc_init = static_cast<uint32_t>(value);
+                    }
+                    else if (name == "_init")
+                    {
+                        info.ps2sdk_libcpp_init = static_cast<uint32_t>(value);
+                    }
+                    else if (name == "__cxa_atexit")
+                    {
+                        info.__cxa_atexit = static_cast<uint32_t>(value);
+                    }
                 }
             }
         }
@@ -646,7 +658,7 @@ void LoadPlugins(
         spd::log()->info("Injecting {}...", invokerPath.filename().string());
         WriteMemoryRaw(invoker.Base, buffer.data() + invoker.SegmentFileOffset, static_cast<uint32_t>(buffer.size()) - invoker.SegmentFileOffset);
         MemoryFill(invoker.PluginDataAddr, 0x00, invoker.PluginDataSize);
-        WriteMemoryRaw(invoker.PluginDataAddr + (sizeof(PluginInfoInvoker) * count), &invoker, sizeof(PluginInfoInvoker));
+        WriteMemoryRaw(invoker.PluginDataAddr + (sizeof(PluginInfo) * count), &invoker, sizeof(PluginInfo));
         spd::log()->info("Finished injecting {}, {} bytes written at 0x{:X}", invokerPath.filename().string(), invoker.Size, invoker.Base);
         PluginRegions.emplace_back(invoker.Base, invoker.Base + invoker.Size);
 
@@ -765,7 +777,7 @@ void LoadPlugins(
                     count++;
                     spd::log()->info("Injecting {}...", plugin_path.filename().string());
                     WriteMemoryRaw(mod.Base, buffer.data() + mod.SegmentFileOffset, static_cast<uint32_t>(buffer.size()) - mod.SegmentFileOffset);
-                    WriteMemoryRaw(invoker.PluginDataAddr + (sizeof(PluginInfoInvoker) * count), &mod, sizeof(PluginInfoInvoker));
+                    WriteMemoryRaw(invoker.PluginDataAddr + (sizeof(PluginInfo) * count), &mod, sizeof(PluginInfo));
                     spd::log()->info("Finished injecting {}, {} bytes written at 0x{:X}", plugin_path.filename().string(), mod.Size, mod.Base);
                     PluginRegions.emplace_back(mod.Base, mod.Base + mod.Size);
 
@@ -852,12 +864,15 @@ void LoadPlugins(
                             for (const auto& entry : std::filesystem::directory_iterator(cleo_path, std::filesystem::directory_options::skip_permission_denied, ec))
                             {
                                 auto ext = entry.path().extension().wstring();
-                                if (iequals(ext, L".cs") || iequals(ext, L".csa") || iequals(ext, L".csi"))
+                                if (iequals(ext, L".fxt") || iequals(ext, L".csa") || iequals(ext, L".csi"))
                                 {
                                     auto script = LoadFileToBuffer(entry.path());
                                     if (script_offset + sizeof(uint32_t) + script.size() <= mod.CLEOScriptsAddr + mod.CLEOScriptsSize)
                                     {
                                         spd::log()->info("Injecting {}", entry.path().filename().string());
+                                        auto name = entry.path().filename().string();
+                                        WriteMemoryRaw(script_offset, name.data(), name.size() + 1);
+                                        script_offset += name.size() + 1;
                                         WriteMemory32(script_offset, static_cast<uint32_t>(script.size()));
                                         script_offset += sizeof(uint32_t);
                                         WriteMemoryRaw(script_offset, script.data(), static_cast<uint32_t>(script.size()));

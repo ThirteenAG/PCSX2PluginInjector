@@ -29,15 +29,13 @@ struct PluginInfo
     uint32_t CLEOScriptsAddr;
     uint32_t CLEOScriptsSize;
 
+    uint32_t ps2sdk_libc_init;
+    uint32_t ps2sdk_libcpp_init;
+    uint32_t __cxa_atexit;
+
 #ifdef __cplusplus
     bool isValid() { return (Base != 0 && EntryPoint != 0 && Size != 0); }
 #endif
-};
-
-struct PluginInfoInvoker
-{
-    uint32_t Base;
-    uint32_t EntryPoint;
 };
 
 enum PCSX2DataType
