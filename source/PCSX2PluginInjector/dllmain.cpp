@@ -861,7 +861,7 @@ void LoadPlugins(
                         auto cleo_path = pluginsPath / L"CLEO";
                         if (std::filesystem::exists(cleo_path, ec))
                         {
-                            for (const auto& entry : std::filesystem::directory_iterator(cleo_path, std::filesystem::directory_options::skip_permission_denied, ec))
+                            for (const auto& entry : std::filesystem::recursive_directory_iterator(cleo_path, std::filesystem::directory_options::skip_permission_denied, ec))
                             {
                                 auto ext = entry.path().extension().wstring();
                                 if (iequals(ext, L".fxt") || iequals(ext, L".csa") || iequals(ext, L".csi"))
@@ -870,7 +870,7 @@ void LoadPlugins(
                                     if (script_offset + sizeof(uint32_t) + script.size() <= mod.CLEOScriptsAddr + mod.CLEOScriptsSize)
                                     {
                                         spd::log()->info("Injecting {}", entry.path().filename().string());
-                                        auto name = entry.path().filename().string();
+                                        auto name = entry.path().lexically_relative(cleo_path).string();
                                         WriteMemoryRaw(script_offset, name.data(), name.size() + 1);
                                         script_offset += name.size() + 1;
                                         WriteMemory32(script_offset, static_cast<uint32_t>(script.size()));
