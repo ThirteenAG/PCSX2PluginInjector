@@ -529,10 +529,6 @@ PluginInfo ParseElf(auto path)
                         info.CLEOScriptsAddr = static_cast<uint32_t>(value);
                         info.CLEOScriptsSize = static_cast<uint32_t>(size);
                     }
-                    else if (name == "_ps2sdk_libc_init")
-                    {
-                        info.ps2sdk_libc_init = static_cast<uint32_t>(value);
-                    }
                     else if (name == "_init")
                     {
                         info.ps2sdk_libcpp_init = static_cast<uint32_t>(value);

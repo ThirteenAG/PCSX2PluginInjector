@@ -29,7 +29,6 @@ struct PluginInfo
     uint32_t CLEOScriptsAddr;
     uint32_t CLEOScriptsSize;
 
-    uint32_t ps2sdk_libc_init;
     uint32_t ps2sdk_libcpp_init;
     uint32_t __cxa_atexit;
 
