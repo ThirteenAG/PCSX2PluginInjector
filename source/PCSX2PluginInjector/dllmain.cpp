@@ -1414,24 +1414,41 @@ namespace PCSX2F
         {
             [&result]()
             {
-                const auto current_module = GetModuleHandleW(NULL);
-                const auto candidate_string = utility::scan_string(current_module, "PCSX2 Emulator");
-                if (candidate_string)
+                for (auto s : { "PCSX2 PS2 Emulator", "PCSX2 Emulator" })
                 {
-                    auto candidate_stringref = utility::scan_displacement_reference(current_module, *candidate_string);
-                    if (candidate_stringref)
+                    const auto current_module = GetModuleHandleW(NULL);
+                    const auto candidate_string = utility::scan_string(current_module, s);
+                    if (candidate_string)
                     {
-                        auto ip = *candidate_stringref + 4;
-                        auto next_cmp = utility::scan_mnemonic(ip, 100, "LEA");
-                        if (next_cmp)
+                        auto candidate_stringref = utility::scan_displacement_reference(current_module, *candidate_string);
+                        if (candidate_stringref)
                         {
-                            const auto disp = utility::resolve_displacement(*next_cmp);
+                            auto ip = *candidate_stringref + 4;
+                            auto k = 0;
+                            for (size_t i = 0; i < 4000; ++i) {
+                                INSTRUX ix{};
+                                const auto status = NdDecodeEx(&ix, (uint8_t*)ip, 1000, ND_CODE_64, ND_DATA_64);
 
-                            if (disp.has_value())
-                            {
-                                s_title = (const char**)disp.value();
-                                result = true;
-                                return;
+                                if (!ND_SUCCESS(status)) {
+                                    break;
+                                }
+
+                                if (std::string_view{ ix.Mnemonic } == "MOV") {
+                                    if (k >= 2)
+                                    {
+                                        const auto disp = utility::resolve_displacement(ip);
+
+                                        if (disp.has_value())
+                                        {
+                                            s_title = (const char**)disp.value();
+                                            result = true;
+                                            return;
+                                        }
+                                    }
+                                    k++;
+                                }
+
+                                ip += ix.Length;
                             }
                         }
                     }
@@ -1443,7 +1460,7 @@ namespace PCSX2F
         }
 
         if (!result)
-            spd::log()->error("memWrite8 could not be located.");
+            spd::log()->error("s_title could not be located.");
 
         return result;
     }
