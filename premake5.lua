@@ -6,6 +6,7 @@ workspace "PCSX2PluginInjector"
    objdir ("build/obj")
    buildlog ("build/log/%{prj.name}.log")
    cppdialect "C++latest"
+   buildoptions{"/utf-8"}
    include "makefile.lua"
    
    kind "SharedLib"
