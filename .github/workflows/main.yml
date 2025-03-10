@@ -30,7 +30,7 @@ jobs:
       run: |
         msbuild -m build/PCSX2PluginInjector.sln /property:Configuration=${{matrix.buildtype}} /property:Platform=${{matrix.platform}}
     - name: Download Ultimate ASI Loader x64
-      uses: robinraju/release-downloader@v1.11
+      uses: robinraju/release-downloader@v1.12
       with:
         repository: "ThirteenAG/Ultimate-ASI-Loader"
         tag: "x64-latest"
