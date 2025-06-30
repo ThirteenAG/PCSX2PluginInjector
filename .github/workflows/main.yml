@@ -57,7 +57,7 @@ jobs:
       if: |
         github.ref_name == 'main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
         github.repository == 'ThirteenAG/PCSX2PluginInjector'
-      uses: ncipollo/release-action@v1.16.0
+      uses: ncipollo/release-action@v1.18.0
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         allowUpdates: true
