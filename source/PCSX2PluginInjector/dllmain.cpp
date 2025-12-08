@@ -199,8 +199,7 @@ void UnthrottleWatcher(std::future<void> futureObj, uint8_t* addr, const uint32_
             }
             SetIsThrottlerTempDisabled(false);
             spd::log()->info("Ending thread UnthrottleWatcher");
-        }
-        __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
+        } __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
         {
         }
     }();
@@ -242,29 +241,29 @@ LRESULT WINAPI CustomWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             {
                 switch (wParam)
                 {
-                case WA_ACTIVE:
-                case WA_CLICKACTIVE:
-                    RegisterInputDevices(hWnd);
-                    break;
-                case WA_INACTIVE:
-                    for (auto& it : InputData)
-                    {
-                        if (it.Type != PtrType::CheatStringData)
+                    case WA_ACTIVE:
+                    case WA_CLICKACTIVE:
+                        RegisterInputDevices(hWnd);
+                        break;
+                    case WA_INACTIVE:
+                        for (auto& it : InputData)
                         {
-                            MEMORY_BASIC_INFORMATION MemoryInf;
-                            if ((VirtualQuery((LPCVOID)it.Addr, &MemoryInf, sizeof(MemoryInf)) != 0 && MemoryInf.Protect != 0))
+                            if (it.Type != PtrType::CheatStringData)
                             {
-                                MemoryFill(static_cast<uint32_t>(it.Addr), 0x00, static_cast<uint32_t>(it.Size));
+                                MEMORY_BASIC_INFORMATION MemoryInf;
+                                if ((VirtualQuery((LPCVOID)it.Addr, &MemoryInf, sizeof(MemoryInf)) != 0 && MemoryInf.Protect != 0))
+                                {
+                                    MemoryFill(static_cast<uint32_t>(it.Addr), 0x00, static_cast<uint32_t>(it.Size));
+                                }
                             }
                         }
-                    }
-                    break;
+                        break;
                 }
             }
             else if (msg == WM_INPUT)
             {
-                auto awnd = GetActiveWindow();
-                if (hWnd == awnd || *(HWND*)gWindowHandle == awnd)
+                //auto awnd = GetActiveWindow();
+                //if (hWnd == awnd || *(HWND*)gWindowHandle == awnd)
                 {
                     for (auto& it : InputData)
                     {
@@ -292,46 +291,46 @@ LRESULT WINAPI CustomWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
                                     {
                                         switch (raw->data.keyboard.VKey)
                                         {
-                                        case VK_CONTROL:
-                                            if (raw->data.keyboard.Flags & RI_KEY_E0)
-                                            {
-                                                VKeyStatesPrev[VK_RCONTROL] = VKeyStates[VK_RCONTROL];
-                                                VKeyStates[VK_RCONTROL] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
-                                            }
-                                            else
-                                            {
-                                                VKeyStatesPrev[VK_LCONTROL] = VKeyStates[VK_LCONTROL];
-                                                VKeyStates[VK_LCONTROL] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
-                                            }
-                                            break;
-                                        case VK_MENU:
-                                            if (raw->data.keyboard.Flags & RI_KEY_E0)
-                                            {
-                                                VKeyStatesPrev[VK_RMENU] = VKeyStates[VK_RMENU];
-                                                VKeyStates[VK_RMENU] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
-                                            }
-                                            else
-                                            {
-                                                VKeyStatesPrev[VK_LMENU] = VKeyStates[VK_LMENU];
-                                                VKeyStates[VK_LMENU] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
-                                            }
-                                            break;
-                                        case VK_SHIFT:
-                                            if (raw->data.keyboard.MakeCode == 0x36)
-                                            {
-                                                VKeyStatesPrev[VK_RSHIFT] = VKeyStates[VK_RSHIFT];
-                                                VKeyStates[VK_RSHIFT] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
-                                            }
-                                            else
-                                            {
-                                                VKeyStatesPrev[VK_LSHIFT] = VKeyStates[VK_LSHIFT];
-                                                VKeyStates[VK_LSHIFT] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
-                                            }
-                                            break;
-                                        default:
-                                            VKeyStatesPrev[raw->data.keyboard.VKey] = VKeyStates[raw->data.keyboard.VKey];
-                                            VKeyStates[raw->data.keyboard.VKey] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
-                                            break;
+                                            case VK_CONTROL:
+                                                if (raw->data.keyboard.Flags & RI_KEY_E0)
+                                                {
+                                                    VKeyStatesPrev[VK_RCONTROL] = VKeyStates[VK_RCONTROL];
+                                                    VKeyStates[VK_RCONTROL] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                                }
+                                                else
+                                                {
+                                                    VKeyStatesPrev[VK_LCONTROL] = VKeyStates[VK_LCONTROL];
+                                                    VKeyStates[VK_LCONTROL] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                                }
+                                                break;
+                                            case VK_MENU:
+                                                if (raw->data.keyboard.Flags & RI_KEY_E0)
+                                                {
+                                                    VKeyStatesPrev[VK_RMENU] = VKeyStates[VK_RMENU];
+                                                    VKeyStates[VK_RMENU] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                                }
+                                                else
+                                                {
+                                                    VKeyStatesPrev[VK_LMENU] = VKeyStates[VK_LMENU];
+                                                    VKeyStates[VK_LMENU] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                                }
+                                                break;
+                                            case VK_SHIFT:
+                                                if (raw->data.keyboard.MakeCode == 0x36)
+                                                {
+                                                    VKeyStatesPrev[VK_RSHIFT] = VKeyStates[VK_RSHIFT];
+                                                    VKeyStates[VK_RSHIFT] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                                }
+                                                else
+                                                {
+                                                    VKeyStatesPrev[VK_LSHIFT] = VKeyStates[VK_LSHIFT];
+                                                    VKeyStates[VK_LSHIFT] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                                }
+                                                break;
+                                            default:
+                                                VKeyStatesPrev[raw->data.keyboard.VKey] = VKeyStates[raw->data.keyboard.VKey];
+                                                VKeyStates[raw->data.keyboard.VKey] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
+                                                break;
                                         }
                                     }
                                     else if (it.Type == PtrType::CheatStringData)
@@ -411,8 +410,7 @@ LRESULT WINAPI CustomWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
                     }
                 }
             }
-        }
-        __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
+        } __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
         {
         }
     }();
@@ -442,13 +440,15 @@ PluginInfo ParseElf(auto path)
     if (reader.load(path) && reader.get_class() == ELFCLASS32 && reader.get_encoding() == ELFDATA2LSB)
     {
         Elf_Half sec_num = reader.sections.size();
-        for (int i = 0; i < sec_num; ++i) {
+        for (int i = 0; i < sec_num; ++i)
+        {
             section* psec = reader.sections[i];
             info.Size += static_cast<uint32_t>(psec->get_size());
         }
 
         Elf_Half seg_num = reader.segments.size();
-        for (int i = 0; i < seg_num; ++i) {
+        for (int i = 0; i < seg_num; ++i)
+        {
             const segment* pseg = reader.segments[i];
 
             if (info.SegmentFileOffset == 0)
@@ -464,11 +464,14 @@ PluginInfo ParseElf(auto path)
             info.Size += static_cast<uint32_t>(pseg->get_memory_size());
         }
 
-        for (int i = 0; i < sec_num; ++i) {
+        for (int i = 0; i < sec_num; ++i)
+        {
             section* psec = reader.sections[i];
-            if (psec->get_type() == SHT_SYMTAB) {
+            if (psec->get_type() == SHT_SYMTAB)
+            {
                 const symbol_section_accessor symbols(reader, psec);
-                for (unsigned int j = 0; j < symbols.get_symbols_num(); ++j) {
+                for (unsigned int j = 0; j < symbols.get_symbols_num(); ++j)
+                {
                     std::string   name;
                     Elf64_Addr    value;
                     Elf_Xword     size;
@@ -664,7 +667,7 @@ void LoadPlugins(
         while (!s_elf_entry_point)
         {
             constexpr auto base = 0x100000;
-            auto pattern = hook::pattern((uintptr_t)(EEMainMemoryStart) + base, (uintptr_t)(EEMainMemoryStart) + 0x2000000 - base, "28 0C 00 70 28 14 00 70 28 1C 00 70");
+            auto pattern = hook::pattern((uintptr_t)(EEMainMemoryStart)+base, (uintptr_t)(EEMainMemoryStart)+0x2000000 - base, "28 0C 00 70 28 14 00 70 28 1C 00 70");
             if (!pattern.count_hint(1).empty())
             {
                 *(uint32_t*)&s_elf_entry_point = uint32_t((uintptr_t)pattern.get_first(0) - (uintptr_t)EEMainMemoryStart);
@@ -672,7 +675,7 @@ void LoadPlugins(
                 break;
             }
 
-            pattern = hook::pattern((uintptr_t)(EEMainMemoryStart) + base, (uintptr_t)(EEMainMemoryStart) + 0x2000000 - base, "3C 00 03 24 0C 00 00 00");
+            pattern = hook::pattern((uintptr_t)(EEMainMemoryStart)+base, (uintptr_t)(EEMainMemoryStart)+0x2000000 - base, "3C 00 03 24 0C 00 00 00");
             if (!pattern.count_hint(1).empty())
             {
                 *(uint32_t*)&s_elf_entry_point = uint32_t((uintptr_t)pattern.get_first(0) - (uintptr_t)EEMainMemoryStart);
@@ -681,7 +684,7 @@ void LoadPlugins(
             }
         }
 
-        auto ei_lookup = hook::pattern((uintptr_t)(EEMainMemoryStart) + s_elf_entry_point, (uintptr_t)(EEMainMemoryStart) + s_elf_entry_point + 2000, "38 00 00 42");
+        auto ei_lookup = hook::pattern((uintptr_t)(EEMainMemoryStart)+s_elf_entry_point, (uintptr_t)(EEMainMemoryStart)+s_elf_entry_point + 2000, "38 00 00 42");
         if (!ei_lookup.count_hint(1).empty())
         {
             ei_hook = ei_lookup.count_hint(1).get_first<uint32_t>();
@@ -700,7 +703,7 @@ void LoadPlugins(
             WriteMemory32(uint32_t((uintptr_t)syscall_hook + 4 - (uintptr_t)EEMainMemoryStart), syscall_data2);
             spd::log()->info("Syscall::GetMemorySize switched to return 0x{:X}", 0x2000000);
         }
-       
+
         if (!patched)
         {
             spd::log()->error("{} can't hook the game with Disc CRC 0x{:X}, ELF CRC 0x{:X}, exiting...", modulePath.filename().string(), s_disc_crc, s_current_crc);
@@ -753,8 +756,9 @@ void LoadPlugins(
                     if (!crc_compatible)
                         continue;
 
-                    auto BaseCheck = std::find_if(PluginRegions.begin(), PluginRegions.end(), [&mod](auto x) {
-                        return x.first >= mod.Base && x.second <= mod.Base + mod.Size; 
+                    auto BaseCheck = std::find_if(PluginRegions.begin(), PluginRegions.end(), [&mod](auto x)
+                    {
+                        return x.first >= mod.Base && x.second <= mod.Base + mod.Size;
                     }) != PluginRegions.end();
 
                     spd::log()->info("Loading {}", plugin_path.string());
@@ -921,7 +925,8 @@ void LoadPlugins(
         if (h != NULL)
         {
             auto procedure = (void(*)())GetProcAddress(h, "InitializeASI");
-            if (procedure != NULL) {
+            if (procedure != NULL)
+            {
                 procedure();
             }
         }
@@ -953,11 +958,14 @@ CEXP uintptr_t GetPluginSymbolAddr(const char* path, const char* sym_name)
     if (reader.load(path) && reader.get_class() == ELFCLASS32 && reader.get_encoding() == ELFDATA2LSB)
     {
         Elf_Half sec_num = reader.sections.size();
-        for (int i = 0; i < sec_num; ++i) {
+        for (int i = 0; i < sec_num; ++i)
+        {
             section* psec = reader.sections[i];
-            if (psec->get_type() == SHT_SYMTAB) {
+            if (psec->get_type() == SHT_SYMTAB)
+            {
                 const symbol_section_accessor symbols(reader, psec);
-                for (unsigned int j = 0; j < symbols.get_symbols_num(); ++j) {
+                for (unsigned int j = 0; j < symbols.get_symbols_num(); ++j)
+                {
                     std::string   name;
                     Elf64_Addr    value;
                     Elf_Xword     size;
@@ -1134,8 +1142,7 @@ namespace PCSX2F
                     }
                 }
             }();
-        }
-        __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
+        } __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
         {
         }
 
@@ -1175,8 +1182,7 @@ namespace PCSX2F
                     }
                 }
             }();
-        }
-        __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
+        } __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
         {
         }
 
@@ -1198,11 +1204,13 @@ namespace PCSX2F
                 if (candidate_stringref)
                 {
                     auto ip = *candidate_stringref;
-                    for (size_t i = 0; i < 4000; ++i) {
+                    for (size_t i = 0; i < 4000; ++i)
+                    {
                         INSTRUX ix{};
                         const auto status = NdDecodeEx(&ix, (uint8_t*)ip, 1000, ND_CODE_64, ND_DATA_64);
 
-                        if (!ND_SUCCESS(status)) {
+                        if (!ND_SUCCESS(status))
+                        {
                             break;
                         }
 
@@ -1225,8 +1233,7 @@ namespace PCSX2F
                     }
                 }
             }();
-        }
-        __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
+        } __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
         {
         }
 
@@ -1248,11 +1255,13 @@ namespace PCSX2F
                 if (candidate_stringref)
                 {
                     auto ip = *candidate_stringref;
-                    for (size_t i = 0; i < 4000; ++i) {
+                    for (size_t i = 0; i < 4000; ++i)
+                    {
                         INSTRUX ix{};
                         const auto status = NdDecodeEx(&ix, (uint8_t*)ip, 1000, ND_CODE_64, ND_DATA_64);
 
-                        if (!ND_SUCCESS(status)) {
+                        if (!ND_SUCCESS(status))
+                        {
                             break;
                         }
 
@@ -1285,8 +1294,7 @@ namespace PCSX2F
                     }
                 }
             }();
-        }
-        __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
+        } __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
         {
         }
 
@@ -1340,8 +1348,7 @@ namespace PCSX2F
                     }
                 }
             }();
-        }
-        __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
+        } __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
         {
         }
 
@@ -1366,11 +1373,13 @@ namespace PCSX2F
                     if (candidate_stringref)
                     {
                         auto ip = *candidate_stringref + 4;
-                        for (size_t i = 0; i < 4000; ++i) {
+                        for (size_t i = 0; i < 4000; ++i)
+                        {
                             INSTRUX ix{};
                             const auto status = NdDecodeEx(&ix, (uint8_t*)ip, 1000, ND_CODE_64, ND_DATA_64);
 
-                            if (!ND_SUCCESS(status)) {
+                            if (!ND_SUCCESS(status))
+                            {
                                 break;
                             }
 
@@ -1396,8 +1405,7 @@ namespace PCSX2F
                     }
                 }
             }();
-        }
-        __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
+        } __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
         {
         }
 
@@ -1425,15 +1433,18 @@ namespace PCSX2F
                         {
                             auto ip = *candidate_stringref + 4;
                             auto k = 0;
-                            for (size_t i = 0; i < 4000; ++i) {
+                            for (size_t i = 0; i < 4000; ++i)
+                            {
                                 INSTRUX ix{};
                                 const auto status = NdDecodeEx(&ix, (uint8_t*)ip, 1000, ND_CODE_64, ND_DATA_64);
 
-                                if (!ND_SUCCESS(status)) {
+                                if (!ND_SUCCESS(status))
+                                {
                                     break;
                                 }
 
-                                if (std::string_view{ ix.Mnemonic } == "MOV") {
+                                if (std::string_view{ ix.Mnemonic } == "MOV")
+                                {
                                     if (k >= 2)
                                     {
                                         const auto disp = utility::resolve_displacement(ip);
@@ -1454,8 +1465,7 @@ namespace PCSX2F
                     }
                 }
             }();
-        }
-        __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
+        } __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
         {
         }
 
@@ -1482,15 +1492,18 @@ namespace PCSX2F
                     {
                         uintptr_t call = 0;
                         auto ip = *candidate_stringref + 4;
-                        for (size_t i = 0; i < 4000; ++i) {
+                        for (size_t i = 0; i < 4000; ++i)
+                        {
                             INSTRUX ix{};
                             const auto status = NdDecodeEx(&ix, (uint8_t*)ip, 1000, ND_CODE_64, ND_DATA_64);
 
-                            if (!ND_SUCCESS(status)) {
+                            if (!ND_SUCCESS(status))
+                            {
                                 break;
                             }
 
-                            if (std::string_view{ ix.Mnemonic } == "CALL") {
+                            if (std::string_view{ ix.Mnemonic } == "CALL")
+                            {
                                 call = ip;
                             }
                             else if (std::string_view{ ix.Mnemonic } == "MOV")
@@ -1535,8 +1548,7 @@ namespace PCSX2F
                     }
                 }
             }();
-        }
-        __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
+        } __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
         {
         }
 
@@ -1603,8 +1615,7 @@ namespace PCSX2F
                     }
                 }
             }();
-        }
-        __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
+        } __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
         {
         }
 
@@ -1634,8 +1645,7 @@ namespace PCSX2F
                     return;
                 }
             }();
-        }
-        __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
+        } __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
         {
         }
 
@@ -1657,7 +1667,7 @@ CEXP void InitializeASI()
         GetVMState = (tGetVMState)GetProcAddress(GetModuleHandle(NULL), "GetVMState");
         AddOnGameElfInitCallback = (tAddOnGameElfInitCallback)GetProcAddress(GetModuleHandle(NULL), "AddOnGameElfInitCallback");
         AddOnGameShutdownCallback = (tAddOnGameShutdownCallback)GetProcAddress(GetModuleHandle(NULL), "AddOnGameShutdownCallback");
-        
+
         if (WriteBytes && GetIsThrottlerTempDisabled && SetIsThrottlerTempDisabled && GetVMState && AddOnGameElfInitCallback && AddOnGameShutdownCallback)
         {
             AddOnGameElfInitCallback(LoadPlugins);
@@ -1713,7 +1723,8 @@ CEXP void InitializeASI()
                             static auto oldData = *(uint32_t*)(*EEmem + FallbackEntryPointChecker);
                             if (curData != oldData)
                             {
-                                if (oldData == 0x70000C28 || oldData == 0x2403003C) {
+                                if (oldData == 0x70000C28 || oldData == 0x2403003C)
+                                {
                                     bElfChanged = true;
                                     //spd::log()->info("ELF Switch detected, trying to load plugins...");
                                 }
