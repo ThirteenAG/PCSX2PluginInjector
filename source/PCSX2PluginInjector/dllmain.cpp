@@ -1,5 +1,6 @@
 #include <elfio/elfio.hpp>
 #include "stdafx.h"
+#include <atomic>
 #include <thread>
 #include <iostream>
 #include <chrono>
@@ -205,219 +206,560 @@ void UnthrottleWatcher(std::future<void> futureObj, uint8_t* addr, const uint32_
     }();
 }
 
-void RegisterInputDevices(HWND hWnd)
-{
-    constexpr auto HID_USAGE_PAGE_GENERIC = 0x01;
-    constexpr auto HID_USAGE_GENERIC_MOUSE = 0x02;
-    constexpr auto HID_USAGE_GENERIC_KEYBOARD = 0x06;
-    RAWINPUTDEVICE Rid[2] = {};
-    Rid[0].usUsagePage = HID_USAGE_PAGE_GENERIC;
-    Rid[0].usUsage = HID_USAGE_GENERIC_KEYBOARD;
-    Rid[0].dwFlags = 0;
-    Rid[0].hwndTarget = hWnd;
-    Rid[1].usUsagePage = HID_USAGE_PAGE_GENERIC;
-    Rid[1].usUsage = HID_USAGE_GENERIC_MOUSE;
-    Rid[1].dwFlags = RIDEV_INPUTSINK;
-    Rid[1].hwndTarget = hWnd;
-    RegisterRawInputDevices(&Rid[0], 1, sizeof(Rid[0]));
-    RegisterRawInputDevices(&Rid[1], 1, sizeof(Rid[1]));
-}
+// ---------------------------------------------------------------------------
+// Keyboard and mouse
+//
+// The window the game renders into is not a stable one. PCSX2 destroys and
+// recreates its display widget whenever the render window changes (on Windows a
+// fullscreen switch always creates a new one), so a raw input device that was
+// registered against that handle, and a window procedure that was installed on
+// it, end up attached to a window that no longer exists and the plugins stop
+// seeing input.
+//
+// The devices are therefore registered against a window of our own that never
+// changes, and the window of the game is looked up again for every event. Input
+// only reaches the game while that window is the one in the foreground, so an
+// open dialog of the emulator, its own window while the game renders into another
+// one, or another application never feeds it.
+//
+// The window is created on the thread that owns the windows of the emulator, so
+// the events are taken out of the queue and handed over by the thread the system
+// favours for input while the game is in the foreground, and nothing has to wait
+// for a thread of our own to be scheduled. A message hook of that thread is what
+// creates it there, see EnsureInput.
+// ---------------------------------------------------------------------------
 
 struct InputDataT
 {
     uint8_t Type;
+    uint32_t GuestAddr;
     uintptr_t Addr;
     size_t Size;
-}; std::vector<InputDataT> InputData;
-LRESULT(WINAPI* WndProc)(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-LRESULT WINAPI CustomWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+};
+
+static std::mutex s_inputMutex;
+static std::vector<InputDataT> InputData;
+
+// only ever touched by the thread that owns the raw input window
+static bool s_gameInputActive = false;
+
+// The address PCSX2 hands over points at the window handle of the renderer that
+// was loaded when the game started, and the variable behind it is updated
+// whenever the window is replaced, so the handle is read back instead of being
+// remembered. The address itself belongs to that renderer: switching the
+// renderer while a game runs frees it, hence the guard. No local objects in
+// here, a __try cannot unwind them.
+static HWND GetRenderWindowFromDevice()
 {
-    std::vector<uint8_t> lbp(255);
-    [&]()
+    if (!gWindowHandle)
+        return nullptr;
+
+    __try
     {
-        __try
-        {
-            if (msg == WM_ACTIVATE)
-            {
-                switch (wParam)
-                {
-                    case WA_ACTIVE:
-                    case WA_CLICKACTIVE:
-                        RegisterInputDevices(hWnd);
-                        break;
-                    case WA_INACTIVE:
-                        for (auto& it : InputData)
-                        {
-                            if (it.Type != PtrType::CheatStringData)
-                            {
-                                MEMORY_BASIC_INFORMATION MemoryInf;
-                                if ((VirtualQuery((LPCVOID)it.Addr, &MemoryInf, sizeof(MemoryInf)) != 0 && MemoryInf.Protect != 0))
-                                {
-                                    MemoryFill(static_cast<uint32_t>(it.Addr), 0x00, static_cast<uint32_t>(it.Size));
-                                }
-                            }
-                        }
-                        break;
-                }
-            }
-            else if (msg == WM_INPUT)
-            {
-                //auto awnd = GetActiveWindow();
-                //if (hWnd == awnd || *(HWND*)gWindowHandle == awnd)
-                {
-                    for (auto& it : InputData)
-                    {
-                        MEMORY_BASIC_INFORMATION MemoryInf;
-                        if ((VirtualQuery((LPCVOID)it.Addr, &MemoryInf, sizeof(MemoryInf)) != 0 && MemoryInf.Protect != 0))
-                        {
-                            auto VKeyStates = reinterpret_cast<char*>(it.Addr);
-                            auto VKeyStatesPrev = reinterpret_cast<char*>(it.Addr + KeyboardBufState::StateSize);
-                            UINT dwSize = 0;
-
-                            GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER));
-                            lbp.resize(dwSize);
-                            auto raw = reinterpret_cast<RAWINPUT*>(lbp.data());
-
-                            if (GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, raw, &dwSize, sizeof(RAWINPUTHEADER)) != dwSize)
-                            {
-                                OutputDebugString(TEXT("GetRawInputData does not return correct size !\n"));
-                            }
-
-                            if (raw->header.dwType == RIM_TYPEKEYBOARD)
-                            {
-                                if (raw->header.hDevice)
-                                {
-                                    if (it.Type == PtrType::KeyboardData)
-                                    {
-                                        switch (raw->data.keyboard.VKey)
-                                        {
-                                            case VK_CONTROL:
-                                                if (raw->data.keyboard.Flags & RI_KEY_E0)
-                                                {
-                                                    VKeyStatesPrev[VK_RCONTROL] = VKeyStates[VK_RCONTROL];
-                                                    VKeyStates[VK_RCONTROL] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
-                                                }
-                                                else
-                                                {
-                                                    VKeyStatesPrev[VK_LCONTROL] = VKeyStates[VK_LCONTROL];
-                                                    VKeyStates[VK_LCONTROL] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
-                                                }
-                                                break;
-                                            case VK_MENU:
-                                                if (raw->data.keyboard.Flags & RI_KEY_E0)
-                                                {
-                                                    VKeyStatesPrev[VK_RMENU] = VKeyStates[VK_RMENU];
-                                                    VKeyStates[VK_RMENU] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
-                                                }
-                                                else
-                                                {
-                                                    VKeyStatesPrev[VK_LMENU] = VKeyStates[VK_LMENU];
-                                                    VKeyStates[VK_LMENU] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
-                                                }
-                                                break;
-                                            case VK_SHIFT:
-                                                if (raw->data.keyboard.MakeCode == 0x36)
-                                                {
-                                                    VKeyStatesPrev[VK_RSHIFT] = VKeyStates[VK_RSHIFT];
-                                                    VKeyStates[VK_RSHIFT] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
-                                                }
-                                                else
-                                                {
-                                                    VKeyStatesPrev[VK_LSHIFT] = VKeyStates[VK_LSHIFT];
-                                                    VKeyStates[VK_LSHIFT] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
-                                                }
-                                                break;
-                                            default:
-                                                VKeyStatesPrev[raw->data.keyboard.VKey] = VKeyStates[raw->data.keyboard.VKey];
-                                                VKeyStates[raw->data.keyboard.VKey] = !(raw->data.keyboard.Flags & RI_KEY_BREAK);
-                                                break;
-                                        }
-                                    }
-                                    else if (it.Type == PtrType::CheatStringData)
-                                    {
-                                        if (raw->data.keyboard.Flags & RI_KEY_BREAK)
-                                        {
-                                            auto keycode = raw->data.keyboard.VKey;
-                                            if ((keycode > 47 && keycode < 58) || (keycode > 64 && keycode < 91)) // number or letter keys
-                                            {
-                                                std::memcpy(&VKeyStates[1], &VKeyStates[0], it.Size - 2);
-                                                VKeyStates[0] = (char)raw->data.keyboard.VKey;
-                                                VKeyStates[it.Size - 1] = 0;
-                                            }
-                                            else
-                                            {
-                                                VKeyStates[0] = 0;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            else if (raw->header.dwType == RIM_TYPEMOUSE)
-                            {
-                                if (it.Type == PtrType::MouseData && raw->header.hDevice)
-                                {
-                                    CMouseControllerState& StateBuf = *reinterpret_cast<CMouseControllerState*>(it.Addr);
-                                    CMouseControllerState& StateBufPrev = *reinterpret_cast<CMouseControllerState*>(it.Addr + sizeof(CMouseControllerState));
-
-                                    StateBufPrev = StateBuf;
-
-                                    // Movement
-                                    StateBuf.X += static_cast<float>(raw->data.mouse.lLastX);
-                                    StateBuf.Y += static_cast<float>(raw->data.mouse.lLastY);
-
-                                    // LMB
-                                    if (!StateBuf.lmb)
-                                        StateBuf.lmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN) != false;
-                                    else
-                                        StateBuf.lmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP) == false;
-
-                                    // RMB
-                                    if (!StateBuf.rmb)
-                                        StateBuf.rmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN) != false;
-                                    else
-                                        StateBuf.rmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_UP) == false;
-
-                                    // MMB
-                                    if (!StateBuf.mmb)
-                                        StateBuf.mmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN) != false;
-                                    else
-                                        StateBuf.mmb = (raw->data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP) == false;
-
-                                    // 4th button
-                                    if (!StateBuf.bmx1)
-                                        StateBuf.bmx1 = (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_4_DOWN) != false;
-                                    else
-                                        StateBuf.bmx1 = (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_4_UP) == false;
-
-                                    // 5th button
-                                    if (!StateBuf.bmx2)
-                                        StateBuf.bmx2 = (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_5_DOWN) != false;
-                                    else
-                                        StateBuf.bmx2 = (raw->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_5_UP) == false;
-
-                                    // Scroll
-                                    if (raw->data.mouse.usButtonFlags & RI_MOUSE_WHEEL)
-                                    {
-                                        StateBuf.Z += static_cast<signed short>(raw->data.mouse.usButtonData);
-                                        if (StateBuf.Z < 0.0f)
-                                            StateBuf.wheelDown = true;
-                                        else if (StateBuf.Z > 0.0f)
-                                            StateBuf.wheelUp = true;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        } __except ((GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION) ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
-        {
-        }
-    }();
-
-    return WndProc(hWnd, msg, wParam, lParam);
+        return *reinterpret_cast<HWND*>(const_cast<void*>(gWindowHandle));
+    } __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        return nullptr;
+    }
 }
 
+// The game is drawn into the main window of the emulator, and the windows it
+// opens on top of it, the settings for example, are owned, which is what leaves
+// them out. Rendering into a window of its own is an option of the emulator, and
+// that window is what the address above hands over.
+static BOOL CALLBACK FindMainWindowProc(HWND hwnd, LPARAM lParam)
+{
+    auto& found = *reinterpret_cast<HWND*>(lParam);
+
+    if (!IsWindowVisible(hwnd) || GetWindow(hwnd, GW_OWNER) != nullptr)
+        return TRUE;
+
+    DWORD processId = 0;
+    GetWindowThreadProcessId(hwnd, &processId);
+    if (processId != GetCurrentProcessId())
+        return TRUE;
+
+    RECT rect = {};
+    GetClientRect(hwnd, &rect);
+
+    RECT foundRect = {};
+    if (found)
+        GetClientRect(found, &foundRect);
+
+    const auto area = static_cast<int64_t>(rect.right) * rect.bottom;
+    const auto foundArea = static_cast<int64_t>(foundRect.right) * foundRect.bottom;
+    if (!found || area > foundArea)
+        found = hwnd;
+
+    return TRUE;
+}
+
+// the window the game is drawn into at this very moment
+static HWND GetRenderWindow()
+{
+    if (const HWND window = GetRenderWindowFromDevice(); window && IsWindow(window))
+        return window;
+
+    // the address above is only good while the renderer it came from lives, the
+    // window is looked for instead when it is not. The search walks every window
+    // of the system, so the result is kept until the window goes away.
+    static HWND found = nullptr;
+    static UINT64 lastSearch = 0;
+
+    if (found && IsWindow(found))
+        return found;
+
+    const UINT64 now = GetTickCount64();
+    if (now - lastSearch < 1000)
+        return nullptr;
+
+    lastSearch = now;
+    found = nullptr;
+    EnumWindows(FindMainWindowProc, reinterpret_cast<LPARAM>(&found));
+
+    return found;
+}
+
+// The game only sees input while the window it is drawn into is the one the user
+// works in, which is either that window itself or the window that holds it. An
+// open dialog of the emulator is a window of its own with a root of its own and
+// never matches, so nothing else receives input.
+static bool IsGameWindowInForeground(HWND foreground)
+{
+    if (!foreground)
+        return false;
+
+    const HWND game = GetRenderWindow();
+    if (!game)
+        return false;
+
+    DWORD processId = 0;
+    GetWindowThreadProcessId(foreground, &processId);
+    if (processId != GetCurrentProcessId())
+        return false;
+
+    return foreground == game || GetAncestor(foreground, GA_ROOT) == GetAncestor(game, GA_ROOT);
+}
+
+static void ClearGameInput();
+
+// Raw input is a stream of hundreds of events per second, so the state is not
+// looked up for every single one of them: the change of the foreground window is
+// reported by the event hook, and this is only the safety net for a report that
+// was missed. Everything in here is a call into the window manager, and those are
+// not allowed to pile up in front of the events of the game.
+static void RefreshGameInput(HWND foreground)
+{
+    const bool active = IsGameWindowInForeground(foreground);
+
+    if (!active && s_gameInputActive)
+        ClearGameInput();
+
+    s_gameInputActive = active;
+}
+
+// Zeroes the state of one plugin, the address is not looked up before the write,
+// see WriteInputState.
+//
+// No local objects in here, a __try cannot unwind them.
+static bool ClearInputState(const InputDataT& data)
+{
+    __try
+    {
+        MemoryFill(data.GuestAddr, 0x00, static_cast<uint32_t>(data.Size));
+        return true;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        return false;
+    }
+}
+
+// The keys and buttons the game still sees as held have to be released, otherwise
+// it keeps walking, or firing, while the user is somewhere else entirely.
+static void ClearGameInput()
+{
+    std::lock_guard<std::mutex> lock(s_inputMutex);
+
+    for (auto it = InputData.begin(); it != InputData.end();)
+    {
+        // the cheat string is what the user typed, it is not an input state
+        if (it->Type == PtrType::CheatStringData)
+        {
+            ++it;
+            continue;
+        }
+
+        if (ClearInputState(*it))
+            ++it;
+        else
+        {
+            spd::log()->warn("The state of a plugin is gone, dropping it");
+            it = InputData.erase(it);
+        }
+    }
+}
+
+static void UpdateKeyboardState(const InputDataT& data, const RAWKEYBOARD& keyboard)
+{
+    auto keys = reinterpret_cast<char*>(data.Addr);
+    auto previousKeys = reinterpret_cast<char*>(data.Addr + KeyboardBufState::StateSize);
+
+    const char pressed = (keyboard.Flags & RI_KEY_BREAK) ? 0 : 1;
+
+    switch (keyboard.VKey)
+    {
+        case VK_CONTROL:
+            if (keyboard.Flags & RI_KEY_E0)
+            {
+                previousKeys[VK_RCONTROL] = keys[VK_RCONTROL];
+                keys[VK_RCONTROL] = pressed;
+            }
+            else
+            {
+                previousKeys[VK_LCONTROL] = keys[VK_LCONTROL];
+                keys[VK_LCONTROL] = pressed;
+            }
+            break;
+        case VK_MENU:
+            if (keyboard.Flags & RI_KEY_E0)
+            {
+                previousKeys[VK_RMENU] = keys[VK_RMENU];
+                keys[VK_RMENU] = pressed;
+            }
+            else
+            {
+                previousKeys[VK_LMENU] = keys[VK_LMENU];
+                keys[VK_LMENU] = pressed;
+            }
+            break;
+        case VK_SHIFT:
+            if (keyboard.MakeCode == 0x36)
+            {
+                previousKeys[VK_RSHIFT] = keys[VK_RSHIFT];
+                keys[VK_RSHIFT] = pressed;
+            }
+            else
+            {
+                previousKeys[VK_LSHIFT] = keys[VK_LSHIFT];
+                keys[VK_LSHIFT] = pressed;
+            }
+            break;
+        default:
+            previousKeys[keyboard.VKey] = keys[keyboard.VKey];
+            keys[keyboard.VKey] = pressed;
+            break;
+    }
+}
+
+// the newest character of the cheat string is the first one of the buffer
+static void UpdateCheatString(const InputDataT& data, const RAWKEYBOARD& keyboard)
+{
+    if ((keyboard.Flags & RI_KEY_BREAK) == 0 || data.Size < 2)
+        return;
+
+    auto text = reinterpret_cast<char*>(data.Addr);
+    const auto keycode = keyboard.VKey;
+
+    // number or letter keys
+    if ((keycode > 47 && keycode < 58) || (keycode > 64 && keycode < 91))
+    {
+        std::memcpy(&text[1], &text[0], data.Size - 2);
+        text[0] = static_cast<char>(keycode);
+        text[data.Size - 1] = 0;
+    }
+    else
+    {
+        text[0] = 0;
+    }
+}
+
+static void UpdateMouseState(const InputDataT& data, const RAWMOUSE& mouse)
+{
+    if (data.Size < (sizeof(CMouseControllerState) * KeyboardBufState::StateNum))
+        return;
+
+    CMouseControllerState& state = *reinterpret_cast<CMouseControllerState*>(data.Addr);
+    CMouseControllerState& previousState = *reinterpret_cast<CMouseControllerState*>(data.Addr + sizeof(CMouseControllerState));
+
+    previousState = state;
+
+    // Movement
+    state.X += static_cast<float>(mouse.lLastX);
+    state.Y += static_cast<float>(mouse.lLastY);
+
+    // A button stays held until the event that releases it arrives, the events in
+    // between only carry the movement and may not be read as a release.
+    if (!state.lmb)
+        state.lmb = (mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN) != false;
+    else
+        state.lmb = (mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP) == false;
+
+    if (!state.rmb)
+        state.rmb = (mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN) != false;
+    else
+        state.rmb = (mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_UP) == false;
+
+    if (!state.mmb)
+        state.mmb = (mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN) != false;
+    else
+        state.mmb = (mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP) == false;
+
+    if (!state.bmx1)
+        state.bmx1 = (mouse.usButtonFlags & RI_MOUSE_BUTTON_4_DOWN) != false;
+    else
+        state.bmx1 = (mouse.usButtonFlags & RI_MOUSE_BUTTON_4_UP) == false;
+
+    if (!state.bmx2)
+        state.bmx2 = (mouse.usButtonFlags & RI_MOUSE_BUTTON_5_DOWN) != false;
+    else
+        state.bmx2 = (mouse.usButtonFlags & RI_MOUSE_BUTTON_5_UP) == false;
+
+    // Scroll
+    if (mouse.usButtonFlags & RI_MOUSE_WHEEL)
+    {
+        state.Z += static_cast<signed short>(mouse.usButtonData);
+        if (state.Z < 0.0f)
+            state.wheelDown = true;
+        else if (state.Z > 0.0f)
+            state.wheelUp = true;
+    }
+}
+
+// Writes one event into the state of one plugin.
+//
+// The address is not looked up before the write: a VirtualQuery crosses into the
+// kernel, and this is the busiest path there is, while the address belongs to the
+// guest memory of the emulator and only goes away when the game does. An address
+// that is gone raises the fault instead, which is what the handler is there for,
+// and the caller drops the buffer when that happens.
+//
+// No local objects in here, a __try cannot unwind them.
+static bool WriteInputState(const InputDataT& data, const RAWINPUT& raw)
+{
+    __try
+    {
+        if (raw.header.dwType == RIM_TYPEKEYBOARD)
+        {
+            if (data.Type == PtrType::KeyboardData)
+                UpdateKeyboardState(data, raw.data.keyboard);
+            else if (data.Type == PtrType::CheatStringData)
+                UpdateCheatString(data, raw.data.keyboard);
+        }
+        else if (data.Type == PtrType::MouseData)
+        {
+            UpdateMouseState(data, raw.data.mouse);
+        }
+
+        return true;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        return false;
+    }
+}
+
+// hands one event to every plugin that asked for that kind of data, the lock is
+// held by the caller
+static void ApplyRawInput(const RAWINPUT& raw)
+{
+    // the input of a device, and of the kind that is handed to the plugins. Input
+    // that was made up by another program has no device behind it.
+    if (!raw.header.hDevice)
+        return;
+
+    if (raw.header.dwType != RIM_TYPEKEYBOARD && raw.header.dwType != RIM_TYPEMOUSE)
+        return;
+
+    for (auto it = InputData.begin(); it != InputData.end();)
+    {
+        if (WriteInputState(*it, raw))
+            ++it;
+        else
+        {
+            spd::log()->warn("The state of a plugin is gone, dropping it");
+            it = InputData.erase(it);
+        }
+    }
+}
+
+// Reads the one event the message carries and hands it over.
+//
+// The bulk read (GetRawInputBuffer) is not an option here: it only returns data
+// when the input is not delivered to a window, and a window is what has to be
+// registered for the input to arrive while the emulator is not in the foreground.
+static void ProcessRawInput(LPARAM lParam)
+{
+    alignas(RAWINPUT) uint8_t buffer[sizeof(RAWINPUT)] = {};
+    UINT size = sizeof(buffer);
+    const UINT result = GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, buffer, &size, sizeof(RAWINPUTHEADER));
+
+    // The return value is the size of the data that was copied, which is the size
+    // of the header plus the union member of the one device that reported the
+    // event, while the size that comes back in the parameter is the size of the
+    // whole union. The two are never equal, so only a failure is a failure here.
+    if (result == static_cast<UINT>(-1) || result < sizeof(RAWINPUTHEADER))
+        return;
+
+    std::lock_guard<std::mutex> lock(s_inputMutex);
+    ApplyRawInput(*reinterpret_cast<const RAWINPUT*>(buffer));
+}
+
+static LRESULT CALLBACK RawInputWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    if (msg == WM_INPUT)
+    {
+        // The events are the input of the user, they are passed on before anything
+        // else in here; whether they are meant for the game is looked up now and
+        // then only, see RefreshGameInput.
+        static auto eventCount = 0;
+        if ((eventCount++ & 0x3F) == 0)
+            RefreshGameInput(GetForegroundWindow());
+
+        if (s_gameInputActive)
+            ProcessRawInput(lParam);
+
+        // the message still has to be handed on, that is what releases the buffer
+        // of the event
+    }
+
+    return DefWindowProcW(hWnd, msg, wParam, lParam);
+}
+
+static void CALLBACK ForegroundEventProc(HWINEVENTHOOK hook, DWORD event, HWND hwnd, LONG idObject, LONG idChild, DWORD threadId, DWORD time)
+{
+    UNREFERENCED_PARAMETER(hook);
+    UNREFERENCED_PARAMETER(threadId);
+    UNREFERENCED_PARAMETER(time);
+
+    if (event == EVENT_SYSTEM_FOREGROUND && idObject == OBJID_WINDOW && idChild == CHILDID_SELF)
+        RefreshGameInput(hwnd);
+}
+
+// the window the devices are registered against, owned by the thread below
+static HWND s_inputWindow = nullptr;
+static HWINEVENTHOOK s_foregroundHook = nullptr;
+static HHOOK s_windowHook = nullptr;
+
+// Creates the window the devices are registered against and registers them. This
+// runs on the thread that owns the windows of the emulator: that is the thread
+// the system favours for input while the game is in the foreground, and its
+// message loop dispatches the messages of this window, so the events never wait
+// for a thread of our own to be scheduled.
+static void CreateInputWindow()
+{
+    constexpr auto windowClassName = L"PCSX2PluginInjectorRawInput";
+
+    HMODULE module = nullptr;
+    GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, reinterpret_cast<LPCWSTR>(&CreateInputWindow), &module);
+
+    WNDCLASSEXW windowClass = {};
+    windowClass.cbSize = sizeof(windowClass);
+    windowClass.lpfnWndProc = RawInputWndProc;
+    windowClass.hInstance = module;
+    windowClass.lpszClassName = windowClassName;
+    RegisterClassExW(&windowClass);
+
+    // a window that is never shown, the devices stay registered against it however
+    // often the emulator replaces the window it draws into
+    const HWND window = CreateWindowExW(WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW, windowClassName, L"", WS_POPUP, 0, 0, 0, 0, nullptr, nullptr, module, nullptr);
+    if (!window)
+    {
+        spd::log()->error("Raw input window could not be created, keyboard and mouse data will not be injected.");
+        return;
+    }
+
+    s_inputWindow = window;
+
+    constexpr auto HID_USAGE_PAGE_GENERIC = 0x01;
+    constexpr auto HID_USAGE_GENERIC_MOUSE = 0x02;
+    constexpr auto HID_USAGE_GENERIC_KEYBOARD = 0x06;
+
+    RAWINPUTDEVICE devices[2] = {};
+    devices[0].usUsagePage = HID_USAGE_PAGE_GENERIC;
+    devices[0].usUsage = HID_USAGE_GENERIC_KEYBOARD;
+    // RIDEV_INPUTSINK reports the input even when the emulator is in the
+    // background, which is what makes it possible to see a key that is let go of
+    // while the user is in another window, and the input of the game itself is
+    // left alone either way
+    devices[0].dwFlags = RIDEV_INPUTSINK;
+    devices[0].hwndTarget = window;
+    devices[1].usUsagePage = HID_USAGE_PAGE_GENERIC;
+    devices[1].usUsage = HID_USAGE_GENERIC_MOUSE;
+    devices[1].dwFlags = RIDEV_INPUTSINK;
+    devices[1].hwndTarget = window;
+
+    if (RegisterRawInputDevices(devices, _countof(devices), sizeof(RAWINPUTDEVICE)))
+        spd::log()->info("Keyboard and mouse data requested by plugins, raw input registered");
+    else
+        spd::log()->error("Raw input could not be registered, error {}", static_cast<uint32_t>(GetLastError()));
+
+    // the state is dropped the moment the window of the game loses the foreground,
+    // which is what this event reports
+    s_foregroundHook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, nullptr, ForegroundEventProc, 0, 0, WINEVENT_OUTOFCONTEXT);
+}
+
+// Runs on the thread of the emulator for the first message it takes out of its
+// queue, which is the moment the window can be created on it.
+static LRESULT CALLBACK WindowHookProc(int code, WPARAM wParam, LPARAM lParam)
+{
+    if (code == HC_ACTION && !s_inputWindow)
+    {
+        if (s_windowHook)
+        {
+            const HHOOK hook = s_windowHook;
+            s_windowHook = nullptr;
+            UnhookWindowsHookEx(hook);
+        }
+
+        CreateInputWindow();
+    }
+
+    return CallNextHookEx(nullptr, code, wParam, lParam);
+}
+
+// The devices are registered for the whole process and the window they belong to
+// never changes, so this runs once per session, wherever the game is started from.
+static void EnsureInput()
+{
+    if (s_inputWindow || s_windowHook)
+        return;
+
+    const HWND game = GetRenderWindow();
+    if (!game)
+        return;
+
+    const DWORD threadId = GetWindowThreadProcessId(game, nullptr);
+    if (!threadId || threadId == GetCurrentThreadId())
+        return;
+
+    HMODULE module = nullptr;
+    GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, reinterpret_cast<LPCWSTR>(&WindowHookProc), &module);
+
+    s_windowHook = SetWindowsHookExW(WH_GETMESSAGE, WindowHookProc, module, threadId);
+    if (!s_windowHook)
+        spd::log()->error("The message hook of the emulator could not be installed, error {}", static_cast<uint32_t>(GetLastError()));
+}
+
+static bool HasInputPlugins()
+{
+    std::lock_guard<std::mutex> lock(s_inputMutex);
+    return !InputData.empty();
+}
+
+static void ResetInput()
+{
+    ClearGameInput();
+
+    std::lock_guard<std::mutex> lock(s_inputMutex);
+    InputData.clear();
+}
+
+// the game is gone, nothing of its input state may be written any more
+static void InputShutdown()
+{
+    ResetInput();
+}
 std::vector<char> LoadFileToBuffer(std::filesystem::path path)
 {
     std::ifstream f(path, std::ios::binary | std::ios::ate);
@@ -592,7 +934,8 @@ void LoadPlugins(
     exitSignal.set_value();
     std::promise<void>().swap(exitSignal);
     GetOSDVector().clear();
-    InputData.clear();
+    ResetInput();
+
     uint32_t* ei_hook = nullptr;
     uint32_t ei_data = 0;
     std::vector<std::pair<uintptr_t, uintptr_t>> PluginRegions = { { 0, EEMainMemorySize } };
@@ -811,21 +1154,30 @@ void LoadPlugins(
                     if (mod.KeyboardStateAddr)
                     {
                         spd::log()->info("{} requests keyboard state", plugin_path.filename().string());
-                        InputData.emplace_back(PtrType::KeyboardData, (uintptr_t)(EEMainMemoryStart + mod.KeyboardStateAddr), mod.KeyboardStateSize);
+                        {
+                            std::lock_guard<std::mutex> lock(s_inputMutex);
+                            InputData.emplace_back(PtrType::KeyboardData, mod.KeyboardStateAddr, (uintptr_t)(EEMainMemoryStart + mod.KeyboardStateAddr), mod.KeyboardStateSize);
+                        }
                         MemoryFill(mod.KeyboardStateAddr, 0, mod.KeyboardStateSize);
                     }
 
                     if (mod.MouseStateAddr)
                     {
                         spd::log()->info("{} requests mouse state", plugin_path.filename().string());
-                        InputData.emplace_back(PtrType::MouseData, (uintptr_t)(EEMainMemoryStart + mod.MouseStateAddr), mod.MouseStateSize);
+                        {
+                            std::lock_guard<std::mutex> lock(s_inputMutex);
+                            InputData.emplace_back(PtrType::MouseData, mod.MouseStateAddr, (uintptr_t)(EEMainMemoryStart + mod.MouseStateAddr), mod.MouseStateSize);
+                        }
                         MemoryFill(mod.MouseStateAddr, 0, mod.MouseStateSize);
                     }
 
                     if (mod.CheatStringAddr)
                     {
                         spd::log()->info("{} requests cheat string access", plugin_path.filename().string());
-                        InputData.emplace_back(PtrType::CheatStringData, (uintptr_t)(EEMainMemoryStart + mod.CheatStringAddr), mod.CheatStringSize);
+                        {
+                            std::lock_guard<std::mutex> lock(s_inputMutex);
+                            InputData.emplace_back(PtrType::CheatStringData, mod.CheatStringAddr, (uintptr_t)(EEMainMemoryStart + mod.CheatStringAddr), mod.CheatStringSize);
+                        }
                         MemoryFill(mod.CheatStringAddr, 0, mod.CheatStringSize);
                     }
 
@@ -886,7 +1238,7 @@ void LoadPlugins(
             }
         }
 
-        if (!InputData.empty())
+        if (HasInputPlugins())
         {
             if (!gWindowHandle)
             {
@@ -894,18 +1246,7 @@ void LoadPlugins(
                 gWindowHandle = &FallbackWindowHandle;
             }
 
-            auto hwnd = GetAncestor(*(HWND*)gWindowHandle, GA_ROOT);
-            if (hwnd)
-            {
-                RegisterInputDevices(hwnd);
-                auto wp = (LRESULT(WINAPI*)(HWND, UINT, WPARAM, LPARAM))GetWindowLongPtr(hwnd, GWLP_WNDPROC);
-                if (wp != CustomWndProc)
-                {
-                    spd::log()->info("Keyboard and mouse data requested by plugins, replacing WndProc for HWND {}", reinterpret_cast<uint64_t>(hwnd));
-                    WndProc = wp;
-                    SetWindowLongPtr(hwnd, GWLP_WNDPROC, (LONG_PTR)&CustomWndProc);
-                }
-            }
+            EnsureInput();
         }
         PluginRegions.erase(std::remove_if(PluginRegions.begin(), PluginRegions.end(), [](auto x) { return x.first == 0; }), PluginRegions.end());
         auto NewBase = std::max_element(PluginRegions.begin(), PluginRegions.end(), [](auto a, auto b) { return a.second < b.second; })->second + 1000;
@@ -1672,6 +2013,7 @@ CEXP void InitializeASI()
         {
             AddOnGameElfInitCallback(LoadPlugins);
             AddOnGameShutdownCallback(ExitSignal);
+            AddOnGameShutdownCallback(InputShutdown);
         }
         else
         {
@@ -1691,6 +2033,7 @@ CEXP void InitializeASI()
 
                 AddOnGameElfInitCallback(LoadPlugins);
                 AddOnGameShutdownCallback(ExitSignal);
+                AddOnGameShutdownCallback(InputShutdown);
                 AddOnGameShutdownCallback([] { FallbackWindowHandle = {}; });
             }
             else
@@ -1867,9 +2210,5 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved)
         if (!IsUALPresent()) { InitializeASI(); }
     }
 
-    if (reason == DLL_PROCESS_DETACH)
-    {
-
-    }
     return TRUE;
 }
