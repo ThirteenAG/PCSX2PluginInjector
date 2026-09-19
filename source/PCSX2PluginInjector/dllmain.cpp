@@ -263,6 +263,24 @@ static HWND GetRenderWindowFromDevice()
     }
 }
 
+// Is this one of the windows the game can be drawn into? The windows a dialog of
+// the emulator is made of are owned, which is what leaves them out, and so is
+// everything of another process. A window that is gone fails the first check,
+// which is what a handle that was read from an address that does not belong to
+// us any more has to fail as well.
+static bool IsOwnGameWindow(HWND window)
+{
+    if (!window || !IsWindow(window) || !IsWindowVisible(window))
+        return false;
+
+    if (GetWindow(window, GW_OWNER) != nullptr)
+        return false;
+
+    DWORD processId = 0;
+    GetWindowThreadProcessId(window, &processId);
+    return processId == GetCurrentProcessId();
+}
+
 // The game is drawn into the main window of the emulator, and the windows it
 // opens on top of it, the settings for example, are owned, which is what leaves
 // them out. Rendering into a window of its own is an option of the emulator, and
@@ -271,12 +289,7 @@ static BOOL CALLBACK FindMainWindowProc(HWND hwnd, LPARAM lParam)
 {
     auto& found = *reinterpret_cast<HWND*>(lParam);
 
-    if (!IsWindowVisible(hwnd) || GetWindow(hwnd, GW_OWNER) != nullptr)
-        return TRUE;
-
-    DWORD processId = 0;
-    GetWindowThreadProcessId(hwnd, &processId);
-    if (processId != GetCurrentProcessId())
+    if (!IsOwnGameWindow(hwnd))
         return TRUE;
 
     RECT rect = {};
@@ -295,25 +308,32 @@ static BOOL CALLBACK FindMainWindowProc(HWND hwnd, LPARAM lParam)
 }
 
 // the window the game is drawn into at this very moment
-static HWND GetRenderWindow()
+static HWND GetRenderWindow(HWND foreground)
 {
-    if (const HWND window = GetRenderWindowFromDevice(); window && IsWindow(window))
+    if (const HWND window = GetRenderWindowFromDevice(); IsOwnGameWindow(window))
         return window;
 
-    // the address above is only good while the renderer it came from lives, the
+    // The address above is only good while the renderer it came from lives, the
     // window is looked for instead when it is not. The search walks every window
-    // of the system, so the result is kept until the window goes away.
+    // of the system, so its result is kept, but only for the window that is in
+    // the foreground: the emulator replaces the window it draws into whenever it
+    // changes its window, and the window of before stays alive while that
+    // happens, so a window that merely still exists is not the answer any more.
     static HWND found = nullptr;
+    static HWND foundFor = nullptr;
     static UINT64 lastSearch = 0;
 
-    if (found && IsWindow(found))
+    const HWND root = foreground ? GetAncestor(foreground, GA_ROOT) : nullptr;
+
+    if (IsOwnGameWindow(found) && foundFor == root)
         return found;
 
     const UINT64 now = GetTickCount64();
-    if (now - lastSearch < 1000)
-        return nullptr;
+    if (foundFor == root && now - lastSearch < 1000)
+        return IsOwnGameWindow(found) ? found : nullptr;
 
     lastSearch = now;
+    foundFor = root;
     found = nullptr;
     EnumWindows(FindMainWindowProc, reinterpret_cast<LPARAM>(&found));
 
@@ -322,15 +342,11 @@ static HWND GetRenderWindow()
 
 // The game only sees input while the window it is drawn into is the one the user
 // works in, which is either that window itself or the window that holds it. An
-// open dialog of the emulator is a window of its own with a root of its own and
-// never matches, so nothing else receives input.
+// open dialog of the emulator is an owned window and never matches, and neither
+// does a window of another application.
 static bool IsGameWindowInForeground(HWND foreground)
 {
     if (!foreground)
-        return false;
-
-    const HWND game = GetRenderWindow();
-    if (!game)
         return false;
 
     DWORD processId = 0;
@@ -338,7 +354,22 @@ static bool IsGameWindowInForeground(HWND foreground)
     if (processId != GetCurrentProcessId())
         return false;
 
-    return foreground == game || GetAncestor(foreground, GA_ROOT) == GetAncestor(game, GA_ROOT);
+    const HWND root = GetAncestor(foreground, GA_ROOT);
+    if (!IsOwnGameWindow(root))
+        return false;
+
+    const HWND game = GetRenderWindowFromDevice();
+
+    // The renderer that handed the address over was switched out, and what is
+    // left where it pointed is not a window of ours any more, so where the game
+    // is drawn cannot be told apart from the windows of the emulator that only
+    // hold its menu. The window the user works in is taken for the answer then:
+    // without it the game would see no input at all until the renderer that
+    // wrote the address is there again.
+    if (!IsOwnGameWindow(game))
+        return true;
+
+    return foreground == game || root == GetAncestor(game, GA_ROOT);
 }
 
 static void ClearGameInput();
@@ -725,7 +756,7 @@ static void EnsureInput()
     if (s_inputWindow || s_windowHook)
         return;
 
-    const HWND game = GetRenderWindow();
+    const HWND game = GetRenderWindow(GetForegroundWindow());
     if (!game)
         return;
 
