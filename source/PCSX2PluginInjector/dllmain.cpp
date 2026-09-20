@@ -84,6 +84,11 @@ tAddOnGameShutdownCallback AddOnGameShutdownCallback = nullptr;
 uintptr_t gEEMainMemoryStart;
 size_t gEEMainMemorySize;
 
+// Whether the emulator answers the render phase syscall of a guest plugin: an
+// emulator without that hands an unknown syscall to its BIOS, so the plugins are
+// told not to call it (see PCSX2Data_GuestRenderPhase).
+static bool s_hostSupportsGuestRenderPhase = false;
+
 void MemoryFill(uint32_t addr, uint8_t value, uint32_t size)
 {
     std::vector<uint8_t> temp(size, value);
@@ -154,6 +159,56 @@ CEXP const char* GetOSDVectorData(size_t index)
         return nullptr;
     else
         return GetOSDVector()[index].data();
+}
+
+// ---------------------------------------------------------------------------
+// Drawing into the frame of the game, before its UI
+//
+// A plugin that knows where its game is between the world and the UI exports
+// PCSX2F_OnGuestRenderPhase, see pcsx2f_api.h. The emulator asks for it with the
+// frame the game is drawing into when a guest plugin reports that phase, and this
+// is where the call of every plugin is collected: one export of this module is
+// what the emulator invokes, so it does not have to know which plugins exist.
+// ---------------------------------------------------------------------------
+
+static std::vector<PCSX2FGuestRenderPhaseCallback>& GetGuestRenderPhaseCallbacks()
+{
+    static std::vector<PCSX2FGuestRenderPhaseCallback> callbacks;
+    return callbacks;
+}
+
+static void RegisterGuestRenderPhasePlugin(HMODULE module)
+{
+    if (!module)
+        return;
+
+    auto callback = reinterpret_cast<PCSX2FGuestRenderPhaseCallback>(GetProcAddress(module, "PCSX2F_OnGuestRenderPhase"));
+    if (!callback)
+        return;
+
+    auto& callbacks = GetGuestRenderPhaseCallbacks();
+    if (std::find(callbacks.begin(), callbacks.end(), callback) != callbacks.end())
+        return;
+
+    char modulePath[MAX_PATH] = {};
+    GetModuleFileNameA(module, modulePath, MAX_PATH);
+    spd::log()->info("{} draws into the frame of the game before its UI", modulePath);
+    callbacks.push_back(callback);
+}
+
+// Whether there is a plugin that draws into the frame of the game at all: the
+// emulator asks for this before a call, because the frame has to be drained for
+// every one of them.
+CEXP size_t GetGuestRenderPhaseCallbackCount()
+{
+    return GetGuestRenderPhaseCallbacks().size();
+}
+
+// Called by the emulator for the rendering phase a guest plugin reports.
+CEXP void InvokeGuestRenderPhase(uint32_t phase, const PCSX2FRenderTargetInfo* target)
+{
+    for (auto& callback : GetGuestRenderPhaseCallbacks())
+        callback(phase, target);
 }
 
 CEXP void LoadPlugins(
@@ -1180,6 +1235,7 @@ void LoadPlugins(
                         WriteMemory32(mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_WindowSizeY), (uint32_t)WindowSizeY);
                         WriteMemory32(mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_IsFullscreen), (uint32_t)IsFullscreen);
                         WriteMemory32(mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_AspectRatioSetting), (uint32_t)AspectRatioSetting);
+                        WriteMemory32(mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_GuestRenderPhase), (uint32_t)s_hostSupportsGuestRenderPhase);
                     }
 
                     if (mod.KeyboardStateAddr)
@@ -1301,7 +1357,14 @@ void LoadPlugins(
             {
                 procedure();
             }
+
+            RegisterGuestRenderPhasePlugin(h);
         }
+    }
+    else
+    {
+        // the module is already there, what it exports has to be picked up as well
+        RegisterGuestRenderPhasePlugin(GetModuleHandle(XboxRainDroplets));
     }
 }
 
@@ -1320,6 +1383,35 @@ CEXP const void* GetWindowHandle()
     return gWindowHandle;
 }
 
+// The path of a plugin, from the caller of GetPluginSymbolAddr. A caller only knows which
+// plugin it wants to look a symbol up in, and the working directory of the emulator is not
+// where the plugins are (it is not even stable: opening a file dialog of the emulator
+// changes it), so a path that is not absolute is taken relative to the directory of this
+// module first, which is where the plugins folder of the emulator is, and relative to the
+// plugins folder itself then, which is what a caller that only names the file means.
+static std::filesystem::path GetPluginPath(const char* path)
+{
+    std::filesystem::path given(path ? path : "");
+
+    if (given.empty() || given.is_absolute())
+        return given;
+
+    std::filesystem::path modulePath(GetThisModulePath<std::wstring>());
+    modulePath.remove_filename();
+
+    std::error_code ec;
+
+    const std::filesystem::path beside = modulePath / given;
+    if (std::filesystem::exists(beside, ec))
+        return beside;
+
+    const std::filesystem::path inside = modulePath / L"PLUGINS" / given;
+    if (std::filesystem::exists(inside, ec))
+        return inside;
+
+    return given;
+}
+
 CEXP uintptr_t GetPluginSymbolAddr(const char* path, const char* sym_name)
 {
     using namespace ELFIO;
@@ -1327,7 +1419,7 @@ CEXP uintptr_t GetPluginSymbolAddr(const char* path, const char* sym_name)
     elfio reader;
     uint32_t Size = 0;
 
-    if (reader.load(path) && reader.get_class() == ELFCLASS32 && reader.get_encoding() == ELFDATA2LSB)
+    if (reader.load(GetPluginPath(path).string()) && reader.get_class() == ELFCLASS32 && reader.get_encoding() == ELFDATA2LSB)
     {
         Elf_Half sec_num = reader.sections.size();
         for (int i = 0; i < sec_num; ++i)
@@ -2042,6 +2134,8 @@ CEXP void InitializeASI()
 
         if (WriteBytes && GetIsThrottlerTempDisabled && SetIsThrottlerTempDisabled && GetVMState && AddOnGameElfInitCallback && AddOnGameShutdownCallback)
         {
+            s_hostSupportsGuestRenderPhase = GetProcAddress(GetModuleHandle(NULL), "PCSX2F_GuestRenderPhaseSupported") != nullptr;
+
             AddOnGameElfInitCallback(LoadPlugins);
             AddOnGameShutdownCallback(ExitSignal);
             AddOnGameShutdownCallback(InputShutdown);
