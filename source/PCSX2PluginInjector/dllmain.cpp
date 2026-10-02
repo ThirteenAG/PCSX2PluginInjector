@@ -1229,13 +1229,23 @@ void LoadPlugins(
                     {
                         spd::log()->info("Writing PCSX2 Data to {}", plugin_path.filename().string());
                         auto [DesktopSizeX, DesktopSizeY] = GetDesktopRes();
-                        WriteMemory32(mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_DesktopSizeX), (uint32_t)DesktopSizeX);
-                        WriteMemory32(mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_DesktopSizeY), (uint32_t)DesktopSizeY);
-                        WriteMemory32(mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_WindowSizeX), (uint32_t)WindowSizeX);
-                        WriteMemory32(mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_WindowSizeY), (uint32_t)WindowSizeY);
-                        WriteMemory32(mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_IsFullscreen), (uint32_t)IsFullscreen);
-                        WriteMemory32(mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_AspectRatioSetting), (uint32_t)AspectRatioSetting);
-                        WriteMemory32(mod.PCSX2DataAddr + (sizeof(uint32_t) * (uint32_t)PCSX2DataType::PCSX2Data_GuestRenderPhase), (uint32_t)s_hostSupportsGuestRenderPhase);
+
+                        // A plugin built against an older API has a shorter PCSX2Data, and what
+                        // follows it in its memory (usually PluginData, the ini) must not be overwritten.
+                        auto WritePCSX2Data = [&mod](PCSX2DataType type, uint32_t value)
+                        {
+                            auto offset = sizeof(uint32_t) * (uint32_t)type;
+                            if (offset + sizeof(uint32_t) <= mod.PCSX2DataSize)
+                                WriteMemory32(mod.PCSX2DataAddr + offset, value);
+                        };
+
+                        WritePCSX2Data(PCSX2DataType::PCSX2Data_DesktopSizeX, (uint32_t)DesktopSizeX);
+                        WritePCSX2Data(PCSX2DataType::PCSX2Data_DesktopSizeY, (uint32_t)DesktopSizeY);
+                        WritePCSX2Data(PCSX2DataType::PCSX2Data_WindowSizeX, (uint32_t)WindowSizeX);
+                        WritePCSX2Data(PCSX2DataType::PCSX2Data_WindowSizeY, (uint32_t)WindowSizeY);
+                        WritePCSX2Data(PCSX2DataType::PCSX2Data_IsFullscreen, (uint32_t)IsFullscreen);
+                        WritePCSX2Data(PCSX2DataType::PCSX2Data_AspectRatioSetting, (uint32_t)AspectRatioSetting);
+                        WritePCSX2Data(PCSX2DataType::PCSX2Data_GuestRenderPhase, (uint32_t)s_hostSupportsGuestRenderPhase);
                     }
 
                     if (mod.KeyboardStateAddr)
