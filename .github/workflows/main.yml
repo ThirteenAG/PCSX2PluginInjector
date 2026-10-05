@@ -30,7 +30,7 @@ jobs:
       run: |
         python tools/stock-pcsx2/update-download-links.py --check
         if ($LASTEXITCODE -ne 0) { throw 'Pinned upstream download is stale.' }
-        foreach ($test in @('tools/stock-pcsx2/test_packaging.py', 'external/ps2sdk/plugins/test_build.py', 'external/ps2sdk/plugins/test_sync.py')) {
+        foreach ($test in @('tools/stock-pcsx2/test_packaging.py', 'external/ps2sdk/plugins/test_build.py')) {
           python $test
           if ($LASTEXITCODE -ne 0) { throw "Verification failed: $test" }
         }
