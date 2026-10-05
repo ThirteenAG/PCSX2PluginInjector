@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "version": "v2.9.94",
-  "contract_sha256": "f9004c95993ee45baad6a849542ab1ddc2aa46c9beedbd49ec68228c94cd9879",
+  "contract_sha256": "ccbecf5f4e5216a448823fde1d46f50515041fae2ad791d99d70212b937b5210",
   "source_target": {
     "schema_version": 1,
     "fork_repository": "ASI-Factory/PCSX2-Fork-With-Plugins",
@@ -662,6 +662,66 @@
       "code_sha256": "945ec41348f56f1d1c053220eb0442c6fd484fcdc2b4d9736bb0930b7cfaaec9",
       "entry_bytes": "41574156415541545657534883ec300f29742420488b05ed43cb02ff5010488b"
     },
+    "clear_guest_code": {
+      "name": "recClear",
+      "tag": 5,
+      "rva": 4663952,
+      "size": 1807,
+      "location": 1,
+      "type": {
+        "tag": 13,
+        "name": "",
+        "size": 0,
+        "const": false,
+        "volatile": false,
+        "calling_convention": 0,
+        "return": {
+          "tag": 16,
+          "name": "",
+          "size": 0,
+          "const": false,
+          "volatile": false,
+          "base_type": 1
+        },
+        "arguments": [
+          {
+            "tag": 20,
+            "name": "",
+            "size": 0,
+            "const": false,
+            "volatile": false,
+            "target": {
+              "tag": 16,
+              "name": "",
+              "size": 4,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            }
+          },
+          {
+            "tag": 20,
+            "name": "",
+            "size": 0,
+            "const": false,
+            "volatile": false,
+            "target": {
+              "tag": 16,
+              "name": "",
+              "size": 4,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            }
+          }
+        ]
+      },
+      "extent": 1807,
+      "section": ".text",
+      "abi_sha256": "d3bfeb63c38d65ec21bb735fbfec1b202bb73089005612bec52b959e0f76cd04",
+      "code_sha256": "5975face7ea9c5b963764d66886241f0a795b13a90be8f1ff94a8700d69d5466",
+      "entry_bytes": "4157415641554154565755534883ec483b0df6eb17030f83e206000089ce89c8"
+    },
     "reset_block_tracking": {
       "name": "mmap_ResetBlockTracking",
       "tag": 5,
@@ -860,6 +920,35 @@
       "abi_sha256": "1febe2f7e4865a1ab1e9dec3cf01d7253c8c0d73a1b957b7acdc7a15cf1f2dd2",
       "code_sha256": "9e31e2e81f46488c02470c271668874c3f4ca37a2e9e54906901db4949548d47",
       "entry_bytes": "4157415641554154565755534881ecc80100004889d74889cb660fefc0660f7f"
+    },
+    "finish_vu0": {
+      "name": "_vu0FinishMicro",
+      "tag": 5,
+      "rva": 2104016,
+      "size": 262,
+      "location": 1,
+      "type": {
+        "tag": 13,
+        "name": "",
+        "size": 0,
+        "const": false,
+        "volatile": false,
+        "calling_convention": 0,
+        "return": {
+          "tag": 16,
+          "name": "",
+          "size": 0,
+          "const": false,
+          "volatile": false,
+          "base_type": 1
+        },
+        "arguments": []
+      },
+      "extent": 262,
+      "section": ".text",
+      "abi_sha256": "d8b074587ef23a7c282151c45a655be3d5f7fbb02a829b80da083695d434716b",
+      "code_sha256": "974446a5785394bc5b25fba5b0b4f6da9dd8c1128e7280a18ec57a88c65da1eb",
+      "entry_bytes": "564883ec20f605646a1103010f84ee000000f605c7aac902017505e8a0daeaff"
     },
     "ee_memory": {
       "name": "EEmem",
@@ -1146,6 +1235,31 @@
       "extent": 8,
       "section": ".data",
       "abi_sha256": "5bcd868b747eaa5a57378983d15b6546fc33b615439ef53eed93d94a5019d7e1"
+    },
+    "vu_registers": {
+      "name": "vuRegs",
+      "tag": 7,
+      "rva": 53576048,
+      "size": 0,
+      "location": 1,
+      "type": {
+        "tag": 15,
+        "name": "",
+        "size": 3360,
+        "const": false,
+        "volatile": false,
+        "count": 2,
+        "target": {
+          "tag": 11,
+          "name": "VURegs",
+          "size": 1680,
+          "const": false,
+          "volatile": false
+        }
+      },
+      "extent": 3360,
+      "section": ".data",
+      "abi_sha256": "88c91d8ce179aae02617b8da4a7412d7dd6f54a3aced1b40bc44f72d9aeecdec"
     }
   },
   "layouts": {
@@ -6488,6 +6602,636 @@
         }
       ],
       "abi_sha256": "59297fa19dfa9bc198a1724c3d7b3ace877106e4d86ddec63ac9f82d431df9ef"
+    },
+    "VURegs": {
+      "name": "VURegs",
+      "tag": 11,
+      "size": 1680,
+      "type": {
+        "tag": 11,
+        "name": "VURegs",
+        "size": 1680,
+        "const": false,
+        "volatile": false
+      },
+      "members": [
+        {
+          "name": "VF",
+          "offset": 0,
+          "type": {
+            "tag": 15,
+            "name": "",
+            "size": 512,
+            "const": false,
+            "volatile": false,
+            "count": 32,
+            "target": {
+              "tag": 11,
+              "name": "VECTOR",
+              "size": 16,
+              "const": false,
+              "volatile": false
+            }
+          }
+        },
+        {
+          "name": "VI",
+          "offset": 512,
+          "type": {
+            "tag": 15,
+            "name": "",
+            "size": 512,
+            "const": false,
+            "volatile": false,
+            "count": 32,
+            "target": {
+              "tag": 11,
+              "name": "REG_VI",
+              "size": 16,
+              "const": false,
+              "volatile": false
+            }
+          }
+        },
+        {
+          "name": "ACC",
+          "offset": 1024,
+          "type": {
+            "tag": 11,
+            "name": "VECTOR",
+            "size": 16,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "q",
+          "offset": 1040,
+          "type": {
+            "tag": 11,
+            "name": "REG_VI",
+            "size": 16,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "p",
+          "offset": 1056,
+          "type": {
+            "tag": 11,
+            "name": "REG_VI",
+            "size": 16,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "idx",
+          "offset": 1072,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "cycle",
+          "offset": 1080,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 8,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "flags",
+          "offset": 1088,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "code",
+          "offset": 1092,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "start_pc",
+          "offset": 1096,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "branch",
+          "offset": 1100,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "branchpc",
+          "offset": 1104,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "delaybranchpc",
+          "offset": 1108,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "takedelaybranch",
+          "offset": 1112,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          }
+        },
+        {
+          "name": "ebit",
+          "offset": 1116,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "pending_q",
+          "offset": 1120,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "pending_p",
+          "offset": 1124,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "micro_macflags",
+          "offset": 1136,
+          "type": {
+            "tag": 15,
+            "name": "",
+            "size": 16,
+            "const": false,
+            "volatile": false,
+            "count": 4,
+            "target": {
+              "tag": 16,
+              "name": "",
+              "size": 4,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            }
+          }
+        },
+        {
+          "name": "micro_clipflags",
+          "offset": 1152,
+          "type": {
+            "tag": 15,
+            "name": "",
+            "size": 16,
+            "const": false,
+            "volatile": false,
+            "count": 4,
+            "target": {
+              "tag": 16,
+              "name": "",
+              "size": 4,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            }
+          }
+        },
+        {
+          "name": "micro_statusflags",
+          "offset": 1168,
+          "type": {
+            "tag": 15,
+            "name": "",
+            "size": 16,
+            "const": false,
+            "volatile": false,
+            "count": 4,
+            "target": {
+              "tag": 16,
+              "name": "",
+              "size": 4,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            }
+          }
+        },
+        {
+          "name": "macflag",
+          "offset": 1184,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "statusflag",
+          "offset": 1188,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "clipflag",
+          "offset": 1192,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "nextBlockCycles",
+          "offset": 1200,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 8,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "Mem",
+          "offset": 1208,
+          "type": {
+            "tag": 14,
+            "name": "",
+            "size": 8,
+            "const": false,
+            "volatile": false,
+            "reference": false,
+            "target": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            }
+          }
+        },
+        {
+          "name": "Micro",
+          "offset": 1216,
+          "type": {
+            "tag": 14,
+            "name": "",
+            "size": 8,
+            "const": false,
+            "volatile": false,
+            "reference": false,
+            "target": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            }
+          }
+        },
+        {
+          "name": "xgkickaddr",
+          "offset": 1224,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "xgkickdiff",
+          "offset": 1228,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "xgkicksizeremaining",
+          "offset": 1232,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "xgkicklastcycle",
+          "offset": 1240,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 8,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "xgkickcyclecount",
+          "offset": 1248,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "xgkickenable",
+          "offset": 1252,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "xgkickendpacket",
+          "offset": 1256,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "VIBackupCycles",
+          "offset": 1260,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "VIOldValue",
+          "offset": 1264,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "VIRegNumber",
+          "offset": 1268,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "fmac",
+          "offset": 1272,
+          "type": {
+            "tag": 15,
+            "name": "",
+            "size": 192,
+            "const": false,
+            "volatile": false,
+            "count": 4,
+            "target": {
+              "tag": 11,
+              "name": "fmacPipe",
+              "size": 48,
+              "const": false,
+              "volatile": false
+            }
+          }
+        },
+        {
+          "name": "fmacreadpos",
+          "offset": 1464,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "fmacwritepos",
+          "offset": 1468,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "fmaccount",
+          "offset": 1472,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "fdiv",
+          "offset": 1480,
+          "type": {
+            "tag": 11,
+            "name": "fdivPipe",
+            "size": 40,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "efu",
+          "offset": 1520,
+          "type": {
+            "tag": 11,
+            "name": "efuPipe",
+            "size": 40,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "ialu",
+          "offset": 1560,
+          "type": {
+            "tag": 15,
+            "name": "",
+            "size": 96,
+            "const": false,
+            "volatile": false,
+            "count": 4,
+            "target": {
+              "tag": 11,
+              "name": "ialuPipe",
+              "size": 24,
+              "const": false,
+              "volatile": false
+            }
+          }
+        },
+        {
+          "name": "ialureadpos",
+          "offset": 1656,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "ialuwritepos",
+          "offset": 1660,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "ialucount",
+          "offset": 1664,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        }
+      ],
+      "abi_sha256": "d764434c0b6eb3c34d59275c4fa8d65d902aaa5b656fb93f392926f785220867"
     }
   },
   "issues": [

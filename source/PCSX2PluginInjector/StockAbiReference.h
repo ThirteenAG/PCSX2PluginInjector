@@ -3,8 +3,11 @@
 #include "GuestModuleRuntime.h"
 namespace StockABI {
 inline constexpr char SourceCommit[] = "81526d4dc7cc70e4ae75abb35a789417456c6d43";
-inline constexpr char Fingerprint[] = "166bb1c8a94fdb67d0765317568d1389b325abb2dd09f629e100f0c0a8f3973a";
+inline constexpr char Fingerprint[] = "9ceaed93c4be9f8022e66263d0263ab034a954a93e2337b0a0a308ab7b495a00";
 inline constexpr GuestRuntime::Layout Registers{0, 512, 528, 1168, 672, 680, 1100, 676, 592};
+inline constexpr unsigned AccumulatorOffset = 1424;
+inline constexpr PluginHookState::VULayout VU{1680, 1208, 1260, 1080, 512, 1072, 1464, 1468, 1472, 1656, 1660, 1664};
+inline constexpr unsigned VURegisterSize = 1680;
 inline constexpr unsigned RegisterPackSize = 1440;
 inline constexpr unsigned ConfigSize = 1720;
 inline constexpr unsigned AspectRatioOffset = 60;

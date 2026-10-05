@@ -212,6 +212,7 @@ namespace
             }
             return;
         }
+        if (s_runtime.clear_code_syscall()) return;
         const uint32_t code = s_runtime.reg32(3);
         const uint8_t call = static_cast<uint8_t>((code & 0x80000000) ? 0u - code : code);
         if (!s_runtime.reserve_memory_syscall(call)) Original<void(*)()>("syscall")();
@@ -291,6 +292,9 @@ bool Initialize(Bindings& bindings)
         s_image = reinterpret_cast<uint8_t*>(GetModuleHandle(nullptr));
         const auto file = ReadImageFile(exe_path.data());
         ValidateImage(s_config, file, s_image);
+        s_runtime.set_cache_clear(Function<void(*)(uint32_t, uint32_t)>("clear_guest_code"));
+        s_runtime.set_hook_state(Address("registers") + StockABI::AccumulatorOffset,
+            Address("vu_registers"), StockABI::VU, Function<void(*)()>("finish_vu0"));
         if (s_config.activation == "disabled") throw std::runtime_error("Stock profile is disabled pending runtime validation");
         if (State() != VMState::Shutdown) throw std::runtime_error("Restart PCSX2 before installing the stock adapter");
         const std::pair<const char*, void*> hooks[] = {{"elf_init", reinterpret_cast<void*>(&Entry)},

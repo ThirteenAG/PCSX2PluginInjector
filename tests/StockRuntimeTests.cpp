@@ -1,8 +1,15 @@
 #include "../source/PCSX2PluginInjector/StockBuildConfig.h"
 #include <iostream>
 #include <thread>
+#include <tuple>
 
 static unsigned checks = 0;
+static uint32_t cleared_address, cleared_words;
+static unsigned clear_calls;
+static unsigned vu_finishes;
+static void finish_vu() { ++vu_finishes; }
+static void clear_code(uint32_t address, uint32_t words)
+{ cleared_address = address; cleared_words = words; ++clear_calls; }
 static void check(bool result, const char* description)
 {
     ++checks;
@@ -21,6 +28,7 @@ static void runtime_tests()
     Runtime runtime;
     std::vector<uint8_t> memory(Runtime::ArenaEnd), registers(StockABI::RegisterPackSize);
     runtime.attach(memory.data(), static_cast<uint32_t>(memory.size()), registers.data(), StockABI::Registers);
+    runtime.set_cache_clear(clear_code);
     uint32_t value = 0x12345678;
     check(!runtime.write(Runtime::ArenaBegin, &value, 4), "Writes require load window");
     check(!runtime.queue(Runtime::ArenaBegin, Runtime::ArenaBegin + 16384, 0, Runtime::ArenaBegin + 16), "Queue requires load window");
@@ -49,6 +57,9 @@ static void runtime_tests()
     check(runtime.start(0x100000), "Startup");
     check(runtime.get32(layout.pc) == Runtime::ArenaBegin, "First entry");
     check(runtime.reg32(29) == Runtime::ArenaBegin + 32768 && runtime.reg32(31) == Runtime::ReturnStub, "Private stack/return");
+    uint32_t services[2];
+    std::memcpy(services, memory.data() + Runtime::ArenaBegin + 16 + 24, sizeof(services));
+    check(services[0] == Runtime::CacheStub && services[1] == Runtime::CacheCapability, "Negotiated cache service");
     uint32_t gp;
     std::memcpy(&gp, memory.data() + Runtime::ArenaBegin + 16 + 8, 4);
     check(gp == *reinterpret_cast<const uint32_t*>(saved.data() + 28 * 16), "Game GP in module context");
@@ -76,6 +87,37 @@ static void runtime_tests()
     check(!runtime.reserve_memory_syscall(0x3c), "RFU060 still dispatches to BIOS");
     check(runtime.reg32(5) == Runtime::ReturnStub - 0x10000, "Game heap excludes arena");
     check(runtime.reserve_memory_syscall(0x7f) && runtime.reg32(2) == Runtime::ReturnStub, "Game memory size excludes arena");
+    runtime.set_reg32(3, 0xf2); runtime.set_reg32(4, 0x100000); runtime.set_reg32(5, 64);
+    runtime.set32(layout.pc, Runtime::CacheStub + 12);
+    check(!runtime.clear_code_syscall() && clear_calls == 0, "Only private service syscall accepted");
+    runtime.set32(layout.pc, Runtime::CacheStub + 8); runtime.set32(layout.delay, 1);
+    check(!runtime.clear_code_syscall(), "Cache service in delay slot rejected");
+    runtime.set32(layout.delay, 0);
+    check(runtime.clear_code_syscall() && clear_calls == 1 && cleared_address == 0x100000 && cleared_words == 16 && runtime.reg32(2) == 1,
+        "Cache invalidation uses instruction-word units");
+    for (auto [address, bytes] : {std::pair{0x100001u, 64u}, std::pair{0x100000u, 0u},
+        std::pair{0x100000u, 63u}, std::pair{UINT32_MAX - 3, 16u}, std::pair{Runtime::ArenaEnd, 4u}}) {
+        runtime.set_reg32(4, address); runtime.set_reg32(5, bytes);
+        check(runtime.clear_code_syscall() && !runtime.reg32(2) && clear_calls == 1, "Invalid cache range rejected");
+    }
+    runtime.set_reg32(3, 0xf3); runtime.set32(layout.pc, Runtime::WriteStub + 8);
+    runtime.set_reg32(4, 0x100000); runtime.set_reg32(5, Runtime::ArenaBegin); runtime.set_reg32(6, 8);
+    const uint32_t instructions[] = {0x08008000, 0};
+    std::memcpy(memory.data() + Runtime::ArenaBegin, instructions, sizeof(instructions));
+    check(runtime.clear_code_syscall() && runtime.reg32(2) && clear_calls == 2 && cleared_words == 2 &&
+        std::memcmp(memory.data() + 0x100000, instructions, sizeof(instructions)) == 0, "Atomic code publication and invalidation");
+    const auto written = memory;
+    for (auto [address, source, bytes] : {std::tuple{0x100001u, Runtime::ArenaBegin, 8u},
+        std::tuple{0x100000u, Runtime::ArenaEnd - 4, 8u}, std::tuple{Runtime::ReturnStub, Runtime::ArenaBegin, 8u},
+        std::tuple{Runtime::ReturnStub - 4, Runtime::ArenaBegin, 8u}, std::tuple{Runtime::ArenaBegin - 4, Runtime::ArenaBegin, 8u},
+        std::tuple{0x100000u, 0u, 8u}, std::tuple{0x100000u, Runtime::ArenaBegin, 0u},
+        std::tuple{0x100000u, UINT32_MAX - 3, 8u}}) {
+        runtime.set_reg32(4, address); runtime.set_reg32(5, source); runtime.set_reg32(6, bytes);
+        check(runtime.clear_code_syscall() && !runtime.reg32(2) && clear_calls == 2 && memory == written,
+            "Rejected atomic write leaves all RAM unchanged");
+    }
+    runtime.set32(layout.pc, Runtime::CacheStub + 8);
+    check(!runtime.clear_code_syscall(), "Write syscall requires its own stub");
     for (uint32_t status = 0; status < 256; ++status)
     {
         runtime.set32(layout.status, status);
@@ -84,6 +126,36 @@ static void runtime_tests()
     runtime.reset();
     check(!runtime.committed() && runtime.generation() == 1, "Reset generation");
     check(!runtime.reserve_memory_syscall(0x7f), "No reservation without plugins");
+    check(!runtime.clear_code_syscall(), "No cache service after reset");
+
+    // Exercise the stock adapter with the layout discovered from this build's PDB.
+    std::vector<uint8_t> vu(StockABI::VURegisterSize * 2);
+    uint32_t accumulator[2] = {0x7f800001, 1};
+    runtime.set_hook_state(reinterpret_cast<uint8_t*>(accumulator), vu.data(), StockABI::VU, finish_vu);
+    {
+        Runtime::LoadWindow window(runtime);
+        check(runtime.queue(Runtime::ArenaBegin, Runtime::ArenaBegin + 32768, 0, Runtime::ArenaBegin + 16), "State test module");
+        check(runtime.commit(), "State test commit");
+    }
+    runtime.set32(layout.pc, 0x100010); runtime.set32(layout.branch, 0); runtime.set32(layout.delay, 0);
+    check(runtime.start(0x100000), "State test startup");
+    std::memcpy(services, memory.data() + Runtime::ArenaBegin + 16 + 24, sizeof(services));
+    check(services[1] == (Runtime::CacheCapability | 4), "State capability negotiated");
+    runtime.set_reg32(3, 0xf4); runtime.set32(layout.pc, Runtime::StateStub + 8);
+    runtime.set32(layout.branch, 0); runtime.set32(layout.delay, 0);
+    runtime.set_reg32(4, Runtime::ArenaBegin + 4096); runtime.set_reg32(5, 3); runtime.set_reg32(6, 0);
+    check(runtime.clear_code_syscall() && runtime.reg32(2) && vu_finishes == 1, "Stock state capture");
+    accumulator[0] = 0; accumulator[1] = 0;
+    vu[0] = 123; vu[StockABI::VURegisterSize] = 42;
+    runtime.set_reg32(6, 1);
+    check(runtime.clear_code_syscall() && runtime.reg32(2) && accumulator[0] == 0x7f800001 && accumulator[1] == 1 &&
+        vu[0] == 0 && vu[StockABI::VURegisterSize] == 42 && vu_finishes == 2, "Stock state restore keeps VU1 intact");
+    runtime.set_reg32(4, Runtime::ArenaEnd - 8);
+    check(runtime.clear_code_syscall() && !runtime.reg32(2) && vu_finishes == 2, "Truncated VU image rejected");
+    runtime.set32(layout.pc, Runtime::CacheStub + 8);
+    check(!runtime.clear_code_syscall(), "Stock state service requires its own stub");
+    runtime.reset();
+    check(!runtime.clear_code_syscall(), "No state service after reset");
 }
 
 static void image_tests(const wchar_t* profile, const wchar_t* executable)

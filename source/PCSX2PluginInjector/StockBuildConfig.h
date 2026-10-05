@@ -24,9 +24,9 @@ namespace StockPCSX2
 {
 inline constexpr const char* Roles[] = {"boot_patches", "set_error", "render_osd", "imgui_begin", "imgui_end", "imgui_text",
     "elf_init", "elf_loading", "shutdown", "reset", "ei", "syscall", "rec_ei", "rec_syscall", "clear_cpu_caches",
-    "reset_block_tracking", "throttle", "save_state", "load_state", "ee_memory", "exposed_ram", "registers", "vm_state",
-    "disc_serial", "disc_elf", "disc_version", "title", "disc_crc", "current_crc", "elf_entry", "elf_path", "elf_executed", "config", "gs_device", "emu_thread"};
-inline constexpr size_t FunctionRoleCount = 19;
+    "clear_guest_code", "reset_block_tracking", "throttle", "save_state", "load_state", "finish_vu0", "ee_memory", "exposed_ram", "registers", "vm_state",
+    "disc_serial", "disc_elf", "disc_version", "title", "disc_crc", "current_crc", "elf_entry", "elf_path", "elf_executed", "config", "gs_device", "emu_thread", "vu_registers"};
+inline constexpr size_t FunctionRoleCount = 21;
 struct Symbol
 {
     uint32_t rva = 0, extent = 0;
@@ -101,7 +101,7 @@ inline Configuration ReadConfiguration(const std::filesystem::path& path)
     const std::pair<const char*, uint32_t> extents[] = {{"ee_memory", 8}, {"exposed_ram", 4},
         {"registers", StockABI::RegisterPackSize}, {"vm_state", 4}, {"disc_serial", 32}, {"disc_elf", 32},
         {"disc_version", 32}, {"title", 32}, {"disc_crc", 4}, {"current_crc", 4}, {"elf_entry", 4},
-        {"elf_path", 32}, {"elf_executed", 1}, {"config", StockABI::ConfigSize}, {"gs_device", 8}, {"emu_thread", 8}};
+        {"elf_path", 32}, {"elf_executed", 1}, {"config", StockABI::ConfigSize}, {"gs_device", 8}, {"emu_thread", 8}, {"vu_registers", StockABI::VURegisterSize * 2}};
     for (auto [name, extent] : extents)
         if (c.symbols.at(name).extent != extent) throw std::runtime_error("Stock data ABI extent mismatch");
     return c;

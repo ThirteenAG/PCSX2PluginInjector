@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstring>
 #include <vector>
+#include "GuestHookState.h"
 
 // Register storage belongs to the emulator. Only offsets established by the
 // selected source/PDB profile may be supplied here; no host struct casts.
@@ -31,6 +32,11 @@ class Runtime
     bool m_running = false;
     std::atomic<bool> m_committed{false};
     uint64_t m_generation = 0;
+    void (*m_clear_code)(uint32_t, uint32_t) = nullptr;
+    uint8_t* m_accumulator = nullptr;
+    uint8_t* m_vu = nullptr;
+    PluginHookState::VULayout m_vu_layout{};
+    void (*m_finish_vu)() = nullptr;
     inline static thread_local Runtime* s_loader = nullptr;
 
     void enter()
@@ -47,6 +53,8 @@ class Runtime
         uint32_t game_gp = 0;
         std::memcpy(&game_gp, m_gpr.data() + 28 * 16, 4);
         std::memcpy(m_memory + module.context + 8, &game_gp, 4);
+        const uint32_t services[] = {m_clear_code ? CacheStub : 0u, m_clear_code ? CacheCapability | (m_accumulator && m_vu && m_finish_vu ? 4u : 0u) : 0u};
+        std::memcpy(m_memory + module.context + 24, services, sizeof(services));
         set32(m_layout.pc, module.entry);
         set32(m_layout.branch, 0);
         set32(m_layout.delay, 0);
@@ -69,6 +77,15 @@ public:
     static constexpr uint32_t ArenaBegin = ReturnStub + 4096;
     static constexpr uint32_t ArenaEnd = 0x08000000;
     static constexpr uint32_t ReturnSyscall = 0xf1;
+    static constexpr uint32_t CacheStub = ReturnStub + 32;
+    static constexpr uint32_t WriteStub = ReturnStub + 64;
+    static constexpr uint32_t StateStub = ReturnStub + 96;
+    static constexpr uint32_t CacheCapability = 0x00010003;
+
+    void set_cache_clear(void (*clear)(uint32_t, uint32_t)) { m_clear_code = clear; }
+
+    void set_hook_state(uint8_t* accumulator, uint8_t* vu, PluginHookState::VULayout layout, void (*finish)())
+    { m_accumulator = accumulator; m_vu = vu; m_vu_layout = layout; m_finish_vu = finish; }
 
     // Stack lifetime gives the load window exception-safe CPU-thread ownership.
     class LoadWindow
@@ -123,6 +140,16 @@ public:
         if (!loading() || committed() || m_modules.empty() || !m_registers) return false;
         const uint32_t stub[] = {0x240300f1, 0x0000000c, 0x00000000};
         std::memcpy(m_memory + ReturnStub, stub, sizeof(stub));
+        if (m_clear_code) {
+            const uint32_t cache_stub[] = {0x240300f2, 0x0000000c, 0x03e00008, 0x00000000};
+            std::memcpy(m_memory + CacheStub, cache_stub, sizeof(cache_stub));
+            const uint32_t write_stub[] = {0x240300f3, 0x0000000c, 0x03e00008, 0x00000000};
+            std::memcpy(m_memory + WriteStub, write_stub, sizeof(write_stub));
+            if (m_accumulator && m_vu && m_finish_vu) {
+                const uint32_t state_stub[] = {0x240300f4, 0x0000000c, 0x03e00008, 0x00000000};
+                std::memcpy(m_memory + StateStub, state_stub, sizeof(state_stub));
+            }
+        }
         m_committed.store(true, std::memory_order_release);
         return true;
     }
@@ -172,6 +199,36 @@ public:
             restore();
             set32(m_layout.pc, m_resume_pc);
             m_running = false;
+        }
+        return true;
+    }
+    bool clear_code_syscall()
+    {
+        const uint32_t code = reg32(3);
+        if (committed() && m_accumulator && m_vu && m_finish_vu && code == 0xf4 &&
+            get32(m_layout.pc) == StateStub + 8 && !get32(m_layout.branch) && !get32(m_layout.delay))
+        {
+            const uint32_t address = reg32(4), flags = reg32(5), operation = reg32(6);
+            const uint32_t size = 8 + ((flags & 2) ? PluginHookState::VUBytes : 0);
+            const bool valid = in_arena(address, size) && !(address & 7) && operation <= 1 && flags && !(flags & ~3u);
+            set_reg64(2, valid && PluginHookState::Transfer(m_memory + address, flags, operation != 0,
+                m_accumulator, m_vu, m_vu_layout, m_finish_vu));
+            return true;
+        }
+        if (!committed() || !m_clear_code || (code != 0xf2 && code != 0xf3) ||
+            get32(m_layout.pc) != (code == 0xf2 ? CacheStub : WriteStub) + 8 ||
+            get32(m_layout.branch) || get32(m_layout.delay))
+            return false;
+        const uint32_t address = reg32(4), source = reg32(5), size = reg32(code == 0xf2 ? 5 : 6);
+        bool valid = size && !((address | size) & 3) &&
+            static_cast<uint64_t>(address) + size <= m_memory_size;
+        if (code == 0xf3)
+            valid = valid && source && static_cast<uint64_t>(source) + size <= m_memory_size &&
+                (static_cast<uint64_t>(address) + size <= ReturnStub || address >= ArenaBegin);
+        set_reg64(2, valid);
+        if (valid) {
+            if (code == 0xf3) std::memmove(m_memory + address, m_memory + source, size);
+            m_clear_code(address, size / 4);
         }
         return true;
     }

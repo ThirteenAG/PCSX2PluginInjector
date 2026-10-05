@@ -2,54 +2,309 @@
   "schema_version": 1,
   "purpose": "Discovery contract only; a reviewed runtime adapter must consume these roles before any build is supported.",
   "symbols": [
-    {"role": "boot_patches", "kind": "function", "name": "Patch::ApplyBootPatches"},
-    {"role": "set_error", "kind": "function", "name": "Error::SetStringView"},
-    {"role": "render_osd", "kind": "function", "name": "ImGuiManager::RenderOSD"},
-    {"role": "imgui_begin", "kind": "function", "name": "ImGui::Begin"},
-    {"role": "imgui_end", "kind": "function", "name": "ImGui::End"},
-    {"role": "imgui_text", "kind": "function", "name": "ImGui::TextEx"},
-    {"role": "elf_init", "kind": "function", "name": "VMManager::Internal::EntryPointCompilingOnCPUThread"},
-    {"role": "elf_loading", "kind": "function", "name": "VMManager::Internal::ELFLoadingOnCPUThread"},
-    {"role": "elf_clear", "kind": "function", "name": "VMManager::ClearELFInfo", "required": false},
-    {"role": "shutdown", "kind": "function", "name": "VMManager::Shutdown"},
-    {"role": "reset", "kind": "function", "name": "VMManager::Reset"},
-    {"role": "ei", "kind": "function", "name": "R5900::Interpreter::OpcodeImpl::COP0::EI"},
-    {"role": "syscall", "kind": "function", "name": "R5900::Interpreter::OpcodeImpl::SYSCALL"},
-    {"role": "rec_ei", "kind": "function", "name": "R5900::Dynarec::OpcodeImpl::COP0::recEI"},
-    {"role": "rec_syscall", "kind": "function", "name": "R5900::Dynarec::OpcodeImpl::recSYSCALL"},
-    {"role": "clear_cpu_caches", "kind": "function", "name": "VMManager::Internal::ClearCPUExecutionCaches"},
-    {"role": "reset_block_tracking", "kind": "function", "name": "mmap_ResetBlockTracking"},
-    {"role": "throttle", "kind": "function", "name": "VMManager::Internal::Throttle"},
-    {"role": "save_state", "kind": "function", "name": "SaveState_DownloadState"},
-    {"role": "load_state", "kind": "function", "name": "SaveState_UnzipFromDisk"},
-    {"role": "ee_memory", "kind": "data", "name": "EEmem"},
-    {"role": "exposed_ram", "kind": "data", "name": "Ps2MemSize::ExposedRam"},
-    {"role": "registers", "kind": "data", "name": "_cpuRegistersPack"},
-    {"role": "vm_state", "kind": "data", "name": "s_state"},
-    {"role": "disc_serial", "kind": "data", "name": "s_disc_serial"},
-    {"role": "disc_elf", "kind": "data", "name": "s_disc_elf"},
-    {"role": "disc_version", "kind": "data", "name": "s_disc_version"},
-    {"role": "title", "kind": "data", "name": "s_title"},
-    {"role": "disc_crc", "kind": "data", "name": "s_disc_crc"},
-    {"role": "current_crc", "kind": "data", "name": "s_current_crc"},
-    {"role": "elf_entry", "kind": "data", "name": "s_elf_entry_point"},
-    {"role": "elf_path", "kind": "data", "name": "s_elf_path"},
-    {"role": "elf_executed", "kind": "data", "name": "s_elf_executed"},
-    {"role": "config", "kind": "data", "name": "EmuConfig"},
-    {"role": "gs_device", "kind": "data", "name": "g_gs_device"},
-    {"role": "emu_thread", "kind": "data", "name": "g_emu_thread"}
+    {
+      "role": "boot_patches",
+      "kind": "function",
+      "name": "Patch::ApplyBootPatches"
+    },
+    {
+      "role": "set_error",
+      "kind": "function",
+      "name": "Error::SetStringView"
+    },
+    {
+      "role": "render_osd",
+      "kind": "function",
+      "name": "ImGuiManager::RenderOSD"
+    },
+    {
+      "role": "imgui_begin",
+      "kind": "function",
+      "name": "ImGui::Begin"
+    },
+    {
+      "role": "imgui_end",
+      "kind": "function",
+      "name": "ImGui::End"
+    },
+    {
+      "role": "imgui_text",
+      "kind": "function",
+      "name": "ImGui::TextEx"
+    },
+    {
+      "role": "elf_init",
+      "kind": "function",
+      "name": "VMManager::Internal::EntryPointCompilingOnCPUThread"
+    },
+    {
+      "role": "elf_loading",
+      "kind": "function",
+      "name": "VMManager::Internal::ELFLoadingOnCPUThread"
+    },
+    {
+      "role": "elf_clear",
+      "kind": "function",
+      "name": "VMManager::ClearELFInfo",
+      "required": false
+    },
+    {
+      "role": "shutdown",
+      "kind": "function",
+      "name": "VMManager::Shutdown"
+    },
+    {
+      "role": "reset",
+      "kind": "function",
+      "name": "VMManager::Reset"
+    },
+    {
+      "role": "ei",
+      "kind": "function",
+      "name": "R5900::Interpreter::OpcodeImpl::COP0::EI"
+    },
+    {
+      "role": "syscall",
+      "kind": "function",
+      "name": "R5900::Interpreter::OpcodeImpl::SYSCALL"
+    },
+    {
+      "role": "rec_ei",
+      "kind": "function",
+      "name": "R5900::Dynarec::OpcodeImpl::COP0::recEI"
+    },
+    {
+      "role": "rec_syscall",
+      "kind": "function",
+      "name": "R5900::Dynarec::OpcodeImpl::recSYSCALL"
+    },
+    {
+      "role": "clear_cpu_caches",
+      "kind": "function",
+      "name": "VMManager::Internal::ClearCPUExecutionCaches"
+    },
+    {
+      "role": "clear_guest_code",
+      "kind": "function",
+      "name": "recClear"
+    },
+    {
+      "role": "reset_block_tracking",
+      "kind": "function",
+      "name": "mmap_ResetBlockTracking"
+    },
+    {
+      "role": "throttle",
+      "kind": "function",
+      "name": "VMManager::Internal::Throttle"
+    },
+    {
+      "role": "save_state",
+      "kind": "function",
+      "name": "SaveState_DownloadState"
+    },
+    {
+      "role": "load_state",
+      "kind": "function",
+      "name": "SaveState_UnzipFromDisk"
+    },
+    {
+      "role": "finish_vu0",
+      "kind": "function",
+      "name": "_vu0FinishMicro"
+    },
+    {
+      "role": "ee_memory",
+      "kind": "data",
+      "name": "EEmem"
+    },
+    {
+      "role": "exposed_ram",
+      "kind": "data",
+      "name": "Ps2MemSize::ExposedRam"
+    },
+    {
+      "role": "registers",
+      "kind": "data",
+      "name": "_cpuRegistersPack"
+    },
+    {
+      "role": "vm_state",
+      "kind": "data",
+      "name": "s_state"
+    },
+    {
+      "role": "disc_serial",
+      "kind": "data",
+      "name": "s_disc_serial"
+    },
+    {
+      "role": "disc_elf",
+      "kind": "data",
+      "name": "s_disc_elf"
+    },
+    {
+      "role": "disc_version",
+      "kind": "data",
+      "name": "s_disc_version"
+    },
+    {
+      "role": "title",
+      "kind": "data",
+      "name": "s_title"
+    },
+    {
+      "role": "disc_crc",
+      "kind": "data",
+      "name": "s_disc_crc"
+    },
+    {
+      "role": "current_crc",
+      "kind": "data",
+      "name": "s_current_crc"
+    },
+    {
+      "role": "elf_entry",
+      "kind": "data",
+      "name": "s_elf_entry_point"
+    },
+    {
+      "role": "elf_path",
+      "kind": "data",
+      "name": "s_elf_path"
+    },
+    {
+      "role": "elf_executed",
+      "kind": "data",
+      "name": "s_elf_executed"
+    },
+    {
+      "role": "config",
+      "kind": "data",
+      "name": "EmuConfig"
+    },
+    {
+      "role": "gs_device",
+      "kind": "data",
+      "name": "g_gs_device"
+    },
+    {
+      "role": "emu_thread",
+      "kind": "data",
+      "name": "g_emu_thread"
+    },
+    {
+      "role": "vu_registers",
+      "kind": "data",
+      "name": "vuRegs"
+    }
   ],
   "layouts": [
-    {"name": "GSDevice", "members": ["m_window_info"]},
-    {"name": "WindowInfo", "members": ["type", "window_handle", "surface_width", "surface_height"]},
-    {"name": "EmuThread", "members": ["m_is_fullscreen"]},
-    {"name": "cpuRegistersPack", "members": ["cpuRegs", "fpuRegs"]},
-    {"name": "cpuRegisters", "members": ["GPR", "HI", "LO", "CP0", "sa", "IsDelaySlot", "pc", "code", "cycle", "branch"]},
-    {"name": "GPRregs", "members": ["n", "r"]},
-    {"name": "GPR_reg", "members": ["UD", "UL"]},
-    {"name": "fpuRegisters", "members": ["fpr", "fprc", "ACC", "ACCflag"]},
-    {"name": "CP0regs", "members": ["n", "r"]},
-    {"name": "Pcsx2Config", "members": ["GS"]},
-    {"name": "Pcsx2Config::GSOptions", "members": ["AspectRatio"]}
+    {
+      "name": "GSDevice",
+      "members": [
+        "m_window_info"
+      ]
+    },
+    {
+      "name": "WindowInfo",
+      "members": [
+        "type",
+        "window_handle",
+        "surface_width",
+        "surface_height"
+      ]
+    },
+    {
+      "name": "EmuThread",
+      "members": [
+        "m_is_fullscreen"
+      ]
+    },
+    {
+      "name": "cpuRegistersPack",
+      "members": [
+        "cpuRegs",
+        "fpuRegs"
+      ]
+    },
+    {
+      "name": "cpuRegisters",
+      "members": [
+        "GPR",
+        "HI",
+        "LO",
+        "CP0",
+        "sa",
+        "IsDelaySlot",
+        "pc",
+        "code",
+        "cycle",
+        "branch"
+      ]
+    },
+    {
+      "name": "GPRregs",
+      "members": [
+        "n",
+        "r"
+      ]
+    },
+    {
+      "name": "GPR_reg",
+      "members": [
+        "UD",
+        "UL"
+      ]
+    },
+    {
+      "name": "fpuRegisters",
+      "members": [
+        "fpr",
+        "fprc",
+        "ACC",
+        "ACCflag"
+      ]
+    },
+    {
+      "name": "CP0regs",
+      "members": [
+        "n",
+        "r"
+      ]
+    },
+    {
+      "name": "Pcsx2Config",
+      "members": [
+        "GS"
+      ]
+    },
+    {
+      "name": "Pcsx2Config::GSOptions",
+      "members": [
+        "AspectRatio"
+      ]
+    },
+    {
+      "name": "VURegs",
+      "members": [
+        "VF",
+        "VI",
+        "ACC",
+        "q",
+        "p",
+        "idx",
+        "cycle",
+        "Mem",
+        "Micro",
+        "VIBackupCycles",
+        "fmacreadpos",
+        "fmacwritepos",
+        "fmaccount",
+        "ialureadpos",
+        "ialuwritepos",
+        "ialucount"
+      ]
+    }
   ]
 }
