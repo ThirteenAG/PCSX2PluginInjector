@@ -1,0 +1,6505 @@
+{
+  "schema_version": 1,
+  "version": "v2.9.94",
+  "contract_sha256": "f9004c95993ee45baad6a849542ab1ddc2aa46c9beedbd49ec68228c94cd9879",
+  "source_target": {
+    "schema_version": 1,
+    "fork_repository": "ASI-Factory/PCSX2-Fork-With-Plugins",
+    "fork_revision": "badda91282bb964f8ab116a9f145a2d3774871b6",
+    "upstream_commit": "81526d4dc7cc70e4ae75abb35a789417456c6d43",
+    "upstream_tag": "v2.9.94",
+    "policy": "Target the original upstream sources used by the fork. Newer dev releases are discovery reports only until this source target and adapter are updated together."
+  },
+  "source_matches_target": true,
+  "provenance": {
+    "schema_version": 1,
+    "channel": "development",
+    "version": "v2.9.94",
+    "upstream_commit": "81526d4dc7cc70e4ae75abb35a789417456c6d43",
+    "release_url": "https://github.com/PCSX2/pcsx2/releases/tag/v2.9.94",
+    "assets": [
+      {
+        "name": "pcsx2-v2.9.94-windows-x64-Qt.7z",
+        "url": "https://github.com/PCSX2/pcsx2/releases/download/v2.9.94/pcsx2-v2.9.94-windows-x64-Qt.7z",
+        "sha256": "83a638187933b66e27779c32067100e1995d24ab76f1a48bb460971cea09d601",
+        "size": 32658403,
+        "published_digest_verified": true
+      },
+      {
+        "name": "pcsx2-v2.9.94-windows-x64-Qt-symbols.7z",
+        "url": "https://github.com/PCSX2/pcsx2/releases/download/v2.9.94/pcsx2-v2.9.94-windows-x64-Qt-symbols.7z",
+        "sha256": "08f3b8fb00b0bf0cabab07212f8f36cd6f3d7840b4567ae7e4c20d8ce0cac482",
+        "size": 21201348,
+        "published_digest_verified": true
+      }
+    ],
+    "inputs": {
+      "exe": "7926133282f8ce1c7f22a4961e852e4ebd9f141491624368d44014f9112d8a0a",
+      "pdb": "a668794c122837c4231ee02df73adfe84f359683c895791f5583e6716ed67456"
+    }
+  },
+  "identity": {
+    "executable": "pcsx2-qt.exe",
+    "sha256": "7926133282f8ce1c7f22a4961e852e4ebd9f141491624368d44014f9112d8a0a",
+    "machine": "amd64",
+    "image_size": 231161856,
+    "timestamp": 1790870631,
+    "pdb_guid": "dce885ba-f72b-db92-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_sha256": "a668794c122837c4231ee02df73adfe84f359683c895791f5583e6716ed67456"
+  },
+  "status": "needs-adapter-review",
+  "abi_reference": {
+    "version": "v2.9.94",
+    "upstream_commit": "81526d4dc7cc70e4ae75abb35a789417456c6d43",
+    "executable_sha256": "7926133282f8ce1c7f22a4961e852e4ebd9f141491624368d44014f9112d8a0a"
+  },
+  "abi_changes": [],
+  "runtime_enabled": false,
+  "symbols": {
+    "boot_patches": {
+      "name": "Patch::ApplyBootPatches",
+      "tag": 5,
+      "rva": 1479120,
+      "size": 385,
+      "location": 1,
+      "type": {
+        "tag": 13,
+        "name": "",
+        "size": 0,
+        "const": false,
+        "volatile": false,
+        "calling_convention": 0,
+        "return": {
+          "tag": 16,
+          "name": "",
+          "size": 0,
+          "const": false,
+          "volatile": false,
+          "base_type": 1
+        },
+        "arguments": []
+      },
+      "extent": 385,
+      "section": ".text",
+      "abi_sha256": "d8b074587ef23a7c282151c45a655be3d5f7fbb02a829b80da083695d434716b",
+      "code_sha256": "2e48fbb1179f908e8a21cd9e8eec05918044afe9cb817318fea32eaa47750803",
+      "entry_bytes": "415741565657534883ec600f29742450488d053122b1004889442448488d0545"
+    },
+    "set_error": {
+      "name": "Error::SetStringView",
+      "tag": 5,
+      "rva": 11204048,
+      "size": 326,
+      "location": 1,
+      "type": {
+        "tag": 13,
+        "name": "",
+        "size": 0,
+        "const": false,
+        "volatile": false,
+        "calling_convention": 0,
+        "return": {
+          "tag": 16,
+          "name": "",
+          "size": 0,
+          "const": false,
+          "volatile": false,
+          "base_type": 1
+        },
+        "arguments": [
+          {
+            "tag": 20,
+            "name": "",
+            "size": 0,
+            "const": false,
+            "volatile": false,
+            "target": {
+              "tag": 11,
+              "name": "std::basic_string_view<char,std::char_traits<char> >",
+              "size": 16,
+              "const": false,
+              "volatile": false
+            }
+          }
+        ]
+      },
+      "extent": 326,
+      "section": ".text",
+      "abi_sha256": "26678d103d2600401a8f1b9bc181788c96e92538f39755a99842d2318d5c28e8",
+      "code_sha256": "c362fce53adf2eee7907ded8bc5093758f5d622cf7bd60a500117219f04d5ba6",
+      "entry_bytes": "415741565657534883ec50488b05def938004831e04889442448c70103000000"
+    },
+    "render_osd": {
+      "name": "ImGuiManager::RenderOSD",
+      "tag": 5,
+      "rva": 6605904,
+      "size": 5203,
+      "location": 1,
+      "type": {
+        "tag": 13,
+        "name": "",
+        "size": 0,
+        "const": false,
+        "volatile": false,
+        "calling_convention": 0,
+        "return": {
+          "tag": 16,
+          "name": "",
+          "size": 0,
+          "const": false,
+          "volatile": false,
+          "base_type": 1
+        },
+        "arguments": []
+      },
+      "extent": 5203,
+      "section": ".text",
+      "abi_sha256": "d8b074587ef23a7c282151c45a655be3d5f7fbb02a829b80da083695d434716b",
+      "code_sha256": "ffc0a880e9750ed264cb5965c0d18e98840812c1c857bedf874a3e612821fe30",
+      "entry_bytes": "4157415641554154565755534881ec78010000440f29bc246001000066440f7f"
+    },
+    "imgui_begin": {
+      "name": "ImGui::Begin",
+      "tag": 5,
+      "rva": 11553360,
+      "size": 27186,
+      "location": 1,
+      "type": {
+        "tag": 13,
+        "name": "",
+        "size": 0,
+        "const": false,
+        "volatile": false,
+        "calling_convention": 0,
+        "return": {
+          "tag": 16,
+          "name": "",
+          "size": 1,
+          "const": false,
+          "volatile": false,
+          "base_type": 10
+        },
+        "arguments": [
+          {
+            "tag": 20,
+            "name": "",
+            "size": 0,
+            "const": false,
+            "volatile": false,
+            "target": {
+              "tag": 14,
+              "name": "",
+              "size": 8,
+              "const": false,
+              "volatile": false,
+              "reference": false,
+              "target": {
+                "tag": 16,
+                "name": "",
+                "size": 1,
+                "const": true,
+                "volatile": false,
+                "base_type": 2
+              }
+            }
+          },
+          {
+            "tag": 20,
+            "name": "",
+            "size": 0,
+            "const": false,
+            "volatile": false,
+            "target": {
+              "tag": 14,
+              "name": "",
+              "size": 8,
+              "const": false,
+              "volatile": false,
+              "reference": false,
+              "target": {
+                "tag": 16,
+                "name": "",
+                "size": 1,
+                "const": false,
+                "volatile": false,
+                "base_type": 10
+              }
+            }
+          },
+          {
+            "tag": 20,
+            "name": "",
+            "size": 0,
+            "const": false,
+            "volatile": false,
+            "target": {
+              "tag": 16,
+              "name": "",
+              "size": 4,
+              "const": false,
+              "volatile": false,
+              "base_type": 6
+            }
+          }
+        ]
+      },
+      "extent": 27186,
+      "section": ".text",
+      "abi_sha256": "c4726d999aa93a337b4c1be82a82aa275f4e1010fc183365871285857ce5466d",
+      "code_sha256": "31d3e23602d1a4b3a571acc55ce80b28e4262c870a277c3a80114b520d7de68f",
+      "entry_bytes": "4157415641554154565755534881ec98020000440f29bc2480020000440f29b4"
+    },
+    "imgui_end": {
+      "name": "ImGui::End",
+      "tag": 5,
+      "rva": 11585744,
+      "size": 1406,
+      "location": 1,
+      "type": {
+        "tag": 13,
+        "name": "",
+        "size": 0,
+        "const": false,
+        "volatile": false,
+        "calling_convention": 0,
+        "return": {
+          "tag": 16,
+          "name": "",
+          "size": 0,
+          "const": false,
+          "volatile": false,
+          "base_type": 1
+        },
+        "arguments": []
+      },
+      "extent": 1406,
+      "section": ".text",
+      "abi_sha256": "d8b074587ef23a7c282151c45a655be3d5f7fbb02a829b80da083695d434716b",
+      "code_sha256": "0f65266016a32a0abb9db2d570fde8b6b77932cf6d41d0944c673a77fe051b3e",
+      "entry_bytes": "41565657534883ec28488b3548330f0d488b9ea0140000486386701400004883"
+    },
+    "imgui_text": {
+      "name": "ImGui::TextEx",
+      "tag": 5,
+      "rva": 11669856,
+      "size": 1902,
+      "location": 1,
+      "type": {
+        "tag": 13,
+        "name": "",
+        "size": 0,
+        "const": false,
+        "volatile": false,
+        "calling_convention": 0,
+        "return": {
+          "tag": 16,
+          "name": "",
+          "size": 0,
+          "const": false,
+          "volatile": false,
+          "base_type": 1
+        },
+        "arguments": [
+          {
+            "tag": 20,
+            "name": "",
+            "size": 0,
+            "const": false,
+            "volatile": false,
+            "target": {
+              "tag": 14,
+              "name": "",
+              "size": 8,
+              "const": false,
+              "volatile": false,
+              "reference": false,
+              "target": {
+                "tag": 16,
+                "name": "",
+                "size": 1,
+                "const": true,
+                "volatile": false,
+                "base_type": 2
+              }
+            }
+          },
+          {
+            "tag": 20,
+            "name": "",
+            "size": 0,
+            "const": false,
+            "volatile": false,
+            "target": {
+              "tag": 14,
+              "name": "",
+              "size": 8,
+              "const": false,
+              "volatile": false,
+              "reference": false,
+              "target": {
+                "tag": 16,
+                "name": "",
+                "size": 1,
+                "const": true,
+                "volatile": false,
+                "base_type": 2
+              }
+            }
+          },
+          {
+            "tag": 20,
+            "name": "",
+            "size": 0,
+            "const": false,
+            "volatile": false,
+            "target": {
+              "tag": 16,
+              "name": "",
+              "size": 4,
+              "const": false,
+              "volatile": false,
+              "base_type": 6
+            }
+          }
+        ]
+      },
+      "extent": 1902,
+      "section": ".text",
+      "abi_sha256": "232238af6a725ba55c22dd7fe0e92b420b1848a9a77fb752aa1138cb39dbb805",
+      "code_sha256": "70e036ec4ad82cf2ecd9a28f0cd09ecd9fbb323914d388200737f85ca4024556",
+      "entry_bytes": "4157415641554154565755534881ec18010000440f29b42400010000440f29ac"
+    },
+    "elf_init": {
+      "name": "VMManager::Internal::EntryPointCompilingOnCPUThread",
+      "tag": 5,
+      "rva": 2036816,
+      "size": 1383,
+      "location": 1,
+      "type": {
+        "tag": 13,
+        "name": "",
+        "size": 0,
+        "const": false,
+        "volatile": false,
+        "calling_convention": 0,
+        "return": {
+          "tag": 16,
+          "name": "",
+          "size": 0,
+          "const": false,
+          "volatile": false,
+          "base_type": 1
+        },
+        "arguments": []
+      },
+      "extent": 1383,
+      "section": ".text",
+      "abi_sha256": "d8b074587ef23a7c282151c45a655be3d5f7fbb02a829b80da083695d434716b",
+      "code_sha256": "74b0a6a4ac6c17a302c2aa8acc9cf3b4654a7d4d1a34a194bb9199aa2fe055d4",
+      "entry_bytes": "41574156415541545657534881ec900000000f29b42480000000803db241fe02"
+    },
+    "elf_loading": {
+      "name": "VMManager::Internal::ELFLoadingOnCPUThread",
+      "tag": 5,
+      "rva": 2035744,
+      "size": 466,
+      "location": 1,
+      "type": {
+        "tag": 13,
+        "name": "",
+        "size": 0,
+        "const": false,
+        "volatile": false,
+        "calling_convention": 0,
+        "return": {
+          "tag": 16,
+          "name": "",
+          "size": 0,
+          "const": false,
+          "volatile": false,
+          "base_type": 1
+        },
+        "arguments": [
+          {
+            "tag": 20,
+            "name": "",
+            "size": 0,
+            "const": false,
+            "volatile": false,
+            "target": {
+              "tag": 11,
+              "name": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+              "size": 32,
+              "const": false,
+              "volatile": false
+            }
+          }
+        ]
+      },
+      "extent": 466,
+      "section": ".text",
+      "abi_sha256": "8991338f28fe98eda758c71b850e1050003aed34325babaa4247eaa876fd1263",
+      "code_sha256": "8eff75bc01feee6c1143481309770d1e3f1dddec373ee8c2277e1bb9a0be6fe1",
+      "entry_bytes": "5657534881ecc00000004889ce8b1de145fe020f10010f1049100f298c24b000"
+    },
+    "shutdown": {
+      "name": "VMManager::Shutdown",
+      "tag": 5,
+      "rva": 2008960,
+      "size": 3144,
+      "location": 1,
+      "type": {
+        "tag": 13,
+        "name": "",
+        "size": 0,
+        "const": false,
+        "volatile": false,
+        "calling_convention": 0,
+        "return": {
+          "tag": 16,
+          "name": "",
+          "size": 0,
+          "const": false,
+          "volatile": false,
+          "base_type": 1
+        },
+        "arguments": [
+          {
+            "tag": 20,
+            "name": "",
+            "size": 0,
+            "const": false,
+            "volatile": false,
+            "target": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 10
+            }
+          }
+        ]
+      },
+      "extent": 3144,
+      "section": ".text",
+      "abi_sha256": "14243821942fb2d89e8ed79a1996b0cbf94d319eff92e3799378b96ef88ddfdc",
+      "code_sha256": "8535c3aeef97a98c2ec312e68d126da3dc5b60ad37d215138ab51624a3bf5eec",
+      "entry_bytes": "5657534881ec3001000089cbc705f2aefe0205000000803dfeaefe02017512b9"
+    },
+    "reset": {
+      "name": "VMManager::Reset",
+      "tag": 5,
+      "rva": 2016768,
+      "size": 2138,
+      "location": 1,
+      "type": {
+        "tag": 13,
+        "name": "",
+        "size": 0,
+        "const": false,
+        "volatile": false,
+        "calling_convention": 0,
+        "return": {
+          "tag": 16,
+          "name": "",
+          "size": 0,
+          "const": false,
+          "volatile": false,
+          "base_type": 1
+        },
+        "arguments": []
+      },
+      "extent": 2138,
+      "section": ".text",
+      "abi_sha256": "d8b074587ef23a7c282151c45a655be3d5f7fbb02a829b80da083695d434716b",
+      "code_sha256": "835de62c9a246f5f020ce109d54f7a51af71e5ba4efce178c3124317b034a123",
+      "entry_bytes": "4157415641554154565755534883ec780f297424608b0d6d90fe02b804000000"
+    },
+    "ei": {
+      "name": "R5900::Interpreter::OpcodeImpl::COP0::EI",
+      "tag": 5,
+      "rva": 130800,
+      "size": 66,
+      "location": 1,
+      "type": {
+        "tag": 13,
+        "name": "",
+        "size": 0,
+        "const": false,
+        "volatile": false,
+        "calling_convention": 0,
+        "return": {
+          "tag": 16,
+          "name": "",
+          "size": 0,
+          "const": false,
+          "volatile": false,
+          "base_type": 1
+        },
+        "arguments": []
+      },
+      "extent": 66,
+      "section": ".text",
+      "abi_sha256": "d8b074587ef23a7c282151c45a655be3d5f7fbb02a829b80da083695d434716b",
+      "code_sha256": "73e0e3127c3e29c2ffa2ad13c97ce63dbb794dc27b146a9d386359c10227aec2",
+      "entry_bytes": "8b05dadbe702a9060002000f94c1a8180f95c284d1752a0d000001008905bedb"
+    },
+    "syscall": {
+      "name": "R5900::Interpreter::OpcodeImpl::SYSCALL",
+      "tag": 5,
+      "rva": 1616864,
+      "size": 5309,
+      "location": 1,
+      "type": {
+        "tag": 13,
+        "name": "",
+        "size": 0,
+        "const": false,
+        "volatile": false,
+        "calling_convention": 0,
+        "return": {
+          "tag": 16,
+          "name": "",
+          "size": 0,
+          "const": false,
+          "volatile": false,
+          "base_type": 1
+        },
+        "arguments": []
+      },
+      "extent": 5309,
+      "section": ".text",
+      "abi_sha256": "d8b074587ef23a7c282151c45a655be3d5f7fbb02a829b80da083695d434716b",
+      "code_sha256": "79a7b41392569e8773dbe5de6cf8d629b7b02cb83f7f7912923b7710ffcfddd6",
+      "entry_bytes": "4157415641554154565755534881ecd8080000660f7fb424c00800008b05ae2c"
+    },
+    "rec_ei": {
+      "name": "R5900::Dynarec::OpcodeImpl::COP0::recEI",
+      "tag": 5,
+      "rva": 4319520,
+      "size": 216,
+      "location": 1,
+      "type": {
+        "tag": 13,
+        "name": "",
+        "size": 0,
+        "const": false,
+        "volatile": false,
+        "calling_convention": 0,
+        "return": {
+          "tag": 16,
+          "name": "",
+          "size": 0,
+          "const": false,
+          "volatile": false,
+          "base_type": 1
+        },
+        "arguments": []
+      },
+      "extent": 216,
+      "section": ".text",
+      "abi_sha256": "d8b074587ef23a7c282151c45a655be3d5f7fbb02a829b80da083695d434716b",
+      "code_sha256": "0e023292f36ed936c5e46d34bb2e535c17434149a4828dbb264262803c88986d",
+      "entry_bytes": "5657534883ec5048bb08000000ffffffff48895c242c48895c2434c744243c00"
+    },
+    "rec_syscall": {
+      "name": "R5900::Dynarec::OpcodeImpl::recSYSCALL",
+      "tag": 5,
+      "rva": 4663744,
+      "size": 119,
+      "location": 1,
+      "type": {
+        "tag": 13,
+        "name": "",
+        "size": 0,
+        "const": false,
+        "volatile": false,
+        "calling_convention": 0,
+        "return": {
+          "tag": 16,
+          "name": "",
+          "size": 0,
+          "const": false,
+          "volatile": false,
+          "base_type": 1
+        },
+        "arguments": []
+      },
+      "extent": 119,
+      "section": ".text",
+      "abi_sha256": "d8b074587ef23a7c282151c45a655be3d5f7fbb02a829b80da083695d434716b",
+      "code_sha256": "5e8ef484dc93b011a47911984da3c3925813b18d3ee803cc855bc2abd623e525",
+      "entry_bytes": "4883ec38f605217025030874200fb6053470250383f868740583f864750f8105"
+    },
+    "clear_cpu_caches": {
+      "name": "VMManager::Internal::ClearCPUExecutionCaches",
+      "tag": 5,
+      "rva": 2003312,
+      "size": 550,
+      "location": 1,
+      "type": {
+        "tag": 13,
+        "name": "",
+        "size": 0,
+        "const": false,
+        "volatile": false,
+        "calling_convention": 0,
+        "return": {
+          "tag": 16,
+          "name": "",
+          "size": 0,
+          "const": false,
+          "volatile": false,
+          "base_type": 1
+        },
+        "arguments": []
+      },
+      "extent": 550,
+      "section": ".text",
+      "abi_sha256": "d8b074587ef23a7c282151c45a655be3d5f7fbb02a829b80da083695d434716b",
+      "code_sha256": "945ec41348f56f1d1c053220eb0442c6fd484fcdc2b4d9736bb0930b7cfaaec9",
+      "entry_bytes": "41574156415541545657534883ec300f29742420488b05ed43cb02ff5010488b"
+    },
+    "reset_block_tracking": {
+      "name": "mmap_ResetBlockTracking",
+      "tag": 5,
+      "rva": 2099920,
+      "size": 95,
+      "location": 1,
+      "type": {
+        "tag": 13,
+        "name": "",
+        "size": 0,
+        "const": false,
+        "volatile": false,
+        "calling_convention": 0,
+        "return": {
+          "tag": 16,
+          "name": "",
+          "size": 0,
+          "const": false,
+          "volatile": false,
+          "base_type": 1
+        },
+        "arguments": []
+      },
+      "extent": 95,
+      "section": ".text",
+      "abi_sha256": "d8b074587ef23a7c282151c45a655be3d5f7fbb02a829b80da083695d434716b",
+      "code_sha256": "2b24c5250cf08397cac66b96bb8abf540ad0bd5304c4d3c0dc0c7adcf0928797",
+      "entry_bytes": "4883ec28488d0d554efd0241b80000040031d2e8d8f5a400488b0d1195490148"
+    },
+    "throttle": {
+      "name": "VMManager::Internal::Throttle",
+      "tag": 5,
+      "rva": 2029168,
+      "size": 329,
+      "location": 1,
+      "type": {
+        "tag": 13,
+        "name": "",
+        "size": 0,
+        "const": false,
+        "volatile": false,
+        "calling_convention": 0,
+        "return": {
+          "tag": 16,
+          "name": "",
+          "size": 0,
+          "const": false,
+          "volatile": false,
+          "base_type": 1
+        },
+        "arguments": [
+          {
+            "tag": 20,
+            "name": "",
+            "size": 0,
+            "const": false,
+            "volatile": false,
+            "target": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 10
+            }
+          }
+        ]
+      },
+      "extent": 329,
+      "section": ".text",
+      "abi_sha256": "14243821942fb2d89e8ed79a1996b0cbf94d319eff92e3799378b96ef88ddfdc",
+      "code_sha256": "bb309174c03db4dad3f9ee16ea8fe7ecaaaca18966f1059cf0b8bed8e262a0be",
+      "entry_bytes": "41565657534883ec28f30f10059b5ffe020f57c90f2ec175060f8b2001000080"
+    },
+    "save_state": {
+      "name": "SaveState_DownloadState",
+      "tag": 5,
+      "rva": 1629184,
+      "size": 1449,
+      "location": 1,
+      "type": {
+        "tag": 13,
+        "name": "",
+        "size": 0,
+        "const": false,
+        "volatile": false,
+        "calling_convention": 0,
+        "return": {
+          "tag": 11,
+          "name": "std::unique_ptr<ArchiveEntryList,std::default_delete<ArchiveEntryList> >",
+          "size": 8,
+          "const": false,
+          "volatile": false
+        },
+        "arguments": [
+          {
+            "tag": 20,
+            "name": "",
+            "size": 0,
+            "const": false,
+            "volatile": false,
+            "target": {
+              "tag": 14,
+              "name": "",
+              "size": 8,
+              "const": false,
+              "volatile": false,
+              "reference": false,
+              "target": {
+                "tag": 11,
+                "name": "Error",
+                "size": 40,
+                "const": false,
+                "volatile": false
+              }
+            }
+          }
+        ]
+      },
+      "extent": 1449,
+      "section": ".text",
+      "abi_sha256": "88e87853cd093c4f9437d99c3fb967b012ed5c581b6d049e8c730753928a87c9",
+      "code_sha256": "a5518e7821e680f4a68a6982cb36fe3103e7a52881d2ddaf8c1559983866c6ad",
+      "entry_bytes": "4157415641554154565755534881ec780100000f29b424600100004989d64889"
+    },
+    "load_state": {
+      "name": "SaveState_UnzipFromDisk",
+      "tag": 5,
+      "rva": 1633776,
+      "size": 3954,
+      "location": 1,
+      "type": {
+        "tag": 13,
+        "name": "",
+        "size": 0,
+        "const": false,
+        "volatile": false,
+        "calling_convention": 0,
+        "return": {
+          "tag": 16,
+          "name": "",
+          "size": 1,
+          "const": false,
+          "volatile": false,
+          "base_type": 10
+        },
+        "arguments": [
+          {
+            "tag": 20,
+            "name": "",
+            "size": 0,
+            "const": false,
+            "volatile": false,
+            "target": {
+              "tag": 14,
+              "name": "",
+              "size": 8,
+              "const": false,
+              "volatile": false,
+              "reference": true,
+              "target": {
+                "tag": 11,
+                "name": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+                "size": 32,
+                "const": true,
+                "volatile": false
+              }
+            }
+          },
+          {
+            "tag": 20,
+            "name": "",
+            "size": 0,
+            "const": false,
+            "volatile": false,
+            "target": {
+              "tag": 14,
+              "name": "",
+              "size": 8,
+              "const": false,
+              "volatile": false,
+              "reference": false,
+              "target": {
+                "tag": 11,
+                "name": "Error",
+                "size": 40,
+                "const": false,
+                "volatile": false
+              }
+            }
+          }
+        ]
+      },
+      "extent": 3954,
+      "section": ".text",
+      "abi_sha256": "1febe2f7e4865a1ab1e9dec3cf01d7253c8c0d73a1b957b7acdc7a15cf1f2dd2",
+      "code_sha256": "9e31e2e81f46488c02470c271668874c3f4ca37a2e9e54906901db4949548d47",
+      "entry_bytes": "4157415641554154565755534881ecc80100004889d74889cb660fefc0660f7f"
+    },
+    "ee_memory": {
+      "name": "EEmem",
+      "tag": 7,
+      "rva": 23631208,
+      "size": 0,
+      "location": 1,
+      "type": {
+        "tag": 16,
+        "name": "",
+        "size": 8,
+        "const": false,
+        "volatile": false,
+        "base_type": 7
+      },
+      "extent": 8,
+      "section": ".data",
+      "abi_sha256": "f26afcc3cba3cd60f26f5992022aa098e20afc44eedd138f4b880fcc17f2d759"
+    },
+    "exposed_ram": {
+      "name": "Ps2MemSize::ExposedRam",
+      "tag": 7,
+      "rva": 14948076,
+      "size": 0,
+      "location": 1,
+      "type": {
+        "tag": 16,
+        "name": "",
+        "size": 4,
+        "const": false,
+        "volatile": false,
+        "base_type": 7
+      },
+      "extent": 4,
+      "section": ".data",
+      "abi_sha256": "1a3c8fa9381323eba32b7b4406ceb454359e635151608d48719b5a757460392d"
+    },
+    "registers": {
+      "name": "_cpuRegistersPack",
+      "tag": 7,
+      "rva": 48879744,
+      "size": 0,
+      "location": 1,
+      "type": {
+        "tag": 11,
+        "name": "cpuRegistersPack",
+        "size": 1440,
+        "const": false,
+        "volatile": false
+      },
+      "extent": 1440,
+      "section": ".data",
+      "abi_sha256": "5ae6b305a2ea38fa65269eaa26828a2ce2a3a7e9401eaf7bbcc4dcaf7162163e"
+    },
+    "vm_state": {
+      "name": "s_state",
+      "tag": 7,
+      "rva": 52254344,
+      "size": 0,
+      "location": 1,
+      "type": {
+        "tag": 11,
+        "name": "std::atomic<VMState>",
+        "size": 4,
+        "const": false,
+        "volatile": false
+      },
+      "extent": 4,
+      "section": ".data",
+      "abi_sha256": "a151c37049b87d7a19004c371f42e49482d9c5b0b8d873482d60cfa5fa16d5b5"
+    },
+    "disc_serial": {
+      "name": "s_disc_serial",
+      "tag": 7,
+      "rva": 14956136,
+      "size": 0,
+      "location": 1,
+      "type": {
+        "tag": 11,
+        "name": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+        "size": 32,
+        "const": false,
+        "volatile": false
+      },
+      "extent": 32,
+      "section": ".data",
+      "abi_sha256": "06cfb4dc5ad581ceb02d6a56446773a8d293a6c45b12aff9e921fdcf97d98a49"
+    },
+    "disc_elf": {
+      "name": "s_disc_elf",
+      "tag": 7,
+      "rva": 14956168,
+      "size": 0,
+      "location": 1,
+      "type": {
+        "tag": 11,
+        "name": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+        "size": 32,
+        "const": false,
+        "volatile": false
+      },
+      "extent": 32,
+      "section": ".data",
+      "abi_sha256": "06cfb4dc5ad581ceb02d6a56446773a8d293a6c45b12aff9e921fdcf97d98a49"
+    },
+    "disc_version": {
+      "name": "s_disc_version",
+      "tag": 7,
+      "rva": 14956200,
+      "size": 0,
+      "location": 1,
+      "type": {
+        "tag": 11,
+        "name": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+        "size": 32,
+        "const": false,
+        "volatile": false
+      },
+      "extent": 32,
+      "section": ".data",
+      "abi_sha256": "06cfb4dc5ad581ceb02d6a56446773a8d293a6c45b12aff9e921fdcf97d98a49"
+    },
+    "title": {
+      "name": "s_title",
+      "tag": 7,
+      "rva": 14956232,
+      "size": 0,
+      "location": 1,
+      "type": {
+        "tag": 11,
+        "name": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+        "size": 32,
+        "const": false,
+        "volatile": false
+      },
+      "extent": 32,
+      "section": ".data",
+      "abi_sha256": "06cfb4dc5ad581ceb02d6a56446773a8d293a6c45b12aff9e921fdcf97d98a49"
+    },
+    "disc_crc": {
+      "name": "s_disc_crc",
+      "tag": 7,
+      "rva": 52254224,
+      "size": 0,
+      "location": 1,
+      "type": {
+        "tag": 16,
+        "name": "",
+        "size": 4,
+        "const": false,
+        "volatile": false,
+        "base_type": 7
+      },
+      "extent": 4,
+      "section": ".data",
+      "abi_sha256": "1a3c8fa9381323eba32b7b4406ceb454359e635151608d48719b5a757460392d"
+    },
+    "current_crc": {
+      "name": "s_current_crc",
+      "tag": 7,
+      "rva": 52254228,
+      "size": 0,
+      "location": 1,
+      "type": {
+        "tag": 16,
+        "name": "",
+        "size": 4,
+        "const": false,
+        "volatile": false,
+        "base_type": 7
+      },
+      "extent": 4,
+      "section": ".data",
+      "abi_sha256": "1a3c8fa9381323eba32b7b4406ceb454359e635151608d48719b5a757460392d"
+    },
+    "elf_entry": {
+      "name": "s_elf_entry_point",
+      "tag": 7,
+      "rva": 14956488,
+      "size": 0,
+      "location": 1,
+      "type": {
+        "tag": 16,
+        "name": "",
+        "size": 4,
+        "const": false,
+        "volatile": false,
+        "base_type": 7
+      },
+      "extent": 4,
+      "section": ".data",
+      "abi_sha256": "1a3c8fa9381323eba32b7b4406ceb454359e635151608d48719b5a757460392d"
+    },
+    "elf_path": {
+      "name": "s_elf_path",
+      "tag": 7,
+      "rva": 14956360,
+      "size": 0,
+      "location": 1,
+      "type": {
+        "tag": 11,
+        "name": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+        "size": 32,
+        "const": false,
+        "volatile": false
+      },
+      "extent": 32,
+      "section": ".data",
+      "abi_sha256": "06cfb4dc5ad581ceb02d6a56446773a8d293a6c45b12aff9e921fdcf97d98a49"
+    },
+    "elf_executed": {
+      "name": "s_elf_executed",
+      "tag": 7,
+      "rva": 52254243,
+      "size": 0,
+      "location": 1,
+      "type": {
+        "tag": 16,
+        "name": "",
+        "size": 1,
+        "const": false,
+        "volatile": false,
+        "base_type": 10
+      },
+      "extent": 1,
+      "section": ".data",
+      "abi_sha256": "94db95bba31fb994b6777e27099d6b5a928b23646576f247945845ac5ca99c2b"
+    },
+    "config": {
+      "name": "EmuConfig",
+      "tag": 7,
+      "rva": 48874920,
+      "size": 0,
+      "location": 1,
+      "type": {
+        "tag": 11,
+        "name": "Pcsx2Config",
+        "size": 1720,
+        "const": false,
+        "volatile": false
+      },
+      "extent": 1720,
+      "section": ".data",
+      "abi_sha256": "ddd85f9203231b41e4471b987655aeb830298210be20919eca651ea46ddfb020"
+    },
+    "gs_device": {
+      "name": "g_gs_device",
+      "tag": 7,
+      "rva": 55772984,
+      "size": 0,
+      "location": 1,
+      "type": {
+        "tag": 11,
+        "name": "std::unique_ptr<GSDevice,std::default_delete<GSDevice> >",
+        "size": 8,
+        "const": false,
+        "volatile": false
+      },
+      "extent": 8,
+      "section": ".data",
+      "abi_sha256": "123551d76ba92b20bd7fb969945fe9258a5c1c3a1f2429d336b9d1785e3583fd"
+    },
+    "emu_thread": {
+      "name": "g_emu_thread",
+      "tag": 7,
+      "rva": 221710224,
+      "size": 0,
+      "location": 1,
+      "type": {
+        "tag": 14,
+        "name": "",
+        "size": 8,
+        "const": false,
+        "volatile": false,
+        "reference": false,
+        "target": {
+          "tag": 11,
+          "name": "EmuThread",
+          "size": 96,
+          "const": false,
+          "volatile": false
+        }
+      },
+      "extent": 8,
+      "section": ".data",
+      "abi_sha256": "5bcd868b747eaa5a57378983d15b6546fc33b615439ef53eed93d94a5019d7e1"
+    }
+  },
+  "layouts": {
+    "GSDevice": {
+      "name": "GSDevice",
+      "tag": 11,
+      "size": 264,
+      "type": {
+        "tag": 11,
+        "name": "GSDevice",
+        "size": 264,
+        "const": false,
+        "volatile": false
+      },
+      "members": [
+        {
+          "name": "m_name",
+          "offset": 8,
+          "type": {
+            "tag": 11,
+            "name": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+            "size": 32,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "m_features",
+          "offset": 40,
+          "type": {
+            "tag": 11,
+            "name": "GSDevice::FeatureSupport",
+            "size": 3,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "m_max_texture_size",
+          "offset": 44,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "m_vertex",
+          "offset": 48,
+          "type": {
+            "tag": 11,
+            "name": "GSDevice::<unnamed-type-m_vertex>",
+            "size": 8,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "m_index",
+          "offset": 56,
+          "type": {
+            "tag": 11,
+            "name": "GSDevice::<unnamed-type-m_index>",
+            "size": 8,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "m_frame",
+          "offset": 64,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "m_pool",
+          "offset": 72,
+          "type": {
+            "tag": 11,
+            "name": "std::array<FastList<GSTexture *>,2>",
+            "size": 48,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "m_pool_memory_usage",
+          "offset": 120,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 8,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "m_window_info",
+          "offset": 128,
+          "type": {
+            "tag": 11,
+            "name": "WindowInfo",
+            "size": 48,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "m_vsync_mode",
+          "offset": 176,
+          "type": {
+            "tag": 12,
+            "name": "GSVSyncMode",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "underlying": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            },
+            "values": [
+              {
+                "name": "Disabled",
+                "value": "0"
+              },
+              {
+                "name": "FIFO",
+                "value": "1"
+              },
+              {
+                "name": "Mailbox",
+                "value": "2"
+              },
+              {
+                "name": "Count",
+                "value": "3"
+              }
+            ]
+          }
+        },
+        {
+          "name": "m_allow_present_throttle",
+          "offset": 177,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          }
+        },
+        {
+          "name": "m_last_frame_displayed_time",
+          "offset": 184,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 8,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "m_merge",
+          "offset": 192,
+          "type": {
+            "tag": 14,
+            "name": "",
+            "size": 8,
+            "const": false,
+            "volatile": false,
+            "reference": false,
+            "target": {
+              "tag": 11,
+              "name": "GSTexture",
+              "size": 40,
+              "const": false,
+              "volatile": false
+            }
+          }
+        },
+        {
+          "name": "m_weavebob",
+          "offset": 200,
+          "type": {
+            "tag": 14,
+            "name": "",
+            "size": 8,
+            "const": false,
+            "volatile": false,
+            "reference": false,
+            "target": {
+              "tag": 11,
+              "name": "GSTexture",
+              "size": 40,
+              "const": false,
+              "volatile": false
+            }
+          }
+        },
+        {
+          "name": "m_blend",
+          "offset": 208,
+          "type": {
+            "tag": 14,
+            "name": "",
+            "size": 8,
+            "const": false,
+            "volatile": false,
+            "reference": false,
+            "target": {
+              "tag": 11,
+              "name": "GSTexture",
+              "size": 40,
+              "const": false,
+              "volatile": false
+            }
+          }
+        },
+        {
+          "name": "m_mad",
+          "offset": 216,
+          "type": {
+            "tag": 14,
+            "name": "",
+            "size": 8,
+            "const": false,
+            "volatile": false,
+            "reference": false,
+            "target": {
+              "tag": 11,
+              "name": "GSTexture",
+              "size": 40,
+              "const": false,
+              "volatile": false
+            }
+          }
+        },
+        {
+          "name": "m_target_tmp",
+          "offset": 224,
+          "type": {
+            "tag": 14,
+            "name": "",
+            "size": 8,
+            "const": false,
+            "volatile": false,
+            "reference": false,
+            "target": {
+              "tag": 11,
+              "name": "GSTexture",
+              "size": 40,
+              "const": false,
+              "volatile": false
+            }
+          }
+        },
+        {
+          "name": "m_current",
+          "offset": 232,
+          "type": {
+            "tag": 14,
+            "name": "",
+            "size": 8,
+            "const": false,
+            "volatile": false,
+            "reference": false,
+            "target": {
+              "tag": 11,
+              "name": "GSTexture",
+              "size": 40,
+              "const": false,
+              "volatile": false
+            }
+          }
+        },
+        {
+          "name": "m_cas",
+          "offset": 240,
+          "type": {
+            "tag": 14,
+            "name": "",
+            "size": 8,
+            "const": false,
+            "volatile": false,
+            "reference": false,
+            "target": {
+              "tag": 11,
+              "name": "GSTexture",
+              "size": 40,
+              "const": false,
+              "volatile": false
+            }
+          }
+        },
+        {
+          "name": "m_colclip_rt",
+          "offset": 248,
+          "type": {
+            "tag": 14,
+            "name": "",
+            "size": 8,
+            "const": false,
+            "volatile": false,
+            "reference": false,
+            "target": {
+              "tag": 11,
+              "name": "GSTexture",
+              "size": 40,
+              "const": false,
+              "volatile": false
+            }
+          }
+        },
+        {
+          "name": "m_ds_as_rt",
+          "offset": 256,
+          "type": {
+            "tag": 14,
+            "name": "",
+            "size": 8,
+            "const": false,
+            "volatile": false,
+            "reference": false,
+            "target": {
+              "tag": 11,
+              "name": "GSTexture",
+              "size": 40,
+              "const": false,
+              "volatile": false
+            }
+          }
+        }
+      ],
+      "abi_sha256": "5c0869dedd17c75f9863f7668df23cad1a0d22ba02ad2f612cc9f45ef3e46f48"
+    },
+    "WindowInfo": {
+      "name": "WindowInfo",
+      "tag": 11,
+      "size": 48,
+      "type": {
+        "tag": 11,
+        "name": "WindowInfo",
+        "size": 48,
+        "const": false,
+        "volatile": false
+      },
+      "members": [
+        {
+          "name": "type",
+          "offset": 0,
+          "type": {
+            "tag": 12,
+            "name": "WindowInfo::Type",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "underlying": {
+              "tag": 16,
+              "name": "",
+              "size": 4,
+              "const": false,
+              "volatile": false,
+              "base_type": 6
+            },
+            "values": [
+              {
+                "name": "Surfaceless",
+                "value": "0"
+              },
+              {
+                "name": "Win32",
+                "value": "1"
+              },
+              {
+                "name": "X11",
+                "value": "2"
+              },
+              {
+                "name": "Wayland",
+                "value": "3"
+              },
+              {
+                "name": "MacOS",
+                "value": "4"
+              }
+            ]
+          }
+        },
+        {
+          "name": "display_connection",
+          "offset": 8,
+          "type": {
+            "tag": 14,
+            "name": "",
+            "size": 8,
+            "const": false,
+            "volatile": false,
+            "reference": false,
+            "target": {
+              "tag": 16,
+              "name": "",
+              "size": 0,
+              "const": false,
+              "volatile": false,
+              "base_type": 1
+            }
+          }
+        },
+        {
+          "name": "window_handle",
+          "offset": 16,
+          "type": {
+            "tag": 14,
+            "name": "",
+            "size": 8,
+            "const": false,
+            "volatile": false,
+            "reference": false,
+            "target": {
+              "tag": 16,
+              "name": "",
+              "size": 0,
+              "const": false,
+              "volatile": false,
+              "base_type": 1
+            }
+          }
+        },
+        {
+          "name": "surface_handle",
+          "offset": 24,
+          "type": {
+            "tag": 14,
+            "name": "",
+            "size": 8,
+            "const": false,
+            "volatile": false,
+            "reference": false,
+            "target": {
+              "tag": 16,
+              "name": "",
+              "size": 0,
+              "const": false,
+              "volatile": false,
+              "base_type": 1
+            }
+          }
+        },
+        {
+          "name": "surface_width",
+          "offset": 32,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "surface_height",
+          "offset": 36,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "surface_scale",
+          "offset": 40,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 8
+          }
+        },
+        {
+          "name": "surface_refresh_rate",
+          "offset": 44,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 8
+          }
+        }
+      ],
+      "abi_sha256": "2ec10a0155b30b6074696cf960e2514955239945acd316b04fd9ecdb9992111a"
+    },
+    "EmuThread": {
+      "name": "EmuThread",
+      "tag": 11,
+      "size": 96,
+      "type": {
+        "tag": 11,
+        "name": "EmuThread",
+        "size": 96,
+        "const": false,
+        "volatile": false
+      },
+      "members": [
+        {
+          "name": "m_ui_thread",
+          "offset": 16,
+          "type": {
+            "tag": 14,
+            "name": "",
+            "size": 8,
+            "const": false,
+            "volatile": false,
+            "reference": false,
+            "target": {
+              "tag": 11,
+              "name": "QThread",
+              "size": 16,
+              "const": false,
+              "volatile": false
+            }
+          }
+        },
+        {
+          "name": "m_started_semaphore",
+          "offset": 24,
+          "type": {
+            "tag": 11,
+            "name": "QSemaphore",
+            "size": 8,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "m_event_loop",
+          "offset": 32,
+          "type": {
+            "tag": 14,
+            "name": "",
+            "size": 8,
+            "const": false,
+            "volatile": false,
+            "reference": false,
+            "target": {
+              "tag": 11,
+              "name": "QEventLoop",
+              "size": 16,
+              "const": false,
+              "volatile": false
+            }
+          }
+        },
+        {
+          "name": "m_background_controller_polling_timer",
+          "offset": 40,
+          "type": {
+            "tag": 14,
+            "name": "",
+            "size": 8,
+            "const": false,
+            "volatile": false,
+            "reference": false,
+            "target": {
+              "tag": 11,
+              "name": "QTimer",
+              "size": 16,
+              "const": false,
+              "volatile": false
+            }
+          }
+        },
+        {
+          "name": "m_shutdown_flag",
+          "offset": 48,
+          "type": {
+            "tag": 11,
+            "name": "std::atomic<bool>",
+            "size": 1,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "m_run_fullscreen_ui",
+          "offset": 49,
+          "type": {
+            "tag": 11,
+            "name": "std::atomic<bool>",
+            "size": 1,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "m_verbose_status",
+          "offset": 50,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          }
+        },
+        {
+          "name": "m_is_rendering_to_main",
+          "offset": 51,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          }
+        },
+        {
+          "name": "m_is_fullscreen",
+          "offset": 52,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          }
+        },
+        {
+          "name": "m_is_exclusive_fullscreen",
+          "offset": 53,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          }
+        },
+        {
+          "name": "m_is_surfaceless",
+          "offset": 54,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          }
+        },
+        {
+          "name": "m_save_state_on_shutdown",
+          "offset": 55,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          }
+        },
+        {
+          "name": "m_pause_on_focus_loss",
+          "offset": 56,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          }
+        },
+        {
+          "name": "m_was_paused_by_focus_loss",
+          "offset": 57,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          }
+        },
+        {
+          "name": "m_last_speed",
+          "offset": 60,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 8
+          }
+        },
+        {
+          "name": "m_last_gpu_usage",
+          "offset": 64,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 8
+          }
+        },
+        {
+          "name": "m_last_game_fps",
+          "offset": 68,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 8
+          }
+        },
+        {
+          "name": "m_last_video_fps",
+          "offset": 72,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 8
+          }
+        },
+        {
+          "name": "m_last_internal_width",
+          "offset": 76,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "m_last_internal_height",
+          "offset": 80,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "m_last_upscale",
+          "offset": 84,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 8
+          }
+        },
+        {
+          "name": "m_last_volume",
+          "offset": 88,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "m_last_muted",
+          "offset": 92,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          }
+        },
+        {
+          "name": "m_last_renderer",
+          "offset": 93,
+          "type": {
+            "tag": 12,
+            "name": "GSRendererType",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "underlying": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 6
+            },
+            "values": [
+              {
+                "name": "Auto",
+                "value": "255"
+              },
+              {
+                "name": "DX11",
+                "value": "3"
+              },
+              {
+                "name": "Null",
+                "value": "11"
+              },
+              {
+                "name": "OGL",
+                "value": "12"
+              },
+              {
+                "name": "SW",
+                "value": "13"
+              },
+              {
+                "name": "VK",
+                "value": "14"
+              },
+              {
+                "name": "Metal",
+                "value": "17"
+              },
+              {
+                "name": "DX12",
+                "value": "15"
+              }
+            ]
+          }
+        },
+        {
+          "name": "m_last_limiter_mode",
+          "offset": 94,
+          "type": {
+            "tag": 12,
+            "name": "LimiterModeType",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "underlying": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            },
+            "values": [
+              {
+                "name": "Nominal",
+                "value": "0"
+              },
+              {
+                "name": "Turbo",
+                "value": "1"
+              },
+              {
+                "name": "Slomo",
+                "value": "2"
+              },
+              {
+                "name": "Unlimited",
+                "value": "3"
+              }
+            ]
+          }
+        }
+      ],
+      "abi_sha256": "c1532c390a75dcf2cefc9bbbc9e8c24616bc80535b8d202f4ee2eb4b731aeba8"
+    },
+    "cpuRegistersPack": {
+      "name": "cpuRegistersPack",
+      "tag": 11,
+      "size": 1440,
+      "type": {
+        "tag": 11,
+        "name": "cpuRegistersPack",
+        "size": 1440,
+        "const": false,
+        "volatile": false
+      },
+      "members": [
+        {
+          "name": "cpuRegs",
+          "offset": 0,
+          "type": {
+            "tag": 11,
+            "name": "cpuRegisters",
+            "size": 1160,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "fpuRegs",
+          "offset": 1168,
+          "type": {
+            "tag": 11,
+            "name": "fpuRegisters",
+            "size": 264,
+            "const": false,
+            "volatile": false
+          }
+        }
+      ],
+      "abi_sha256": "4d1aaf42e420b7e5ab199085bed440b1f5a4f53a22fe2afc2159880f8d9e82dd"
+    },
+    "cpuRegisters": {
+      "name": "cpuRegisters",
+      "tag": 11,
+      "size": 1160,
+      "type": {
+        "tag": 11,
+        "name": "cpuRegisters",
+        "size": 1160,
+        "const": false,
+        "volatile": false
+      },
+      "members": [
+        {
+          "name": "GPR",
+          "offset": 0,
+          "type": {
+            "tag": 11,
+            "name": "GPRregs",
+            "size": 512,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "HI",
+          "offset": 512,
+          "type": {
+            "tag": 11,
+            "name": "GPR_reg",
+            "size": 16,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "LO",
+          "offset": 528,
+          "type": {
+            "tag": 11,
+            "name": "GPR_reg",
+            "size": 16,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "CP0",
+          "offset": 544,
+          "type": {
+            "tag": 11,
+            "name": "CP0regs",
+            "size": 128,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "sa",
+          "offset": 672,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "IsDelaySlot",
+          "offset": 676,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "pc",
+          "offset": 680,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "code",
+          "offset": 684,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "PERF",
+          "offset": 688,
+          "type": {
+            "tag": 11,
+            "name": "PERFregs",
+            "size": 16,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "eCycle",
+          "offset": 704,
+          "type": {
+            "tag": 15,
+            "name": "",
+            "size": 128,
+            "const": false,
+            "volatile": false,
+            "count": 32,
+            "target": {
+              "tag": 16,
+              "name": "",
+              "size": 4,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            }
+          }
+        },
+        {
+          "name": "sCycle",
+          "offset": 832,
+          "type": {
+            "tag": 15,
+            "name": "",
+            "size": 256,
+            "const": false,
+            "volatile": false,
+            "count": 32,
+            "target": {
+              "tag": 16,
+              "name": "",
+              "size": 8,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            }
+          }
+        },
+        {
+          "name": "cycle",
+          "offset": 1088,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 8,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "interrupt",
+          "offset": 1096,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "branch",
+          "offset": 1100,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "opmode",
+          "offset": 1104,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "tempcycles",
+          "offset": 1108,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "dmastall",
+          "offset": 1112,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "pcWriteback",
+          "offset": 1116,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "nextEventCycle",
+          "offset": 1120,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 8,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "lastEventCycle",
+          "offset": 1128,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 8,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "lastCOP0Cycle",
+          "offset": 1136,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 8,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "lastPERFCycle",
+          "offset": 1144,
+          "type": {
+            "tag": 15,
+            "name": "",
+            "size": 16,
+            "const": false,
+            "volatile": false,
+            "count": 2,
+            "target": {
+              "tag": 16,
+              "name": "",
+              "size": 8,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            }
+          }
+        }
+      ],
+      "abi_sha256": "3f309c7dc09c6a9561cf002221682de1eee33020e4d112802c3f59dd538843a0"
+    },
+    "GPRregs": {
+      "name": "GPRregs",
+      "tag": 11,
+      "size": 512,
+      "type": {
+        "tag": 11,
+        "name": "GPRregs",
+        "size": 512,
+        "const": false,
+        "volatile": false
+      },
+      "members": [
+        {
+          "name": "n",
+          "offset": 0,
+          "type": {
+            "tag": 11,
+            "name": "GPRregs::<unnamed-type-n>",
+            "size": 512,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "r",
+          "offset": 0,
+          "type": {
+            "tag": 15,
+            "name": "",
+            "size": 512,
+            "const": false,
+            "volatile": false,
+            "count": 32,
+            "target": {
+              "tag": 11,
+              "name": "GPR_reg",
+              "size": 16,
+              "const": false,
+              "volatile": false
+            }
+          }
+        }
+      ],
+      "abi_sha256": "75efa7fd75d6335e9538db8c29ed0c01331eb50b29874ea411866373f135ab75"
+    },
+    "GPR_reg": {
+      "name": "GPR_reg",
+      "tag": 11,
+      "size": 16,
+      "type": {
+        "tag": 11,
+        "name": "GPR_reg",
+        "size": 16,
+        "const": false,
+        "volatile": false
+      },
+      "members": [
+        {
+          "name": "UQ",
+          "offset": 0,
+          "type": {
+            "tag": 11,
+            "name": "u128",
+            "size": 16,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "SQ",
+          "offset": 0,
+          "type": {
+            "tag": 11,
+            "name": "s128",
+            "size": 16,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "UD",
+          "offset": 0,
+          "type": {
+            "tag": 15,
+            "name": "",
+            "size": 16,
+            "const": false,
+            "volatile": false,
+            "count": 2,
+            "target": {
+              "tag": 16,
+              "name": "",
+              "size": 8,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            }
+          }
+        },
+        {
+          "name": "SD",
+          "offset": 0,
+          "type": {
+            "tag": 15,
+            "name": "",
+            "size": 16,
+            "const": false,
+            "volatile": false,
+            "count": 2,
+            "target": {
+              "tag": 16,
+              "name": "",
+              "size": 8,
+              "const": false,
+              "volatile": false,
+              "base_type": 6
+            }
+          }
+        },
+        {
+          "name": "UL",
+          "offset": 0,
+          "type": {
+            "tag": 15,
+            "name": "",
+            "size": 16,
+            "const": false,
+            "volatile": false,
+            "count": 4,
+            "target": {
+              "tag": 16,
+              "name": "",
+              "size": 4,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            }
+          }
+        },
+        {
+          "name": "SL",
+          "offset": 0,
+          "type": {
+            "tag": 15,
+            "name": "",
+            "size": 16,
+            "const": false,
+            "volatile": false,
+            "count": 4,
+            "target": {
+              "tag": 16,
+              "name": "",
+              "size": 4,
+              "const": false,
+              "volatile": false,
+              "base_type": 6
+            }
+          }
+        },
+        {
+          "name": "US",
+          "offset": 0,
+          "type": {
+            "tag": 15,
+            "name": "",
+            "size": 16,
+            "const": false,
+            "volatile": false,
+            "count": 8,
+            "target": {
+              "tag": 16,
+              "name": "",
+              "size": 2,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            }
+          }
+        },
+        {
+          "name": "SS",
+          "offset": 0,
+          "type": {
+            "tag": 15,
+            "name": "",
+            "size": 16,
+            "const": false,
+            "volatile": false,
+            "count": 8,
+            "target": {
+              "tag": 16,
+              "name": "",
+              "size": 2,
+              "const": false,
+              "volatile": false,
+              "base_type": 6
+            }
+          }
+        },
+        {
+          "name": "UC",
+          "offset": 0,
+          "type": {
+            "tag": 15,
+            "name": "",
+            "size": 16,
+            "const": false,
+            "volatile": false,
+            "count": 16,
+            "target": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            }
+          }
+        },
+        {
+          "name": "SC",
+          "offset": 0,
+          "type": {
+            "tag": 15,
+            "name": "",
+            "size": 16,
+            "const": false,
+            "volatile": false,
+            "count": 16,
+            "target": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 6
+            }
+          }
+        }
+      ],
+      "abi_sha256": "8e180dbd16ae147b217451c60d99a49dda8dd6cc0eb5f5a45e8e4ddea0121e2c"
+    },
+    "fpuRegisters": {
+      "name": "fpuRegisters",
+      "tag": 11,
+      "size": 264,
+      "type": {
+        "tag": 11,
+        "name": "fpuRegisters",
+        "size": 264,
+        "const": false,
+        "volatile": false
+      },
+      "members": [
+        {
+          "name": "fpr",
+          "offset": 0,
+          "type": {
+            "tag": 15,
+            "name": "",
+            "size": 128,
+            "const": false,
+            "volatile": false,
+            "count": 32,
+            "target": {
+              "tag": 11,
+              "name": "FPRreg",
+              "size": 4,
+              "const": false,
+              "volatile": false
+            }
+          }
+        },
+        {
+          "name": "fprc",
+          "offset": 128,
+          "type": {
+            "tag": 15,
+            "name": "",
+            "size": 128,
+            "const": false,
+            "volatile": false,
+            "count": 32,
+            "target": {
+              "tag": 16,
+              "name": "",
+              "size": 4,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            }
+          }
+        },
+        {
+          "name": "ACC",
+          "offset": 256,
+          "type": {
+            "tag": 11,
+            "name": "FPRreg",
+            "size": 4,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "ACCflag",
+          "offset": 260,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        }
+      ],
+      "abi_sha256": "5e58e286aba9aaf5905cc959537821ed71ddcba4ab662a937967fa00504bde86"
+    },
+    "CP0regs": {
+      "name": "CP0regs",
+      "tag": 11,
+      "size": 128,
+      "type": {
+        "tag": 11,
+        "name": "CP0regs",
+        "size": 128,
+        "const": false,
+        "volatile": false
+      },
+      "members": [
+        {
+          "name": "n",
+          "offset": 0,
+          "type": {
+            "tag": 11,
+            "name": "CP0regs::<unnamed-type-n>",
+            "size": 128,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "r",
+          "offset": 0,
+          "type": {
+            "tag": 15,
+            "name": "",
+            "size": 128,
+            "const": false,
+            "volatile": false,
+            "count": 32,
+            "target": {
+              "tag": 16,
+              "name": "",
+              "size": 4,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            }
+          }
+        }
+      ],
+      "abi_sha256": "b7edc534f5b6cb4acadb278916ea6b3d6432838c13efe582630304cd15c04659"
+    },
+    "Pcsx2Config": {
+      "name": "Pcsx2Config",
+      "tag": 11,
+      "size": 1720,
+      "type": {
+        "tag": 11,
+        "name": "Pcsx2Config",
+        "size": 1720,
+        "const": false,
+        "volatile": false
+      },
+      "members": [
+        {
+          "name": "bitset",
+          "offset": 0,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "CdvdVerboseReads",
+          "offset": 0,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 0,
+          "bit_size": 1
+        },
+        {
+          "name": "CdvdDumpBlocks",
+          "offset": 0,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 1,
+          "bit_size": 1
+        },
+        {
+          "name": "CdvdPrecache",
+          "offset": 0,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 2,
+          "bit_size": 1
+        },
+        {
+          "name": "EnablePatches",
+          "offset": 0,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 3,
+          "bit_size": 1
+        },
+        {
+          "name": "EnableCheats",
+          "offset": 0,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 4,
+          "bit_size": 1
+        },
+        {
+          "name": "EnablePINE",
+          "offset": 0,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 5,
+          "bit_size": 1
+        },
+        {
+          "name": "EnableWideScreenPatches",
+          "offset": 0,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 6,
+          "bit_size": 1
+        },
+        {
+          "name": "EnableNoInterlacingPatches",
+          "offset": 0,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 7,
+          "bit_size": 1
+        },
+        {
+          "name": "EnableFastBoot",
+          "offset": 1,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 0,
+          "bit_size": 1
+        },
+        {
+          "name": "EnableFastBootFastForward",
+          "offset": 1,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 1,
+          "bit_size": 1
+        },
+        {
+          "name": "EnableThreadPinning",
+          "offset": 1,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 2,
+          "bit_size": 1
+        },
+        {
+          "name": "EnableRecordingTools",
+          "offset": 1,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 3,
+          "bit_size": 1
+        },
+        {
+          "name": "EnableGameFixes",
+          "offset": 1,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 4,
+          "bit_size": 1
+        },
+        {
+          "name": "SaveStateOnShutdown",
+          "offset": 1,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 5,
+          "bit_size": 1
+        },
+        {
+          "name": "EnableDiscordPresence",
+          "offset": 1,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 6,
+          "bit_size": 1
+        },
+        {
+          "name": "UseSavestateSelector",
+          "offset": 1,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 7,
+          "bit_size": 1
+        },
+        {
+          "name": "InhibitScreensaver",
+          "offset": 2,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 0,
+          "bit_size": 1
+        },
+        {
+          "name": "BackupSavestate",
+          "offset": 2,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 1,
+          "bit_size": 1
+        },
+        {
+          "name": "ManuallySetRealTimeClock",
+          "offset": 2,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 2,
+          "bit_size": 1
+        },
+        {
+          "name": "UseSystemLocaleFormat",
+          "offset": 2,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 3,
+          "bit_size": 1
+        },
+        {
+          "name": "HostFs",
+          "offset": 2,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 4,
+          "bit_size": 1
+        },
+        {
+          "name": "WarnAboutUnsafeSettings",
+          "offset": 2,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 5,
+          "bit_size": 1
+        },
+        {
+          "name": "Cpu",
+          "offset": 4,
+          "type": {
+            "tag": 11,
+            "name": "Pcsx2Config::CpuOptions",
+            "size": 24,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "GS",
+          "offset": 32,
+          "type": {
+            "tag": 11,
+            "name": "Pcsx2Config::GSOptions",
+            "size": 512,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "Speedhacks",
+          "offset": 544,
+          "type": {
+            "tag": 11,
+            "name": "Pcsx2Config::SpeedhackOptions",
+            "size": 8,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "Gamefixes",
+          "offset": 552,
+          "type": {
+            "tag": 11,
+            "name": "Pcsx2Config::GamefixOptions",
+            "size": 4,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "Profiler",
+          "offset": 556,
+          "type": {
+            "tag": 11,
+            "name": "Pcsx2Config::ProfilerOptions",
+            "size": 4,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "DebuggerAnalysis",
+          "offset": 560,
+          "type": {
+            "tag": 11,
+            "name": "Pcsx2Config::DebugAnalysisOptions",
+            "size": 144,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "EmulationSpeed",
+          "offset": 704,
+          "type": {
+            "tag": 11,
+            "name": "Pcsx2Config::EmulationSpeedOptions",
+            "size": 16,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "Savestate",
+          "offset": 720,
+          "type": {
+            "tag": 11,
+            "name": "Pcsx2Config::SavestateOptions",
+            "size": 2,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "SPU2",
+          "offset": 728,
+          "type": {
+            "tag": 11,
+            "name": "Pcsx2Config::SPU2Options",
+            "size": 128,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "DEV9",
+          "offset": 856,
+          "type": {
+            "tag": 11,
+            "name": "Pcsx2Config::DEV9Options",
+            "size": 144,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "USB",
+          "offset": 1000,
+          "type": {
+            "tag": 11,
+            "name": "Pcsx2Config::USBOptions",
+            "size": 16,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "Pad",
+          "offset": 1016,
+          "type": {
+            "tag": 11,
+            "name": "Pcsx2Config::PadOptions",
+            "size": 12,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "Trace",
+          "offset": 1028,
+          "type": {
+            "tag": 11,
+            "name": "TraceLogFilters",
+            "size": 16,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "BaseFilenames",
+          "offset": 1048,
+          "type": {
+            "tag": 11,
+            "name": "Pcsx2Config::FilenameOptions",
+            "size": 32,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "Achievements",
+          "offset": 1080,
+          "type": {
+            "tag": 11,
+            "name": "Pcsx2Config::AchievementsOptions",
+            "size": 112,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "Mcd",
+          "offset": 1192,
+          "type": {
+            "tag": 15,
+            "name": "",
+            "size": 320,
+            "const": false,
+            "volatile": false,
+            "count": 8,
+            "target": {
+              "tag": 11,
+              "name": "Pcsx2Config::McdOptions",
+              "size": 40,
+              "const": false,
+              "volatile": false
+            }
+          }
+        },
+        {
+          "name": "GzipIsoIndexTemplate",
+          "offset": 1512,
+          "type": {
+            "tag": 11,
+            "name": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+            "size": 32,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "PINESlot",
+          "offset": 1544,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "RtcYear",
+          "offset": 1548,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "RtcMonth",
+          "offset": 1552,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "RtcDay",
+          "offset": 1556,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "RtcHour",
+          "offset": 1560,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "RtcMinute",
+          "offset": 1564,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "RtcSecond",
+          "offset": 1568,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "CurrentBlockdump",
+          "offset": 1576,
+          "type": {
+            "tag": 11,
+            "name": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+            "size": 32,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "CurrentIRX",
+          "offset": 1608,
+          "type": {
+            "tag": 11,
+            "name": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+            "size": 32,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "CurrentGameArgs",
+          "offset": 1640,
+          "type": {
+            "tag": 11,
+            "name": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+            "size": 32,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "CustomDataPath",
+          "offset": 1672,
+          "type": {
+            "tag": 11,
+            "name": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+            "size": 32,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "CurrentAspectRatio",
+          "offset": 1704,
+          "type": {
+            "tag": 12,
+            "name": "AspectRatioType",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "underlying": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            },
+            "values": [
+              {
+                "name": "Stretch",
+                "value": "0"
+              },
+              {
+                "name": "RAuto4_3_3_2",
+                "value": "1"
+              },
+              {
+                "name": "R4_3",
+                "value": "2"
+              },
+              {
+                "name": "R16_9",
+                "value": "3"
+              },
+              {
+                "name": "R10_7",
+                "value": "4"
+              },
+              {
+                "name": "MaxCount",
+                "value": "5"
+              }
+            ]
+          }
+        },
+        {
+          "name": "CurrentCustomAspectRatio",
+          "offset": 1708,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 8
+          }
+        },
+        {
+          "name": "IsPortableMode",
+          "offset": 1712,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          }
+        }
+      ],
+      "abi_sha256": "9debfca8459f256054a1a27a817d41032caf7f53b2bab40ff9c29b09379a6494"
+    },
+    "Pcsx2Config::GSOptions": {
+      "name": "Pcsx2Config::GSOptions",
+      "tag": 11,
+      "size": 512,
+      "type": {
+        "tag": 11,
+        "name": "Pcsx2Config::GSOptions",
+        "size": 512,
+        "const": false,
+        "volatile": false
+      },
+      "members": [
+        {
+          "name": "bitsets",
+          "offset": 0,
+          "type": {
+            "tag": 15,
+            "name": "",
+            "size": 16,
+            "const": false,
+            "volatile": false,
+            "count": 2,
+            "target": {
+              "tag": 16,
+              "name": "",
+              "size": 8,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            }
+          }
+        },
+        {
+          "name": "SynchronousMTGS",
+          "offset": 0,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 0,
+          "bit_size": 1
+        },
+        {
+          "name": "VsyncEnable",
+          "offset": 0,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 1,
+          "bit_size": 1
+        },
+        {
+          "name": "DisableMailboxPresentation",
+          "offset": 0,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 2,
+          "bit_size": 1
+        },
+        {
+          "name": "ExtendedUpscalingMultipliers",
+          "offset": 0,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 3,
+          "bit_size": 1
+        },
+        {
+          "name": "PCRTCAntiBlur",
+          "offset": 0,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 4,
+          "bit_size": 1
+        },
+        {
+          "name": "DisableInterlaceOffset",
+          "offset": 0,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 5,
+          "bit_size": 1
+        },
+        {
+          "name": "PCRTCOffsets",
+          "offset": 0,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 6,
+          "bit_size": 1
+        },
+        {
+          "name": "PCRTCOverscan",
+          "offset": 0,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 7,
+          "bit_size": 1
+        },
+        {
+          "name": "IntegerScaling",
+          "offset": 1,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 0,
+          "bit_size": 1
+        },
+        {
+          "name": "UseDebugDevice",
+          "offset": 1,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 1,
+          "bit_size": 1
+        },
+        {
+          "name": "UseDebugBlend",
+          "offset": 1,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 2,
+          "bit_size": 1
+        },
+        {
+          "name": "UseBlitSwapChain",
+          "offset": 1,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 3,
+          "bit_size": 1
+        },
+        {
+          "name": "DisableShaderCache",
+          "offset": 1,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 4,
+          "bit_size": 1
+        },
+        {
+          "name": "DisableFramebufferFetch",
+          "offset": 1,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 5,
+          "bit_size": 1
+        },
+        {
+          "name": "DisableVertexShaderExpand",
+          "offset": 1,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 6,
+          "bit_size": 1
+        },
+        {
+          "name": "SkipDuplicateFrames",
+          "offset": 1,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 7,
+          "bit_size": 1
+        },
+        {
+          "name": "AdvancedFrameDisplay",
+          "offset": 2,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 0,
+          "bit_size": 1
+        },
+        {
+          "name": "OsdShowSpeed",
+          "offset": 2,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 1,
+          "bit_size": 1
+        },
+        {
+          "name": "OsdShowFPS",
+          "offset": 2,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 2,
+          "bit_size": 1
+        },
+        {
+          "name": "OsdShowVPS",
+          "offset": 2,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 3,
+          "bit_size": 1
+        },
+        {
+          "name": "OsdShowResolution",
+          "offset": 2,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 4,
+          "bit_size": 1
+        },
+        {
+          "name": "OsdShowGSStats",
+          "offset": 2,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 5,
+          "bit_size": 1
+        },
+        {
+          "name": "OsdShowCPU",
+          "offset": 2,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 6,
+          "bit_size": 1
+        },
+        {
+          "name": "OsdShowGPU",
+          "offset": 2,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 7,
+          "bit_size": 1
+        },
+        {
+          "name": "OsdShowGPUDebug",
+          "offset": 3,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 0,
+          "bit_size": 1
+        },
+        {
+          "name": "OsdShowGPUStats",
+          "offset": 3,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 1,
+          "bit_size": 1
+        },
+        {
+          "name": "OsdShowIndicators",
+          "offset": 3,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 2,
+          "bit_size": 1
+        },
+        {
+          "name": "OsdShowFrameTimes",
+          "offset": 3,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 3,
+          "bit_size": 1
+        },
+        {
+          "name": "OsdShowHardwareInfo",
+          "offset": 3,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 4,
+          "bit_size": 1
+        },
+        {
+          "name": "OsdShowVersion",
+          "offset": 3,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 5,
+          "bit_size": 1
+        },
+        {
+          "name": "OsdShowSettings",
+          "offset": 3,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 6,
+          "bit_size": 1
+        },
+        {
+          "name": "OsdshowPatches",
+          "offset": 3,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 7,
+          "bit_size": 1
+        },
+        {
+          "name": "OsdShowInputs",
+          "offset": 4,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 0,
+          "bit_size": 1
+        },
+        {
+          "name": "OsdShowVideoCapture",
+          "offset": 4,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 1,
+          "bit_size": 1
+        },
+        {
+          "name": "OsdShowInputRec",
+          "offset": 4,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 2,
+          "bit_size": 1
+        },
+        {
+          "name": "OsdShowTextureReplacements",
+          "offset": 4,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 3,
+          "bit_size": 1
+        },
+        {
+          "name": "OsdBoldText",
+          "offset": 4,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 4,
+          "bit_size": 1
+        },
+        {
+          "name": "HWSpinGPUForReadbacks",
+          "offset": 4,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 5,
+          "bit_size": 1
+        },
+        {
+          "name": "HWSpinCPUForReadbacks",
+          "offset": 4,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 6,
+          "bit_size": 1
+        },
+        {
+          "name": "GPUPaletteConversion",
+          "offset": 4,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 7,
+          "bit_size": 1
+        },
+        {
+          "name": "AutoFlushSW",
+          "offset": 5,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 0,
+          "bit_size": 1
+        },
+        {
+          "name": "PreloadFrameWithGSData",
+          "offset": 5,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 1,
+          "bit_size": 1
+        },
+        {
+          "name": "Mipmap",
+          "offset": 5,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 2,
+          "bit_size": 1
+        },
+        {
+          "name": "HWMipmap",
+          "offset": 5,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 3,
+          "bit_size": 1
+        },
+        {
+          "name": "HWAccurateAlphaTest",
+          "offset": 5,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 4,
+          "bit_size": 1
+        },
+        {
+          "name": "HWAA1",
+          "offset": 5,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 5,
+          "bit_size": 1
+        },
+        {
+          "name": "HWROV",
+          "offset": 5,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 6,
+          "bit_size": 1
+        },
+        {
+          "name": "HWROVLogging",
+          "offset": 5,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 7,
+          "bit_size": 1
+        },
+        {
+          "name": "HWROVBarriersVK",
+          "offset": 6,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 0,
+          "bit_size": 1
+        },
+        {
+          "name": "ManualUserHacks",
+          "offset": 6,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 1,
+          "bit_size": 1
+        },
+        {
+          "name": "UserHacks_AlignSpriteX",
+          "offset": 6,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 2,
+          "bit_size": 1
+        },
+        {
+          "name": "UserHacks_CPUFBConversion",
+          "offset": 6,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 3,
+          "bit_size": 1
+        },
+        {
+          "name": "UserHacks_ReadTCOnClose",
+          "offset": 6,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 4,
+          "bit_size": 1
+        },
+        {
+          "name": "UserHacks_DisableDepthSupport",
+          "offset": 6,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 5,
+          "bit_size": 1
+        },
+        {
+          "name": "UserHacks_DisablePartialInvalidation",
+          "offset": 6,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 6,
+          "bit_size": 1
+        },
+        {
+          "name": "UserHacks_DisableSafeFeatures",
+          "offset": 6,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 7,
+          "bit_size": 1
+        },
+        {
+          "name": "UserHacks_DisableRenderFixes",
+          "offset": 7,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 0,
+          "bit_size": 1
+        },
+        {
+          "name": "UserHacks_MergePPSprite",
+          "offset": 7,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 1,
+          "bit_size": 1
+        },
+        {
+          "name": "UserHacks_ForceEvenSpritePosition",
+          "offset": 7,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 2,
+          "bit_size": 1
+        },
+        {
+          "name": "UserHacks_NativePaletteDraw",
+          "offset": 7,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 3,
+          "bit_size": 1
+        },
+        {
+          "name": "UserHacks_EstimateTextureRegion",
+          "offset": 7,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 4,
+          "bit_size": 1
+        },
+        {
+          "name": "UserHacks_DrawBuffering",
+          "offset": 7,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 5,
+          "bit_size": 1
+        },
+        {
+          "name": "UserHacks_RewriteLargeSTCoords",
+          "offset": 7,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 6,
+          "bit_size": 1
+        },
+        {
+          "name": "FXAA",
+          "offset": 7,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 7,
+          "bit_size": 1
+        },
+        {
+          "name": "ShadeBoost",
+          "offset": 8,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 0,
+          "bit_size": 1
+        },
+        {
+          "name": "DumpGSData",
+          "offset": 8,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 1,
+          "bit_size": 1
+        },
+        {
+          "name": "SaveRT",
+          "offset": 8,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 2,
+          "bit_size": 1
+        },
+        {
+          "name": "SaveFrame",
+          "offset": 8,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 3,
+          "bit_size": 1
+        },
+        {
+          "name": "SaveTexture",
+          "offset": 8,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 4,
+          "bit_size": 1
+        },
+        {
+          "name": "SaveDepth",
+          "offset": 8,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 5,
+          "bit_size": 1
+        },
+        {
+          "name": "SaveAlpha",
+          "offset": 8,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 6,
+          "bit_size": 1
+        },
+        {
+          "name": "SaveInfo",
+          "offset": 8,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 7,
+          "bit_size": 1
+        },
+        {
+          "name": "SaveTransferImages",
+          "offset": 9,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 0,
+          "bit_size": 1
+        },
+        {
+          "name": "SaveDrawStats",
+          "offset": 9,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 1,
+          "bit_size": 1
+        },
+        {
+          "name": "SaveFrameStats",
+          "offset": 9,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 2,
+          "bit_size": 1
+        },
+        {
+          "name": "SaveHWConfig",
+          "offset": 9,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 3,
+          "bit_size": 1
+        },
+        {
+          "name": "DumpReplayUseFrameRange",
+          "offset": 9,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 4,
+          "bit_size": 1
+        },
+        {
+          "name": "DumpReplaceableTextures",
+          "offset": 9,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 5,
+          "bit_size": 1
+        },
+        {
+          "name": "DumpReplaceableMipmaps",
+          "offset": 9,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 6,
+          "bit_size": 1
+        },
+        {
+          "name": "DumpTexturesWithFMVActive",
+          "offset": 9,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 7,
+          "bit_size": 1
+        },
+        {
+          "name": "DumpDirectTextures",
+          "offset": 10,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 0,
+          "bit_size": 1
+        },
+        {
+          "name": "DumpPaletteTextures",
+          "offset": 10,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 1,
+          "bit_size": 1
+        },
+        {
+          "name": "LoadTextureReplacements",
+          "offset": 10,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 2,
+          "bit_size": 1
+        },
+        {
+          "name": "LoadTextureReplacementsAsync",
+          "offset": 10,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 3,
+          "bit_size": 1
+        },
+        {
+          "name": "PrecacheTextureReplacements",
+          "offset": 10,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 4,
+          "bit_size": 1
+        },
+        {
+          "name": "EnableVideoCapture",
+          "offset": 10,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 5,
+          "bit_size": 1
+        },
+        {
+          "name": "EnableVideoCaptureParameters",
+          "offset": 10,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 6,
+          "bit_size": 1
+        },
+        {
+          "name": "VideoCaptureAutoResolution",
+          "offset": 10,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 7,
+          "bit_size": 1
+        },
+        {
+          "name": "EnableAudioCapture",
+          "offset": 11,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 0,
+          "bit_size": 1
+        },
+        {
+          "name": "EnableAudioCaptureParameters",
+          "offset": 11,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 1,
+          "bit_size": 1
+        },
+        {
+          "name": "OrganizeSnapshotsByGame",
+          "offset": 11,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 2,
+          "bit_size": 1
+        },
+        {
+          "name": "OrganizeVideoCaptureByGame",
+          "offset": 11,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 10
+          },
+          "bit_position": 3,
+          "bit_size": 1
+        },
+        {
+          "name": "VsyncQueueSize",
+          "offset": 16,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "FramerateNTSC",
+          "offset": 20,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 8
+          }
+        },
+        {
+          "name": "FrameratePAL",
+          "offset": 24,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 8
+          }
+        },
+        {
+          "name": "AspectRatio",
+          "offset": 28,
+          "type": {
+            "tag": 12,
+            "name": "AspectRatioType",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "underlying": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            },
+            "values": [
+              {
+                "name": "Stretch",
+                "value": "0"
+              },
+              {
+                "name": "RAuto4_3_3_2",
+                "value": "1"
+              },
+              {
+                "name": "R4_3",
+                "value": "2"
+              },
+              {
+                "name": "R16_9",
+                "value": "3"
+              },
+              {
+                "name": "R10_7",
+                "value": "4"
+              },
+              {
+                "name": "MaxCount",
+                "value": "5"
+              }
+            ]
+          }
+        },
+        {
+          "name": "FMVAspectRatioSwitch",
+          "offset": 29,
+          "type": {
+            "tag": 12,
+            "name": "FMVAspectRatioSwitchType",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "underlying": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            },
+            "values": [
+              {
+                "name": "Off",
+                "value": "0"
+              },
+              {
+                "name": "RAuto4_3_3_2",
+                "value": "1"
+              },
+              {
+                "name": "R4_3",
+                "value": "2"
+              },
+              {
+                "name": "R16_9",
+                "value": "3"
+              },
+              {
+                "name": "R10_7",
+                "value": "4"
+              },
+              {
+                "name": "MaxCount",
+                "value": "5"
+              }
+            ]
+          }
+        },
+        {
+          "name": "InterlaceMode",
+          "offset": 30,
+          "type": {
+            "tag": 12,
+            "name": "GSInterlaceMode",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "underlying": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            },
+            "values": [
+              {
+                "name": "Automatic",
+                "value": "0"
+              },
+              {
+                "name": "Off",
+                "value": "1"
+              },
+              {
+                "name": "WeaveTFF",
+                "value": "2"
+              },
+              {
+                "name": "WeaveBFF",
+                "value": "3"
+              },
+              {
+                "name": "BobTFF",
+                "value": "4"
+              },
+              {
+                "name": "BobBFF",
+                "value": "5"
+              },
+              {
+                "name": "BlendTFF",
+                "value": "6"
+              },
+              {
+                "name": "BlendBFF",
+                "value": "7"
+              },
+              {
+                "name": "AdaptiveTFF",
+                "value": "8"
+              },
+              {
+                "name": "AdaptiveBFF",
+                "value": "9"
+              },
+              {
+                "name": "Count",
+                "value": "10"
+              }
+            ]
+          }
+        },
+        {
+          "name": "LinearPresent",
+          "offset": 31,
+          "type": {
+            "tag": 12,
+            "name": "GSPostBilinearMode",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "underlying": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            },
+            "values": [
+              {
+                "name": "Off",
+                "value": "0"
+              },
+              {
+                "name": "BilinearSmooth",
+                "value": "1"
+              },
+              {
+                "name": "BilinearSharp",
+                "value": "2"
+              }
+            ]
+          }
+        },
+        {
+          "name": "StretchY",
+          "offset": 32,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 8
+          }
+        },
+        {
+          "name": "Crop",
+          "offset": 36,
+          "type": {
+            "tag": 15,
+            "name": "",
+            "size": 16,
+            "const": false,
+            "volatile": false,
+            "count": 4,
+            "target": {
+              "tag": 16,
+              "name": "",
+              "size": 4,
+              "const": false,
+              "volatile": false,
+              "base_type": 6
+            }
+          }
+        },
+        {
+          "name": "OsdScale",
+          "offset": 52,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 8
+          }
+        },
+        {
+          "name": "OsdMargin",
+          "offset": 56,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 8
+          }
+        },
+        {
+          "name": "OsdFontPath",
+          "offset": 64,
+          "type": {
+            "tag": 11,
+            "name": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+            "size": 32,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "OsdMessagesPos",
+          "offset": 96,
+          "type": {
+            "tag": 12,
+            "name": "OsdOverlayPos",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "underlying": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            },
+            "values": [
+              {
+                "name": "None",
+                "value": "0"
+              },
+              {
+                "name": "TopLeft",
+                "value": "1"
+              },
+              {
+                "name": "TopCenter",
+                "value": "2"
+              },
+              {
+                "name": "TopRight",
+                "value": "3"
+              },
+              {
+                "name": "CenterLeft",
+                "value": "4"
+              },
+              {
+                "name": "Center",
+                "value": "5"
+              },
+              {
+                "name": "CenterRight",
+                "value": "6"
+              },
+              {
+                "name": "BottomLeft",
+                "value": "7"
+              },
+              {
+                "name": "BottomCenter",
+                "value": "8"
+              },
+              {
+                "name": "BottomRight",
+                "value": "9"
+              }
+            ]
+          }
+        },
+        {
+          "name": "OsdPerformancePos",
+          "offset": 97,
+          "type": {
+            "tag": 12,
+            "name": "OsdOverlayPos",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "underlying": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            },
+            "values": [
+              {
+                "name": "None",
+                "value": "0"
+              },
+              {
+                "name": "TopLeft",
+                "value": "1"
+              },
+              {
+                "name": "TopCenter",
+                "value": "2"
+              },
+              {
+                "name": "TopRight",
+                "value": "3"
+              },
+              {
+                "name": "CenterLeft",
+                "value": "4"
+              },
+              {
+                "name": "Center",
+                "value": "5"
+              },
+              {
+                "name": "CenterRight",
+                "value": "6"
+              },
+              {
+                "name": "BottomLeft",
+                "value": "7"
+              },
+              {
+                "name": "BottomCenter",
+                "value": "8"
+              },
+              {
+                "name": "BottomRight",
+                "value": "9"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Renderer",
+          "offset": 98,
+          "type": {
+            "tag": 12,
+            "name": "GSRendererType",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "underlying": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 6
+            },
+            "values": [
+              {
+                "name": "Auto",
+                "value": "255"
+              },
+              {
+                "name": "DX11",
+                "value": "3"
+              },
+              {
+                "name": "Null",
+                "value": "11"
+              },
+              {
+                "name": "OGL",
+                "value": "12"
+              },
+              {
+                "name": "SW",
+                "value": "13"
+              },
+              {
+                "name": "VK",
+                "value": "14"
+              },
+              {
+                "name": "Metal",
+                "value": "17"
+              },
+              {
+                "name": "DX12",
+                "value": "15"
+              }
+            ]
+          }
+        },
+        {
+          "name": "UpscaleMultiplier",
+          "offset": 100,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 8
+          }
+        },
+        {
+          "name": "AccurateBlendingUnit",
+          "offset": 104,
+          "type": {
+            "tag": 12,
+            "name": "AccBlendLevel",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "underlying": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            },
+            "values": [
+              {
+                "name": "Minimum",
+                "value": "0"
+              },
+              {
+                "name": "Basic",
+                "value": "1"
+              },
+              {
+                "name": "Medium",
+                "value": "2"
+              },
+              {
+                "name": "High",
+                "value": "3"
+              },
+              {
+                "name": "Full",
+                "value": "4"
+              },
+              {
+                "name": "Maximum",
+                "value": "5"
+              },
+              {
+                "name": "MaxCount",
+                "value": "6"
+              }
+            ]
+          }
+        },
+        {
+          "name": "TextureFiltering",
+          "offset": 105,
+          "type": {
+            "tag": 12,
+            "name": "BiFiltering",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "underlying": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            },
+            "values": [
+              {
+                "name": "Nearest",
+                "value": "0"
+              },
+              {
+                "name": "Forced",
+                "value": "1"
+              },
+              {
+                "name": "PS2",
+                "value": "2"
+              },
+              {
+                "name": "Forced_But_Sprite",
+                "value": "3"
+              }
+            ]
+          }
+        },
+        {
+          "name": "TexturePreloading",
+          "offset": 106,
+          "type": {
+            "tag": 12,
+            "name": "TexturePreloadingLevel",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "underlying": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            },
+            "values": [
+              {
+                "name": "Off",
+                "value": "0"
+              },
+              {
+                "name": "Partial",
+                "value": "1"
+              },
+              {
+                "name": "Full",
+                "value": "2"
+              }
+            ]
+          }
+        },
+        {
+          "name": "GSDumpCompression",
+          "offset": 107,
+          "type": {
+            "tag": 12,
+            "name": "GSDumpCompressionMethod",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "underlying": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            },
+            "values": [
+              {
+                "name": "Uncompressed",
+                "value": "0"
+              },
+              {
+                "name": "LZMA",
+                "value": "1"
+              },
+              {
+                "name": "Zstandard",
+                "value": "2"
+              }
+            ]
+          }
+        },
+        {
+          "name": "HWDownloadMode",
+          "offset": 108,
+          "type": {
+            "tag": 12,
+            "name": "GSHardwareDownloadMode",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "underlying": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            },
+            "values": [
+              {
+                "name": "Enabled",
+                "value": "0"
+              },
+              {
+                "name": "EnabledForceFull",
+                "value": "1"
+              },
+              {
+                "name": "NoReadbacks",
+                "value": "2"
+              },
+              {
+                "name": "Unsynchronized",
+                "value": "3"
+              },
+              {
+                "name": "Disabled",
+                "value": "4"
+              }
+            ]
+          }
+        },
+        {
+          "name": "CASMode",
+          "offset": 109,
+          "type": {
+            "tag": 12,
+            "name": "GSCASMode",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "underlying": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            },
+            "values": [
+              {
+                "name": "Disabled",
+                "value": "0"
+              },
+              {
+                "name": "SharpenOnly",
+                "value": "1"
+              },
+              {
+                "name": "SharpenAndResize",
+                "value": "2"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Dithering",
+          "offset": 110,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "MaxAnisotropy",
+          "offset": 111,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "TVShader",
+          "offset": 112,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "GetSkipCountFunctionId",
+          "offset": 114,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 2,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "BeforeDrawFunctionId",
+          "offset": 116,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 2,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "MoveHandlerFunctionId",
+          "offset": 118,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 2,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "SkipDrawStart",
+          "offset": 120,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "SkipDrawEnd",
+          "offset": 124,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "UserHacks_AutoFlush",
+          "offset": 128,
+          "type": {
+            "tag": 12,
+            "name": "GSHWAutoFlushLevel",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "underlying": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            },
+            "values": [
+              {
+                "name": "Disabled",
+                "value": "0"
+              },
+              {
+                "name": "SpritesOnly",
+                "value": "1"
+              },
+              {
+                "name": "Enabled",
+                "value": "2"
+              }
+            ]
+          }
+        },
+        {
+          "name": "UserHacks_HalfPixelOffset",
+          "offset": 129,
+          "type": {
+            "tag": 12,
+            "name": "GSHalfPixelOffset",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "underlying": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            },
+            "values": [
+              {
+                "name": "Off",
+                "value": "0"
+              },
+              {
+                "name": "Normal",
+                "value": "1"
+              },
+              {
+                "name": "Special",
+                "value": "2"
+              },
+              {
+                "name": "SpecialAggressive",
+                "value": "3"
+              },
+              {
+                "name": "Native",
+                "value": "4"
+              },
+              {
+                "name": "NativeWTexOffset",
+                "value": "5"
+              },
+              {
+                "name": "MaxCount",
+                "value": "6"
+              }
+            ]
+          }
+        },
+        {
+          "name": "UserHacks_RoundSprite",
+          "offset": 130,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "UserHacks_NativeScaling",
+          "offset": 131,
+          "type": {
+            "tag": 12,
+            "name": "GSNativeScaling",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "underlying": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            },
+            "values": [
+              {
+                "name": "Off",
+                "value": "0"
+              },
+              {
+                "name": "Normal",
+                "value": "1"
+              },
+              {
+                "name": "Aggressive",
+                "value": "2"
+              },
+              {
+                "name": "NormalUpscaled",
+                "value": "3"
+              },
+              {
+                "name": "AggressiveUpscaled",
+                "value": "4"
+              },
+              {
+                "name": "MaxCount",
+                "value": "5"
+              }
+            ]
+          }
+        },
+        {
+          "name": "UserHacks_TCOffsetX",
+          "offset": 132,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "UserHacks_TCOffsetY",
+          "offset": 136,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "UserHacks_CPUSpriteRenderBW",
+          "offset": 140,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "UserHacks_CPUSpriteRenderLevel",
+          "offset": 141,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "UserHacks_CPUCLUTRender",
+          "offset": 142,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "UserHacks_GPUTargetCLUTMode",
+          "offset": 143,
+          "type": {
+            "tag": 12,
+            "name": "GSGPUTargetCLUTMode",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "underlying": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            },
+            "values": [
+              {
+                "name": "Disabled",
+                "value": "0"
+              },
+              {
+                "name": "Enabled",
+                "value": "1"
+              },
+              {
+                "name": "InsideTarget",
+                "value": "2"
+              }
+            ]
+          }
+        },
+        {
+          "name": "UserHacks_TextureInsideRt",
+          "offset": 144,
+          "type": {
+            "tag": 12,
+            "name": "GSTextureInRtMode",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "underlying": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            },
+            "values": [
+              {
+                "name": "Disabled",
+                "value": "0"
+              },
+              {
+                "name": "InsideTargets",
+                "value": "1"
+              },
+              {
+                "name": "MergeTargets",
+                "value": "2"
+              }
+            ]
+          }
+        },
+        {
+          "name": "UserHacks_Limit24BitDepth",
+          "offset": 145,
+          "type": {
+            "tag": 12,
+            "name": "GSLimit24BitDepth",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "underlying": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            },
+            "values": [
+              {
+                "name": "Disabled",
+                "value": "0"
+              },
+              {
+                "name": "PrioritizeUpper",
+                "value": "1"
+              },
+              {
+                "name": "PrioritizeLower",
+                "value": "2"
+              }
+            ]
+          }
+        },
+        {
+          "name": "UserHacks_BilinearHack",
+          "offset": 146,
+          "type": {
+            "tag": 12,
+            "name": "GSBilinearDirtyMode",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "underlying": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            },
+            "values": [
+              {
+                "name": "Automatic",
+                "value": "0"
+              },
+              {
+                "name": "ForceBilinear",
+                "value": "1"
+              },
+              {
+                "name": "ForceNearest",
+                "value": "2"
+              },
+              {
+                "name": "MaxCount",
+                "value": "3"
+              }
+            ]
+          }
+        },
+        {
+          "name": "TriFilter",
+          "offset": 147,
+          "type": {
+            "tag": 12,
+            "name": "TriFiltering",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "underlying": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 6
+            },
+            "values": [
+              {
+                "name": "Automatic",
+                "value": "255"
+              },
+              {
+                "name": "Off",
+                "value": "0"
+              },
+              {
+                "name": "PS2",
+                "value": "1"
+              },
+              {
+                "name": "Forced",
+                "value": "2"
+              }
+            ]
+          }
+        },
+        {
+          "name": "OverrideTextureBarriers",
+          "offset": 148,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "DepthFeedbackMode",
+          "offset": 149,
+          "type": {
+            "tag": 12,
+            "name": "GSDepthFeedbackMode",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "underlying": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            },
+            "values": [
+              {
+                "name": "None",
+                "value": "0"
+              },
+              {
+                "name": "Auto",
+                "value": "1"
+              },
+              {
+                "name": "Depth",
+                "value": "2"
+              },
+              {
+                "name": "DepthAsRT",
+                "value": "3"
+              }
+            ]
+          }
+        },
+        {
+          "name": "CAS_Sharpness",
+          "offset": 150,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "ShadeBoost_Brightness",
+          "offset": 151,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "ShadeBoost_Contrast",
+          "offset": 152,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "ShadeBoost_Saturation",
+          "offset": 153,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "ShadeBoost_Gamma",
+          "offset": 154,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "PNGCompressionLevel",
+          "offset": 155,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "SWExtraThreads",
+          "offset": 156,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 2,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "SWExtraThreadsHeight",
+          "offset": 158,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 2,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "SaveDrawStart",
+          "offset": 160,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "SaveDrawCount",
+          "offset": 164,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "SaveDrawBy",
+          "offset": 168,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "SaveFrameStart",
+          "offset": 172,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "SaveFrameCount",
+          "offset": 176,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "SaveFrameBy",
+          "offset": 180,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "DumpReplayLoopCount",
+          "offset": 184,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "DumpReplayFrameStart",
+          "offset": 188,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "DumpReplayFrameEnd",
+          "offset": 192,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "SavedMetricsCaptureSeconds",
+          "offset": 196,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 7
+          }
+        },
+        {
+          "name": "ExclusiveFullscreenControl",
+          "offset": 200,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "ScreenshotSize",
+          "offset": 201,
+          "type": {
+            "tag": 12,
+            "name": "GSScreenshotSize",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "underlying": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            },
+            "values": [
+              {
+                "name": "WindowResolution",
+                "value": "0"
+              },
+              {
+                "name": "InternalResolution",
+                "value": "1"
+              },
+              {
+                "name": "InternalResolutionUncorrected",
+                "value": "2"
+              }
+            ]
+          }
+        },
+        {
+          "name": "ScreenshotFormat",
+          "offset": 202,
+          "type": {
+            "tag": 12,
+            "name": "GSScreenshotFormat",
+            "size": 1,
+            "const": false,
+            "volatile": false,
+            "underlying": {
+              "tag": 16,
+              "name": "",
+              "size": 1,
+              "const": false,
+              "volatile": false,
+              "base_type": 7
+            },
+            "values": [
+              {
+                "name": "PNG",
+                "value": "0"
+              },
+              {
+                "name": "JPEG",
+                "value": "1"
+              },
+              {
+                "name": "WebP",
+                "value": "2"
+              },
+              {
+                "name": "Count",
+                "value": "3"
+              }
+            ]
+          }
+        },
+        {
+          "name": "ScreenshotQuality",
+          "offset": 204,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "CaptureContainer",
+          "offset": 208,
+          "type": {
+            "tag": 11,
+            "name": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+            "size": 32,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "VideoCaptureCodec",
+          "offset": 240,
+          "type": {
+            "tag": 11,
+            "name": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+            "size": 32,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "VideoCaptureFormat",
+          "offset": 272,
+          "type": {
+            "tag": 11,
+            "name": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+            "size": 32,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "VideoCaptureParameters",
+          "offset": 304,
+          "type": {
+            "tag": 11,
+            "name": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+            "size": 32,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "AudioCaptureCodec",
+          "offset": 336,
+          "type": {
+            "tag": 11,
+            "name": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+            "size": 32,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "AudioCaptureParameters",
+          "offset": 368,
+          "type": {
+            "tag": 11,
+            "name": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+            "size": 32,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "VideoCaptureBitrate",
+          "offset": 400,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "VideoCaptureWidth",
+          "offset": 404,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "VideoCaptureHeight",
+          "offset": 408,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "AudioCaptureBitrate",
+          "offset": 412,
+          "type": {
+            "tag": 16,
+            "name": "",
+            "size": 4,
+            "const": false,
+            "volatile": false,
+            "base_type": 6
+          }
+        },
+        {
+          "name": "Adapter",
+          "offset": 416,
+          "type": {
+            "tag": 11,
+            "name": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+            "size": 32,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "HWDumpDirectory",
+          "offset": 448,
+          "type": {
+            "tag": 11,
+            "name": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+            "size": 32,
+            "const": false,
+            "volatile": false
+          }
+        },
+        {
+          "name": "SWDumpDirectory",
+          "offset": 480,
+          "type": {
+            "tag": 11,
+            "name": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+            "size": 32,
+            "const": false,
+            "volatile": false
+          }
+        }
+      ],
+      "abi_sha256": "59297fa19dfa9bc198a1724c3d7b3ace877106e4d86ddec63ac9f82d431df9ef"
+    }
+  },
+  "issues": [
+    {
+      "role": "elf_clear",
+      "required": false,
+      "reason": "Expected one addressed symbol, found 0"
+    }
+  ],
+  "validation": {
+    "identity_verified": true,
+    "sections_verified": true,
+    "emulation_tested": false
+  }
+}

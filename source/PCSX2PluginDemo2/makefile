@@ -1,18 +1,5 @@
-EE_BIN = ../../data/PLUGINS/SCDA/PCSX2PluginDemo2.elf
-EE_OBJS = main.o 
-
-BASE_ADDRESS = 0x02100000
-EE_LINKFILE = linkfile
-EE_LIBS += -l:libc.a -l:libgcc.a
-EE_LDFLAGS = -Wl,--entry=init -Wl,-Map,../../data/PLUGINS/SCDA/PCSX2PluginDemo2.map -nostdlib -nodefaultlibs -Wl,'--defsym=BASE_ADDRESS=$(BASE_ADDRESS)'
-
-all: clean main-build
-
-main-build: $(EE_BIN)
-
+.PHONY: all clean
+all:
+	powershell -NoProfile -ExecutionPolicy Bypass -File "../../tools/build-module.ps1" -Project module.json
 clean:
-	rm -f $(EE_OBJS) $(EE_BIN)
-
-PS2SDK = ../../external/ps2sdk/ps2sdk
-include $(PS2SDK)/samples/Makefile.pref
-include $(PS2SDK)/samples/Makefile.eeglobal
+	powershell -NoProfile -ExecutionPolicy Bypass -File "../../tools/build-module.ps1" -Project module.json -Clean

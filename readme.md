@@ -1,5 +1,20 @@
 # PCSX2 Fork Plugin Injector
 
+<!-- plugin-upstream:begin -->
+## Original PCSX2 download for Plugin Injector
+
+The current Windows x64 adapter targets **PCSX2 v2.9.94**, the upstream development
+sources used by this fork (`81526d4dc7cc70e4ae75abb35a789417456c6d43`).
+
+- [Download original PCSX2 v2.9.94 for Windows x64](https://github.com/PCSX2/pcsx2/releases/download/v2.9.94/pcsx2-v2.9.94-windows-x64-Qt.7z)
+- [Release details and optional debugging symbols](https://github.com/PCSX2/pcsx2/releases/tag/v2.9.94)
+
+Use this exact build with the corresponding Plugin Injector package. Other
+versions are rejected before installing hooks. This is a pinned development build;
+the discovery CI never enables newer builds automatically. Enable **128 MB RAM** in
+PCSX2's Advanced settings before using guest plugins.
+<!-- plugin-upstream:end -->
+
 ## Using
 
  - Download [PCSX2 Fork With Plugins](https://github.com/ASI-Factory/PCSX2-Fork-With-Plugins/releases/tag/latest), this project is already included in it. (**Windows only**).
@@ -8,9 +23,9 @@
 
 ## Compatibility with regular PCSX2 builds
 
-It is not recommended to use Plugin Injector with regular PCSX2 builds, however there's a compatibility mode.
+Use the exact upstream development build linked above. Compatibility is tied to
+the fork's upstream source revision and verified executable/PDB identity.
 
- - Download [PCSX2 Latest Pre-Release v1.7.x](https://github.com/PCSX2/PCSX2/releases/).
  - Download [PCSX2PluginInjector.zip](https://github.com/ThirteenAG/PCSX2PluginInjector/releases/tag/latest) (**Windows only**).
  - Unpack [PCSX2PluginInjector.zip](https://github.com/ThirteenAG/PCSX2PluginInjector/releases/tag/latest) to PCSX2 root directory, where the exe is located.
  - Under **Tools**, toggle **Show Advanced Settings**.
@@ -21,40 +36,28 @@ It is not recommended to use Plugin Injector with regular PCSX2 builds, however 
 
  - Only Windows version is supported.
 
- - Save states between regular PCSX2 version and the fork likely will not be compatible.
+ - Save/load states are blocked while guest modules are active until module
+   persistence is implemented. Reset and normal shutdown clear module state.
 
  - Do not open issues in PCSX2 repository when using the fork. Reproduce them in regular PCSX2 build first.
 
-## Plugin development how-to 
+## Plugin development
 
- - Compile **PCSX2PluginInjector** solution, copy contents of **data** folder to PCSX264 root dir, where **pcsx2x64.exe** is located, or use [PCSX2PluginInjectorDemo.zip](https://github.com/ThirteenAG/PCSX2PluginInjector/releases/download/latest/PCSX2PluginInjectorDemo.zip) with all necessary files.
+Initialize submodules, run `premake5.bat`, and build the solution. Guest projects
+invoke the Windows PS2SDK module builder; no unique base address or standalone
+PS2SDK startup executable is required. The three game demos and C/C++ probes all
+use the relocatable ABI. The old invoker and dummy are retired.
 
- - Directory tree:
+The emulator directory contains `pcsx2-qtx64.exe` (fork) or `pcsx2-qt.exe`
+(original), Ultimate ASI Loader's `version.dll`, `PCSX2PluginInjector.asi`, and a
+`PLUGINS` directory. Original PCSX2 also requires the packaged
+`PCSX2PluginInjector.stock.ini` beside the injector. Plugin subfolders are optional.
 
-```
-│   pcsx2x64.exe
-│   PCSX2PluginInjector.asi
-│   PCSX2PluginInjector.log
-│
-└───PLUGINS
-    │   PCSX2PluginInvoker.elf (optional)
-    │
-    ├───GTAVCS
-    │       PCSX2PluginDemo.elf
-    │       PCSX2PluginDemo.ini
-    │
-    ├───SCDA
-    │       PCSX2PluginDemo2.elf
-    │
-    └───MKD
-            PCSX2PluginDemo3.elf			
-```
-
- - Plugins should be placed inside **PLUGINS** directory, using subfolders is optional.
-
- - Plugins must have base address that doesn't conflict with other plugins (including **PCSX2PluginInvoker.elf**, which is at **0x2000000**).
-
- - To find out minimum base address for new plugin, check the log file. Normally anything higher than **0x2001000** should work.
+Implement the existing `init()` in C or `extern "C" void init()` in C++ and
+list your source files in `module.json`. The SDK supplies the descriptor, startup,
+constructor initialization, private stack, and aligned heap. Existing data exports
+below retain their names and layout. Old fixed-address binaries require rebuilding.
+See [guest module development](docs/guest-modules.md) for the build/runtime contract.
 
  - Define compatible games for plugin using **CompatibleCRCList** symbol, e.g.:
  ```c
@@ -132,7 +135,7 @@ char OSDText[OSDStringNum][OSDStringSize] = { 1 };
 npf_snprintf(OSDText[0], 255, "Cam Pos: %s %s %s", pos_x, pos_y, pos_z);
 strcpy(OSDText[1], "This is test message");
 ```
-Strings amount can be custom (**10** in the example code), but the length(**255**) is hardcoded, do to change it. 
+The number of strings is configurable; keep each row exactly **255 bytes**.
 
 See Demo Plugin 1 for full example.
 

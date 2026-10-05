@@ -1,0 +1,9 @@
+{
+  "sources": [
+    "main.c"
+  ],
+  "includes": [
+    "../../external/nanoprintf"
+  ],
+  "output": "../../data/PLUGINS/MKD/PCSX2PluginDemo3.elf"
+}

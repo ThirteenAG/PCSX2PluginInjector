@@ -7,7 +7,6 @@ workspace "PCSX2PluginInjector"
    buildlog ("build/log/%{prj.name}.log")
    cppdialect "C++latest"
    buildoptions{"/utf-8"}
-   include "makefile.lua"
    
    kind "SharedLib"
    language "C++"
@@ -24,11 +23,9 @@ workspace "PCSX2PluginInjector"
    defines { "rsc_UpdateUrl=\"https://github.com/ThirteenAG/PCSX2PluginInjector\"" }
    
    files { "source/%{prj.name}/*.cpp" }
+   files { "source/%{prj.name}/*.h", "source/API/*.h" }
    files { "Resources/*.rc" }
-   files { "external/hooking/Hooking.Patterns.h", "external/hooking/Hooking.Patterns.cpp" }
    files { "includes/stdafx.h", "includes/stdafx.cpp" }
-   files { "external/injector/safetyhook/include/**.hpp", "external/injector/safetyhook/src/**.cpp" }
-   files { "external/injector/zydis/**.h", "external/injector/zydis/**.c" }
    includedirs { "includes" }
    includedirs { "source/api" }
    includedirs { "external/injector/safetyhook/include" }
@@ -67,67 +64,6 @@ workspace "PCSX2PluginInjector"
       targetdir ("data/" .. scriptspath)
    end
    
-   function setbuildpaths_ps2(gamepath, exepath, scriptspath, ps2sdkpath, sourcepath, prj_name)
-      -- local pbcmd = {}
-      -- for k,v in pairs(pbcommands) do
-      --   pbcmd[k] = v
-      -- end
-      if (gamepath) then
-        buildcommands {"setlocal EnableDelayedExpansion"}
-        rebuildcommands {"setlocal EnableDelayedExpansion"}
-        local pcsx2fpath = os.getenv "PCSX2FDir"
-        if (pcsx2fpath == nil) then
-            buildcommands {"set _PCSX2FDir=" .. gamepath}
-            rebuildcommands {"set _PCSX2FDir=" .. gamepath}
-        else
-            buildcommands {"set _PCSX2FDir=!PCSX2FDir!"}
-            rebuildcommands {"set _PCSX2FDir=!PCSX2FDir!"}
-        end
-        buildcommands {
-        "powershell -ExecutionPolicy Bypass -File \"" .. ps2sdkpath .. "\" -C \"" .. sourcepath .. "\"\r\n" ..
-        "if !errorlevel! neq 0 exit /b !errorlevel!\r\n" ..
-        "if not defined _PCSX2FDir goto :eof\r\n" ..
-        "if not exist !_PCSX2FDir! goto :eof\r\n" ..
-        "if not exist !_PCSX2FDir!/PLUGINS mkdir !_PCSX2FDir!/PLUGINS\r\n" ..
-        "set target=!_PCSX2FDir!/PLUGINS/\r\n" ..
-        "copy /y $(NMakeOutput) \"!target!\"\r\n"
-        }
-        rebuildcommands {
-        "powershell -ExecutionPolicy Bypass -File \"" .. ps2sdkpath .. "\" -C \"" .. sourcepath .. "\" clean\r\n" ..
-        "powershell -ExecutionPolicy Bypass -File \"" .. ps2sdkpath .. "\" -C \"" .. sourcepath .. "\"\r\n" ..
-        "if !errorlevel! neq 0 exit /b !errorlevel!\r\n" ..
-        "if not defined _PCSX2FDir goto :eof\r\n" ..
-        "if not exist !_PCSX2FDir! goto :eof\r\n" ..
-        "if not exist !_PCSX2FDir!/PLUGINS mkdir !_PCSX2FDir!/PLUGINS\r\n" ..
-        "set target=!_PCSX2FDir!/PLUGINS/\r\n" ..
-        "copy /y $(NMakeOutput) \"!target!\"\r\n"
-        }
-        cleancommands {
-        "setlocal EnableDelayedExpansion\r\n" ..
-        "powershell -ExecutionPolicy Bypass -File \"" .. ps2sdkpath .. "\" -C \"" .. sourcepath .. "\" clean\r\n" ..
-        "if !errorlevel! neq 0 exit /b !errorlevel!"
-        }
-         
-         debugdir (gamepath)
-         if (exepath) then
-            debugcommand (gamepath .. exepath)
-            dir, file = exepath:match'(.*/)(.*)'
-            debugdir (gamepath .. (dir or ""))
-         end
-      end
-      targetdir ("data/" .. scriptspath)
-   end
-
-   function add_kananlib()
-      defines { "BDDISASM_HAS_MEMSET", "BDDISASM_HAS_VSNPRINTF" }
-      files { "external/injector/kananlib/include/utility/**.hpp", "external/injector/kananlib/src/**.cpp" }
-      files { "external/injector/bddisasm/bddisasm/*.c" }
-      files { "external/injector/bddisasm/bdshemu/*.c" }
-      includedirs { "external/injector/kananlib/include" }
-      includedirs { "external/injector/bddisasm/inc" }
-      includedirs { "external/injector/bddisasm/bddisasm/include" }
-   end
-
    filter "configurations:Debug*"
       defines "DEBUG"
       symbols "On"
@@ -138,54 +74,45 @@ workspace "PCSX2PluginInjector"
 
 
 project "PCSX2PluginInjector"
+   files { "external/injector/safetyhook/src/allocator.cpp", "external/injector/safetyhook/src/inline_hook.cpp",
+      "external/injector/safetyhook/src/os.windows.cpp", "external/injector/safetyhook/src/utility.cpp",
+      "external/injector/zydis/Zydis.c" }
    buildoptions { "/bigobj" }
-   includedirs { "external/elfio" }
-   add_kananlib()
-   dependson { "PCSX2PluginInvoker" }
-   files { "source/%{prj.name}/invoker.rc" }
-   setpaths("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2-qt.exe", "")
+   setpaths("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2-qtx64.exe", "")
 
-project "PCSX2PluginInvoker"
-   kind "Makefile"
-   includedirs { "external/ps2sdk/ps2sdk/ee" }
-   files { "source/%{prj.name}/*.c" }
-   targetextension ".elf"
-   setbuildpaths_ps2("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2-qt.exe", "PLUGINS/", "%{wks.location}/../external/ps2sdk/ee/bin/vsmake.ps1", "%{wks.location}/../source/%{prj.name}/", "PCSX2PluginInvoker")
-   writemakefile("PCSX2PluginInvoker", "PLUGINS/", "0x02000000")
-   writelinkfile("PCSX2PluginInvoker")
+-- The legacy invoker/dummy are retired. Every demo and probe is relocatable.
+for _, name in ipairs({ "PCSX2PluginDemo", "PCSX2PluginDemo2", "PCSX2PluginDemo3" }) do
+   project(name)
+      kind "Makefile"
+      files { "source/" .. name .. "/main.c", "source/" .. name .. "/module.json", "source/" .. name .. "/makefile" }
+      targetextension ".elf"
+      targetdir("data/PLUGINS/" .. ({PCSX2PluginDemo="GTAVCS", PCSX2PluginDemo2="SCDA", PCSX2PluginDemo3="MKD"})[name])
+      local command = 'powershell -NoProfile -ExecutionPolicy Bypass -File "%{wks.location}/../tools/build-module.ps1" -Project "%{wks.location}/../source/' .. name .. '/module.json"'
+      buildcommands { command }
+      rebuildcommands { command .. ' -Clean', command }
+      cleancommands { command .. ' -Clean' }
+end
 
-project "PCSX2PluginDemo"
-   kind "Makefile"
-   includedirs { "external/ps2sdk/ps2sdk/ee" }
-   files { "source/%{prj.name}/*.c" }
-   targetextension ".elf"
-   setbuildpaths_ps2("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2-qt.exe", "PLUGINS/GTAVCS/", "%{wks.location}/../external/ps2sdk/ee/bin/vsmake.ps1", "%{wks.location}/../source/%{prj.name}/", "PCSX2PluginDemo")
-   writemakefile("PCSX2PluginDemo", "PLUGINS/GTAVCS/", "0x02100000")
-   writelinkfile("PCSX2PluginDemo")
-   
-project "PCSX2PluginDemo2"
-   kind "Makefile"
-   includedirs { "external/ps2sdk/ps2sdk/ee" }
-   files { "source/%{prj.name}/*.c" }
-   targetextension ".elf"
-   setbuildpaths_ps2("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2-qt.exe", "PLUGINS/SCDA/", "%{wks.location}/../external/ps2sdk/ee/bin/vsmake.ps1", "%{wks.location}/../source/%{prj.name}/", "PCSX2PluginDemo2")
-   writemakefile("PCSX2PluginDemo2", "PLUGINS/SCDA/", "0x02100000")
-   writelinkfile("PCSX2PluginDemo2")
+for id = 1, 2 do
+   project ("ModuleProbe" .. id)
+      kind "Makefile"
+      files { "source/GuestModuleProbe/main.c", "source/API/guest_module.h", "tools/build-module.ps1" }
+      includedirs { "source/API" }
+      targetname ("ModuleProbe" .. id)
+      targetextension ".elf"
+      targetdir "data/PLUGINS"
+      local command = 'powershell -NoProfile -ExecutionPolicy Bypass -File "%{wks.location}/../tools/build-module.ps1" -Sources "%{wks.location}/../source/GuestModuleProbe/main.c" -Output "%{wks.location}/../data/PLUGINS/ModuleProbe' .. id .. '.elf" -Defines PROBE_ID=' .. id .. ' -NoRuntime'
+      buildcommands { command }
+      rebuildcommands { command .. ' -Clean', command }
+      cleancommands { command .. ' -Clean' }
+end
 
-project "PCSX2PluginDemo3"
+project "ModuleProbeCpp"
    kind "Makefile"
-   includedirs { "external/ps2sdk/ps2sdk/ee" }
-   files { "source/%{prj.name}/*.c" }
+   files { "source/GuestModuleProbe/cpp.cpp", "source/API/guest_module.h", "tools/build-module.ps1" }
    targetextension ".elf"
-   setbuildpaths_ps2("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2-qt.exe", "PLUGINS/MKD/", "%{wks.location}/../external/ps2sdk/ee/bin/vsmake.ps1", "%{wks.location}/../source/%{prj.name}/", "PCSX2PluginDemo3")
-   writemakefile("PCSX2PluginDemo3", "PLUGINS/MKD/", "0x02100000")
-   writelinkfile("PCSX2PluginDemo3")
-   
-project "PCSX2PluginDummy"
-   kind "Makefile"
-   includedirs { "external/ps2sdk/ps2sdk/ee" }
-   files { "source/%{prj.name}/*.c" }
-   targetextension ".elf"
-   setbuildpaths_ps2("Z:/GitHub/PCSX2-Fork-With-Plugins/bin/", "pcsx2-qt.exe", "PLUGINS/", "%{wks.location}/../external/ps2sdk/ee/bin/vsmake.ps1", "%{wks.location}/../source/%{prj.name}/", "PCSX2PluginDummy")
-   writemakefile("PCSX2PluginDummy", "PLUGINS/", "0x02100000")
-   writelinkfile("PCSX2PluginDummy")
+   targetdir "data/PLUGINS"
+   local command = 'powershell -NoProfile -ExecutionPolicy Bypass -File "%{wks.location}/../tools/build-module.ps1" -Sources "%{wks.location}/../source/GuestModuleProbe/cpp.cpp" -Output "%{wks.location}/../data/PLUGINS/ModuleProbeCpp.elf"'
+   buildcommands { command }
+   rebuildcommands { command .. ' -Clean', command }
+   cleancommands { command .. ' -Clean' }

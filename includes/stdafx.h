@@ -1,6 +1,7 @@
 #pragma once
 #include "targetver.h"
 #define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #define _USE_MATH_DEFINES
 #pragma warning(push)
 #pragma warning(disable: 4178 4305 4309 4510 4996)

@@ -25,10 +25,28 @@ jobs:
       shell: cmd
       run: |
         ./premake5.bat
+    - name: Verify pinned upstream download and module build contract
+      shell: pwsh
+      run: |
+        python tools/stock-pcsx2/update-download-links.py --check
+        if ($LASTEXITCODE -ne 0) { throw 'Pinned upstream download is stale.' }
+        foreach ($test in @('tools/stock-pcsx2/test_packaging.py', 'external/ps2sdk/plugins/test_build.py', 'external/ps2sdk/plugins/test_sync.py')) {
+          python $test
+          if ($LASTEXITCODE -ne 0) { throw "Verification failed: $test" }
+        }
     - name: Build
       shell: cmd
       run: |
         msbuild -m build/PCSX2PluginInjector.sln /property:Configuration=${{matrix.buildtype}} /property:Platform=${{matrix.platform}}
+    - name: Verify rebuilt guest modules
+      shell: pwsh
+      run: |
+        msbuild tests/GuestModuleLoaderTests.vcxproj /p:Configuration=Release /p:Platform=x64 /nologo /v:minimal
+        if ($LASTEXITCODE -ne 0) { throw 'Guest loader test build failed.' }
+        $modules = @(Get-ChildItem data/PLUGINS -Recurse -File -Filter '*.elf' | ForEach-Object FullName)
+        if ($modules.Count -ne 6) { throw 'Expected three probes and three migrated demos.' }
+        & build/tests/GuestModuleLoaderTests.exe --modules @modules
+        if ($LASTEXITCODE -ne 0) { throw 'Rebuilt guest module validation failed.' }
     - name: Download Ultimate ASI Loader x64
       uses: robinraju/release-downloader@v1.13
       with:
@@ -53,6 +71,13 @@ jobs:
        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag: latest
+    - name: Bind original PCSX2 download in release notes
+      if: |
+        github.ref_name == 'main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+        github.repository == 'ThirteenAG/PCSX2PluginInjector'
+      env:
+        EXISTING_RELEASE_BODY: ${{ steps.release_info.outputs.body }}
+      run: python tools/stock-pcsx2/release-notes.py docs/stock-pcsx2-download.md build/release-notes.md
     - name: Upload Release
       if: |
         github.ref_name == 'main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
@@ -62,6 +87,6 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
         allowUpdates: true
         name: ${{ steps.release_info.outputs.name }}
-        body: ${{ steps.release_info.outputs.body }}
+        bodyFile: build/release-notes.md
         tag: ${{ steps.release_info.outputs.tag_name }}
         artifacts: PCSX2PluginInjector.zip,PCSX2PluginInjectorDemo.zip

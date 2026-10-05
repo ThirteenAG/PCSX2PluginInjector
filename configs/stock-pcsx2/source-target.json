@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "fork_repository": "ASI-Factory/PCSX2-Fork-With-Plugins",
+  "fork_revision": "badda91282bb964f8ab116a9f145a2d3774871b6",
+  "upstream_commit": "81526d4dc7cc70e4ae75abb35a789417456c6d43",
+  "upstream_tag": "v2.9.94",
+  "policy": "Target the original upstream sources used by the fork. Newer dev releases are discovery reports only until this source target and adapter are updated together."
+}

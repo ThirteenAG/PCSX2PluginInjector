@@ -1,0 +1,131 @@
+name: Stock PCSX2 symbol discovery
+
+on:
+  schedule:
+    - cron: '23 6 * * *'
+  workflow_dispatch:
+    inputs:
+      open_pr:
+        description: Create or update the draft discovery PR
+        type: boolean
+        default: true
+      development_tag:
+        description: Optional dev tag to analyze alongside the fork's matching upstream source
+        type: string
+  pull_request:
+    paths:
+      - '.github/workflows/stock-pcsx2-discovery.yml'
+      - 'tools/stock-pcsx2/**'
+      - 'configs/stock-pcsx2/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stock-pcsx2-discovery-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [matching-source, latest-development]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Test discovery parser
+        shell: pwsh
+        run: python tools/stock-pcsx2/test_discovery.py
+      - name: Download official executable and matching symbols
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEVELOPMENT_TAG: ${{ inputs.development_tag }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          $fetchArgs = @('tools/stock-pcsx2/fetch.py', '--channel', 'development', '--destination', 'build/upstream')
+          $tag = $env:DEVELOPMENT_TAG
+          if ($env:TARGET -eq 'matching-source') {
+            $sourceTarget = Get-Content configs/stock-pcsx2/source-target.json -Raw | ConvertFrom-Json
+            $tag = $sourceTarget.upstream_tag
+          }
+          if ($tag) { $fetchArgs += @('--tag', $tag) }
+          python @fetchArgs
+          if ($LASTEXITCODE -ne 0) { throw 'Upstream executable/symbol pair was rejected.' }
+      - name: Generate candidate config and report
+        shell: pwsh
+        run: |
+          $pair = Get-Content 'build/upstream/development.json' -Raw | ConvertFrom-Json
+          ./tools/stock-pcsx2/discover.ps1 -Executable $pair.exe -Pdb $pair.pdb -Version $pair.version -Provenance $pair.provenance -Output "configs/stock-pcsx2/candidates/$($pair.version).json"
+          New-Item -ItemType Directory -Force -Path build/discovery-artifact | Out-Null
+          Copy-Item -LiteralPath "configs/stock-pcsx2/candidates/$($pair.version).json", "configs/stock-pcsx2/candidates/$($pair.version).md" -Destination build/discovery-artifact
+          python tools/stock-pcsx2/emit-runtime-config.py --candidate "configs/stock-pcsx2/candidates/$($pair.version).json" --exe $pair.exe --reference configs/stock-pcsx2/reference-abi.json --output "build/discovery-artifact/$($pair.version).ini"
+          if ($LASTEXITCODE -ne 0) { throw 'Runtime profile generation failed.' }
+          Get-Content "configs/stock-pcsx2/candidates/$($pair.version).md" >> $env:GITHUB_STEP_SUMMARY
+      - name: Verify real PDB identity rejection
+        shell: pwsh
+        run: |
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
+          $vsRoot = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          python tools/stock-pcsx2/test_discovery.py --pair build/upstream/development.json --helper build/stock-pcsx2/PdbQuery.exe --dia "$vsRoot/DIA SDK/bin/amd64/msdia140.dll"
+          if ($LASTEXITCODE -ne 0) { throw 'Discovery integration tests failed.' }
+      - name: Test stock register runtime and matching binary validation
+        if: matrix.target == 'matching-source'
+        shell: pwsh
+        run: |
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
+          $vsRoot = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          & "$vsRoot/MSBuild/Current/Bin/MSBuild.exe" tests/StockRuntimeTests.vcxproj /p:Configuration=Release /p:Platform=x64 /nologo /v:minimal
+          if ($LASTEXITCODE -ne 0) { throw 'Stock runtime test build failed.' }
+          $pair = Get-Content 'build/upstream/development.json' -Raw | ConvertFrom-Json
+          & build/tests/StockRuntimeTests.exe (Join-Path $PWD "build/discovery-artifact/$($pair.version).ini") $pair.exe
+          if ($LASTEXITCODE -ne 0) { throw 'Stock runtime/identity tests failed.' }
+      - uses: actions/upload-artifact@v7
+        with:
+          name: stock-pcsx2-${{ matrix.target }}-discovery
+          path: build/discovery-artifact/
+          if-no-files-found: error
+
+  propose:
+    needs: discover
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.open_pr)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: stock-pcsx2-*-discovery
+          path: configs/stock-pcsx2/candidates/
+          merge-multiple: true
+      - name: Prepare review description
+        shell: python
+        run: |
+          import json
+          from pathlib import Path
+          lines = ['Update the stock PCSX2 symbol discovery candidates from official executable/PDB pairs.', '',
+                   'The compatibility target is the original upstream source revision used by the fork. Newer development revisions are reports only. Every candidate remains disabled until the runtime adapter is tested.', '',
+                   'Validation: matching PDB GUID/age, image/section bounds, archive identities, parser tests and read-only DIA integration tests.', '']
+          for path in sorted(Path('configs/stock-pcsx2/candidates').glob('*.json')):
+              candidate = json.loads(path.read_text())
+              lines.append(f"- {candidate['version']}: {candidate['status']}; source match {candidate['source_matches_target']}, {len(candidate['abi_changes'])} ABI changes, {len(candidate['issues'])} findings. Report: `{path.with_suffix('.md')}`.")
+          Path('discovery-pr.md').write_text('\n'.join(lines) + '\n')
+      - name: Create or update draft PR
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.PCSX2_DISCOVERY_TOKEN || github.token }}
+          branch: codex/stock-pcsx2-discovery
+          add-paths: configs/stock-pcsx2/candidates/
+          commit-message: Update stock PCSX2 discovery candidates
+          title: Update stock PCSX2 symbol discovery candidates
+          body-path: discovery-pr.md
+          draft: always-true
