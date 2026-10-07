@@ -42,7 +42,7 @@ jobs:
         shell: pwsh
         # StockRuntimeTests includes IniReader (and its nested mINI submodule).
         run: git submodule update --init --recursive --depth 1 external/inireader
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Test discovery parser
