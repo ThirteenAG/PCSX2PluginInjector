@@ -9,6 +9,7 @@
 #include <pcsx2f_api.h>
 #include "GuestModuleLoader.h"
 #include "EmulatorHost.h"
+#include "PluginSettingsService.h"
 
 HWND FallbackWindowHandle;
 static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
@@ -44,6 +45,7 @@ size_t gEEMainMemorySize;
 // emulator without that hands an unknown syscall to its BIOS, so the plugins are
 // told not to call it (see PCSX2Data_GuestRenderPhase).
 static bool s_hostSupportsGuestRenderPhase = false;
+static bool s_hostSupportsSettings = false;
 
 void MemoryFill(uint32_t addr, uint8_t value, uint32_t size)
 {
@@ -67,6 +69,35 @@ static const PCSX2FGuestHostV1* s_guestHostApi = nullptr;
 struct LoadedGuestModule { std::filesystem::path path; GuestModule::Image image; };
 static std::vector<LoadedGuestModule> s_loadedGuestModules;
 static std::mutex s_guestModuleMutex;
+CEXP uint32_t InvokeGuestPluginSettings(uint32_t requestAddress, uint32_t caller)
+{
+    std::lock_guard lock(s_guestModuleMutex);
+    for (const auto& module : s_loadedGuestModules)
+    {
+        const auto& image = module.image;
+        if (!image.contains(caller, 4, 4)) continue;
+        if ((requestAddress & 3) || requestAddress < image.info.Base ||
+            uint64_t(requestAddress) + sizeof(PCSX2FIniRequest) > uint64_t(image.info.Base) + image.info.Size)
+            return PCSX2F_SETTINGS_INVALID;
+        PCSX2FIniRequest request;
+        auto* memory = reinterpret_cast<uint8_t*>(gEEMainMemoryStart) + requestAddress;
+        std::memcpy(&request, memory, sizeof(request));
+        try
+        {
+            auto path = module.path;
+            path.replace_extension(L".ini");
+            const uint32_t status = PluginSettings::Process(path, request);
+            if (status == PCSX2F_SETTINGS_OK && request.operation == PCSX2F_SETTINGS_READ)
+                std::memcpy(memory, &request, sizeof(request));
+            return status;
+        }
+        catch (const std::exception&)
+        {
+            return PCSX2F_SETTINGS_IO_ERROR;
+        }
+    }
+    return PCSX2F_SETTINGS_INVALID;
+}
 void ExitSignal();
 const void* gWindowHandle;
 static std::mutex s_osdMutex;
@@ -961,6 +992,9 @@ void LoadPlugins(
             {
                 auto plugin_path = plugin.path;
                 auto& mod = plugin.image.info;
+                if (const auto* supported = plugin.image.find("PCSX2FSettingsVersion"); supported &&
+                    supported->size == sizeof(uint32_t) && plugin.image.contains(supported->address, sizeof(uint32_t), 1))
+                    WriteMemory32(supported->address, s_hostSupportsSettings ? 1u : 0u);
                 if (plugin.hasIni)
                 {
                     MemoryFill(mod.PluginDataAddr, 0, mod.PluginDataSize);
@@ -1212,6 +1246,7 @@ CEXP void InitializeASI()
             stock = true;
         }
         s_hostSupportsGuestRenderPhase = GetProcAddress(GetModuleHandle(nullptr), "PCSX2F_GuestRenderPhaseSupported") != nullptr;
+        s_hostSupportsSettings = stock || GetProcAddress(GetModuleHandle(nullptr), "PCSX2F_PluginSettingsSupported") != nullptr;
         AddOnGameElfInitCallback(LoadPlugins);
         AddOnGameShutdownCallback(ExitSignal);
         AddOnGameShutdownCallback(InputShutdown);

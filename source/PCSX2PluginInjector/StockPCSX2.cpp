@@ -5,6 +5,7 @@
 
 extern "C" size_t GetOSDVectorSize();
 extern "C" const char* GetOSDVectorData(size_t index);
+extern "C" uint32_t InvokeGuestPluginSettings(uint32_t request, uint32_t caller);
 
 namespace StockPCSX2
 {
@@ -213,6 +214,11 @@ namespace
             return;
         }
         if (s_runtime.clear_code_syscall()) return;
+        if (s_runtime.reg32(3) == 0xf5 && s_runtime.reg32(4) == 0x50434653)
+        {
+            s_runtime.set_result(InvokeGuestPluginSettings(s_runtime.reg32(5), s_runtime.get32(StockABI::Registers.pc) - 4));
+            return;
+        }
         const uint32_t code = s_runtime.reg32(3);
         const uint8_t call = static_cast<uint8_t>((code & 0x80000000) ? 0u - code : code);
         if (!s_runtime.reserve_memory_syscall(call)) Original<void(*)()>("syscall")();

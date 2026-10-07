@@ -29,12 +29,19 @@ jobs:
   discover:
     runs-on: windows-2022
     timeout-minutes: 20
+    # Newer development builds are reports only: their drift must not mark the
+    # scheduled run as failed. Only the fork's matching upstream source is a gate.
+    continue-on-error: ${{ matrix.target == 'latest-development' }}
     strategy:
       fail-fast: false
       matrix:
         target: [matching-source, latest-development]
     steps:
       - uses: actions/checkout@v7
+      - name: Fetch test dependencies
+        shell: pwsh
+        # StockRuntimeTests includes IniReader (and its nested mINI submodule).
+        run: git submodule update --init --recursive --depth 1 external/inireader
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
@@ -93,7 +100,8 @@ jobs:
 
   propose:
     needs: discover
-    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.open_pr)
+    # Propose whatever candidates were produced, even if one target failed.
+    if: ${{ !cancelled() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.open_pr)) }}
     runs-on: ubuntu-latest
     permissions:
       contents: write

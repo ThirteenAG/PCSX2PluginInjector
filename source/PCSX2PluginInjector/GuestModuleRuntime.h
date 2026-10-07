@@ -73,6 +73,7 @@ class Runtime
     }
 
 public:
+    void set_result(uint32_t value) { set_reg64(2, value); }
     static constexpr uint32_t ReturnStub = 0x02000000;
     static constexpr uint32_t ArenaBegin = ReturnStub + 4096;
     static constexpr uint32_t ArenaEnd = 0x08000000;
