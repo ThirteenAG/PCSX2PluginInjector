@@ -878,7 +878,7 @@ void LoadPlugins(
     const auto pluginsPath = modulePath.parent_path() / L"PLUGINS";
     if (std::filesystem::exists(pluginsPath, ec))
     {
-        uint32_t nextBase = s_guestHostApi->arena_begin;
+        const uint32_t arenaBegin = s_guestHostApi->arena_begin, arenaEnd = s_guestHostApi->arena_end;
         std::string error;
         struct PendingPlugin
         {
@@ -887,6 +887,7 @@ void LoadPlugins(
             std::vector<char> ini;
             bool hasIni = false;
             std::vector<char> cleo;
+            uint32_t legacyContext = 0, legacyStack = 0; // start-up block of an old fixed-address plugin
         };
         std::vector<PendingPlugin> pending;
         std::vector<std::filesystem::path> candidates;
@@ -900,25 +901,52 @@ void LoadPlugins(
         }
         if (ec) spd::log()->warn("Plugin directory scan: {}", ec.message());
         std::sort(candidates.begin(), candidates.end());
-        for (const auto& path : candidates)
+
+        // Modules are placed from the top of the guest arena downwards, so the extended RAM
+        // right above the game's own 32 MB stays free as long as possible (a game patched to
+        // use more memory grows its heap upwards from there). Old fixed-address plugins keep
+        // the addresses they were linked to; everything else is placed around them.
+        struct Range { uint32_t begin, end; std::string name; };
+        std::vector<Range> fixedRanges;
+        uint32_t top = arenaEnd;
+        // Finds the highest 128-aligned base below `top` where `size` bytes fit without
+        // touching a fixed range. `limit` is the end of the free space the base was found in.
+        auto place = [&](uint32_t size, uint32_t& base, uint32_t& limit) -> bool
         {
-            PendingPlugin plugin;
-            plugin.path = path;
-            if (!GuestModule::Load(LoadFileToBuffer(path), nextBase, s_guestHostApi->arena_end, plugin.image, error))
+            uint64_t ceiling = top;
+            while (ceiling >= uint64_t(arenaBegin) + size)
             {
-                spd::log()->warn("{} rejected: {}", path.filename().string(), error);
-                s_guestHostApi->warn("Some PS2 plugins need updating. See PCSX2PluginInjector.log for filenames and details.");
-                continue;
+                const uint32_t candidate = static_cast<uint32_t>((ceiling - size) & ~uint64_t(127));
+                if (candidate < arenaBegin) return false;
+                const Range* hit = nullptr;
+                for (const auto& range : fixedRanges)
+                    if (candidate < range.end && range.begin < uint64_t(candidate) + size && (!hit || range.begin < hit->begin))
+                        hit = &range;
+                if (!hit)
+                {
+                    base = candidate;
+                    limit = static_cast<uint32_t>(ceiling);
+                    return true;
+                }
+                ceiling = hit->begin;
             }
+            return false;
+        };
+        auto compatible = [&](const GuestModule::Image& image)
+        {
+            const auto& mod = image.info;
+            return image.matchesCRC(mod.CompatibleCRCListAddr, mod.CompatibleCRCListSize, s_disc_crc) &&
+                (!mod.CompatibleElfCRCListAddr || image.matchesCRC(mod.CompatibleElfCRCListAddr, mod.CompatibleElfCRCListSize, s_current_crc));
+        };
+        // Reads the plugin's ini and CLEO scripts into its pending entry.
+        auto accept = [&](PendingPlugin&& plugin) -> bool
+        {
+            const auto& path = plugin.path;
             const auto& mod = plugin.image.info;
-            if (!plugin.image.matchesCRC(mod.CompatibleCRCListAddr, mod.CompatibleCRCListSize, s_disc_crc) ||
-                (mod.CompatibleElfCRCListAddr && !plugin.image.matchesCRC(
-                    mod.CompatibleElfCRCListAddr, mod.CompatibleElfCRCListSize, s_current_crc)))
-                continue;
             if (pending.size() >= 256)
             {
                 spd::log()->error("{} skipped: module limit is 256", path.filename().string());
-                continue;
+                return false;
             }
             auto iniPath = std::filesystem::path(path).replace_extension(L".ini");
             if (mod.PluginDataAddr && std::filesystem::exists(iniPath, ec))
@@ -969,9 +997,105 @@ void LoadPlugins(
                     plugin.cleo.insert(plugin.cleo.end(), script.begin(), script.end());
                 }
             }
-            nextBase = static_cast<uint32_t>(GuestModule::Detail::Align(uint64_t(nextBase) + plugin.image.info.Size, 128));
             pending.push_back(std::move(plugin));
+            return true;
+        };
+
+        // 1. Old fixed-address plugins, at the addresses they were linked to.
+        std::vector<std::pair<std::filesystem::path, std::vector<char>>> relocatable;
+        bool legacyLoaded = false;
+        for (const auto& path : candidates)
+        {
+            auto file = LoadFileToBuffer(path);
+            if (!GuestModule::IsLegacy(file))
+            {
+                relocatable.emplace_back(path, std::move(file));
+                continue;
+            }
+            PendingPlugin plugin;
+            plugin.path = path;
+            if (!GuestModule::LoadLegacy(file, plugin.image, error))
+            {
+                spd::log()->warn("{} rejected: old fixed-address plugin, {}", path.filename().string(), error);
+                s_guestHostApi->warn("Some PS2 plugins need updating. See PCSX2PluginInjector.log for filenames and details.");
+                continue;
+            }
+            if (!compatible(plugin.image)) continue;
+            const Range range{plugin.image.info.Base, plugin.image.info.Base + plugin.image.info.Size, path.filename().string()};
+            if (range.begin < arenaBegin || range.end > arenaEnd)
+            {
+                spd::log()->warn("{} rejected: its fixed address range 0x{:08X}-0x{:08X} is outside the guest arena",
+                    range.name, range.begin, range.end);
+                continue;
+            }
+            const auto overlap = std::find_if(fixedRanges.begin(), fixedRanges.end(),
+                [&](const Range& other) { return range.begin < other.end && other.begin < range.end; });
+            if (overlap != fixedRanges.end())
+            {
+                spd::log()->warn("{} skipped: its fixed address range 0x{:08X}-0x{:08X} overlaps {}",
+                    range.name, range.begin, range.end, overlap->name);
+                continue;
+            }
+            spd::log()->warn("{} is an old fixed-address plugin; loading it at 0x{:08X} for compatibility. "
+                "Update it, or rebuild it for the relocatable module ABI.", range.name, range.begin);
+            if (!accept(std::move(plugin))) continue;
+            fixedRanges.push_back(range);
+            legacyLoaded = true;
         }
+
+        // 2. Relocatable modules, from the top down. The layout depends on the base, so a
+        // module is placed by the size it has at a probe base and loaded again at its own.
+        for (auto& [path, file] : relocatable)
+        {
+            PendingPlugin plugin;
+            plugin.path = path;
+            if (!GuestModule::Load(file, arenaBegin, arenaEnd, plugin.image, error))
+            {
+                spd::log()->warn("{} rejected: {}", path.filename().string(), error);
+                s_guestHostApi->warn("Some PS2 plugins need updating. See PCSX2PluginInjector.log for filenames and details.");
+                continue;
+            }
+            if (!compatible(plugin.image)) continue;
+            uint32_t size = plugin.image.info.Size, base = 0, limit = 0;
+            bool placed = false;
+            for (int attempt = 0; attempt < 8 && place(size, base, limit); ++attempt)
+            {
+                if (!GuestModule::Load(file, base, arenaEnd, plugin.image, error)) break;
+                if (uint64_t(base) + plugin.image.info.Size <= limit) { placed = true; break; }
+                size = plugin.image.info.Size;
+            }
+            if (!placed)
+            {
+                spd::log()->error("{} skipped: no room left in the guest arena{}", path.filename().string(),
+                    error.empty() ? "" : " (" + error + ")");
+                continue;
+            }
+            if (accept(std::move(plugin))) top = base;
+        }
+
+        // 3. Start-up blocks of the old plugins: the module context the runtime fills in,
+        // and a stack of their own (the old invoker ran them on the game's stack).
+        constexpr uint32_t LegacyBlockSize = 32 + 64 * 1024;
+        for (auto it = pending.begin(); it != pending.end();)
+        {
+            uint32_t base = 0, limit = 0;
+            if (!it->image.legacy) { ++it; continue; }
+            if (!place(LegacyBlockSize, base, limit))
+            {
+                spd::log()->error("{} skipped: no room left in the guest arena for its stack", it->path.filename().string());
+                it = pending.erase(it);
+                continue;
+            }
+            it->legacyContext = base;
+            it->legacyStack = base + LegacyBlockSize;
+            top = base;
+            ++it;
+        }
+        if (legacyLoaded)
+            s_guestHostApi->warn("Some PS2 plugins use the old format and were loaded for compatibility. Update them; see PCSX2PluginInjector.log.");
+        // Start in file name order, whatever the format.
+        std::stable_sort(pending.begin(), pending.end(),
+            [](const PendingPlugin& a, const PendingPlugin& b) { return a.path < b.path; });
 
         if (!pending.empty())
         {
@@ -979,8 +1103,18 @@ void LoadPlugins(
             for (auto& plugin : pending)
             {
                 const auto& image = plugin.image;
-                if (!s_guestHostApi->write(image.info.Base, image.bytes.data(), image.info.Size) ||
-                    !s_guestHostApi->queue(image.info.EntryPoint, image.stackTop, 0, image.context))
+                bool armed = s_guestHostApi->write(image.info.Base, image.bytes.data(), image.info.Size);
+                if (armed && image.legacy)
+                {
+                    // gp 0 keeps the game's gp, which the old invoker ran plugins with.
+                    static const std::array<char, 32> emptyContext{};
+                    armed = s_guestHostApi->write(plugin.legacyContext, emptyContext.data(), uint32_t(emptyContext.size())) &&
+                        (!image.legacyInit || s_guestHostApi->queue(image.legacyInit, plugin.legacyStack, 0, plugin.legacyContext)) &&
+                        s_guestHostApi->queue(image.info.EntryPoint, plugin.legacyStack, 0, plugin.legacyContext);
+                }
+                else if (armed)
+                    armed = s_guestHostApi->queue(image.info.EntryPoint, image.stackTop, 0, image.context);
+                if (!armed)
                 {
                     s_guestHostApi->abort();
                     spd::log()->error("Module transaction rejected by the fork; startup was not armed");
@@ -1097,8 +1231,9 @@ void LoadPlugins(
                 std::lock_guard lock(s_guestModuleMutex);
                 for (auto& plugin : pending)
                 {
-                    spd::log()->info("Loaded {} dynamically at 0x{:08X}, entry 0x{:08X}, generation {}",
-                        plugin.path.filename().string(), plugin.image.info.Base, plugin.image.info.EntryPoint, s_guestHostApi->generation);
+                    spd::log()->info("Loaded {} {} at 0x{:08X}, entry 0x{:08X}, generation {}",
+                        plugin.path.filename().string(), plugin.image.legacy ? "(old format, fixed address)" : "dynamically",
+                        plugin.image.info.Base, plugin.image.info.EntryPoint, s_guestHostApi->generation);
                     s_loadedGuestModules.push_back({plugin.path, std::move(plugin.image)});
                 }
             }

@@ -173,14 +173,29 @@ int main(int argc, char** argv)
         Reject(fixture.file, "arena", ArenaBegin - 128);
         Reject(fixture.file, "arena", ArenaBegin + 1);
         Reject(fixture.file, "stack/heap exceed", ArenaBegin, ArenaBegin + 4096);
-        bool accept_modules = false;
+        Check(!IsLegacy(fixture.file), "relocatable module is not an old fixed-address plugin");
+        bool accept_modules = false, legacy_files = false;
         for (int i = 1; i < argc; ++i)
         {
-            if (std::string_view(argv[i]) == "--modules") { accept_modules = true; continue; }
+            if (std::string_view(argv[i]) == "--modules") { accept_modules = true; legacy_files = false; continue; }
+            if (std::string_view(argv[i]) == "--legacy") { legacy_files = true; accept_modules = false; continue; }
             const std::filesystem::path path(argv[i]);
             std::ifstream file(path, std::ios::binary);
             std::vector<char> bytes((std::istreambuf_iterator<char>(file)), {});
             Check(!bytes.empty(), "missing test file: " + path.string());
+            if (legacy_files)
+            {
+                // Old fixed-address plugins: loaded where they were linked, for compatibility.
+                Check(IsLegacy(bytes), path.string() + ": not an old fixed-address plugin");
+                Check(LoadLegacy(bytes, image, error), path.string() + ": " + error);
+                Check(image.legacy && !(image.info.Base % 128) && image.info.Base >= ArenaBegin &&
+                    uint64_t(image.info.Base) + image.info.Size <= ArenaEnd, "old plugin range inside the arena");
+                Check(image.contains(image.info.EntryPoint, 4, 4), "old plugin entry point is executable");
+                Check(image.info.CompatibleCRCListSize >= 4, "old plugin game compatibility list");
+                std::cout << "Loaded old plugin: " << path.filename().string() << " at 0x" << std::hex << image.info.Base
+                    << "-0x" << image.info.Base + image.info.Size << std::dec << (image.legacyInit ? ", with _init" : "") << '\n';
+                continue;
+            }
             if (accept_modules || path.filename().string().starts_with("ModuleProbe"))
             {
                 const bool loaded = Load(bytes, ArenaBegin, ArenaEnd, image, error);

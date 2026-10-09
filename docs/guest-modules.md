@@ -2,8 +2,15 @@
 
 Plugins are ELF32, little endian MIPS `ET_REL` modules. The injector assigns each
 module a base in extended EE RAM; projects never reserve a unique link address.
-Old fixed-address `ET_EXEC` binaries are rejected with an update/rebuild warning.
-The old invoker and dummy are no longer loaded or packaged.
+Modules are placed from the top of the arena (`0x08000000`) downwards, so the extended
+RAM right above the game's 32 MB stays free for as long as possible.
+
+Old fixed-address `ET_EXEC` plugins still load, with a warning, for compatibility: they
+are copied to the addresses they were linked to, and the old invoker's start-up is
+reproduced (`__cxa_atexit` returns at once, then `_init` and the entry point run, on a
+private stack and with the game's `gp`). Relocatable modules are placed around them; an
+old plugin whose range overlaps another one is skipped. Rebuild them when possible. The
+old invoker and dummy are no longer loaded or packaged.
 
 ## Build on Windows
 

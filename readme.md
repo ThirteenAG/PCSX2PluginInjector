@@ -56,7 +56,8 @@ The emulator directory contains `pcsx2-qtx64.exe` (fork) or `pcsx2-qt.exe`
 Implement the existing `init()` in C or `extern "C" void init()` in C++ and
 list your source files in `module.json`. The SDK supplies the descriptor, startup,
 constructor initialization, private stack, and aligned heap. Existing data exports
-below retain their names and layout. Old fixed-address binaries require rebuilding.
+below retain their names and layout. Old fixed-address binaries still load, with a
+warning, for compatibility; rebuild them when possible.
 See [guest module development](docs/guest-modules.md) for the build/runtime contract.
 
  - Define compatible games for plugin using **CompatibleCRCList** symbol, e.g.:

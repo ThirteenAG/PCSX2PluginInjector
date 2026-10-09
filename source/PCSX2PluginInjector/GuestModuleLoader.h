@@ -26,6 +26,10 @@ namespace GuestModule
         std::unordered_map<std::string, Symbol> symbols;
         std::vector<Section> sections;
         uint32_t stackTop = 0, context = 0, heapBegin = 0, heapEnd = 0;
+        // Fixed-address plugin of the old injector (see LoadLegacy): its C++ runtime
+        // initializer, run before its entry point like the old invoker did.
+        bool legacy = false;
+        uint32_t legacyInit = 0;
 
         const Symbol* find(std::string_view name) const
         {
@@ -75,6 +79,41 @@ namespace GuestModule
             auto* end = static_cast<const char*>(std::memchr(begin, 0, table.size - at));
             if (!end) return false;
             name.assign(begin, end);
+            return true;
+        }
+        // The host buffers a plugin exports by name, shared by both module formats.
+        inline bool ExportBuffers(Image& image, std::string& error)
+        {
+            struct Buffer { const char* name; uint32_t PluginInfo::*addr; uint32_t PluginInfo::*size; uint32_t min, multiple, align; bool writable; };
+            const Buffer buffers[] = {
+                {"PluginData", &PluginInfo::PluginDataAddr, &PluginInfo::PluginDataSize, 4, 1, 4, true},
+                {"PCSX2Data", &PluginInfo::PCSX2DataAddr, &PluginInfo::PCSX2DataSize, 4, 4, 4, true},
+                {"CompatibleCRCList", &PluginInfo::CompatibleCRCListAddr, &PluginInfo::CompatibleCRCListSize, 4, 4, 4, false},
+                {"CompatibleElfCRCList", &PluginInfo::CompatibleElfCRCListAddr, &PluginInfo::CompatibleElfCRCListSize, 4, 4, 4, false},
+                {"KeyboardState", &PluginInfo::KeyboardStateAddr, &PluginInfo::KeyboardStateSize, 512, 1, 1, true},
+                {"MouseState", &PluginInfo::MouseStateAddr, &PluginInfo::MouseStateSize, 40, 1, 4, true},
+                {"CheatString", &PluginInfo::CheatStringAddr, &PluginInfo::CheatStringSize, 2, 1, 1, true},
+                {"OSDText", &PluginInfo::OSDTextAddr, &PluginInfo::OSDTextSize, 255, 255, 1, true},
+                {"FrameLimitUnthrottle", &PluginInfo::FrameLimitUnthrottleAddr, &PluginInfo::FrameLimitUnthrottleSize, 1, 1, 1, true},
+                {"CLEOScripts", &PluginInfo::CLEOScriptsAddr, &PluginInfo::CLEOScriptsSize, 1, 1, 1, true}};
+            for (const auto& buffer : buffers)
+            {
+                const auto* symbol = image.find(buffer.name);
+                if (!symbol) continue;
+                if (symbol->size < buffer.min || symbol->size % buffer.multiple || symbol->address % buffer.align ||
+                    !image.contains(symbol->address, symbol->size, buffer.writable ? 1 : 0))
+                {
+                    error = std::string("invalid exported buffer: ") + buffer.name;
+                    return false;
+                }
+                image.info.*buffer.addr = symbol->address;
+                image.info.*buffer.size = symbol->size;
+            }
+            if (!image.info.CompatibleCRCListAddr)
+            {
+                error = "missing CompatibleCRCList game restriction";
+                return false;
+            }
             return true;
         }
     }
@@ -279,30 +318,100 @@ namespace GuestModule
         Put(image.bytes, image.context - base + 12, base);
         Put(image.bytes, image.context - base + 16, image.heapBegin);
         Put(image.bytes, image.context - base + 20, image.heapEnd);
-        struct Buffer { const char* name; uint32_t PluginInfo::*addr; uint32_t PluginInfo::*size; uint32_t min, multiple, align; bool writable; };
-        const Buffer buffers[] = {
-            {"PluginData", &PluginInfo::PluginDataAddr, &PluginInfo::PluginDataSize, 4, 1, 4, true},
-            {"PCSX2Data", &PluginInfo::PCSX2DataAddr, &PluginInfo::PCSX2DataSize, 4, 4, 4, true},
-            {"CompatibleCRCList", &PluginInfo::CompatibleCRCListAddr, &PluginInfo::CompatibleCRCListSize, 4, 4, 4, false},
-            {"CompatibleElfCRCList", &PluginInfo::CompatibleElfCRCListAddr, &PluginInfo::CompatibleElfCRCListSize, 4, 4, 4, false},
-            {"KeyboardState", &PluginInfo::KeyboardStateAddr, &PluginInfo::KeyboardStateSize, 512, 1, 1, true},
-            {"MouseState", &PluginInfo::MouseStateAddr, &PluginInfo::MouseStateSize, 40, 1, 4, true},
-            {"CheatString", &PluginInfo::CheatStringAddr, &PluginInfo::CheatStringSize, 2, 1, 1, true},
-            {"OSDText", &PluginInfo::OSDTextAddr, &PluginInfo::OSDTextSize, 255, 255, 1, true},
-            {"FrameLimitUnthrottle", &PluginInfo::FrameLimitUnthrottleAddr, &PluginInfo::FrameLimitUnthrottleSize, 1, 1, 1, true},
-            {"CLEOScripts", &PluginInfo::CLEOScriptsAddr, &PluginInfo::CLEOScriptsSize, 1, 1, 1, true}};
-        for (const auto& buffer : buffers)
+        if (!ExportBuffers(image, error)) return false;
+        error.clear();
+        output = std::move(image);
+        return true;
+    }
+
+    // Whether a file is a plugin of the old injector: a MIPS executable linked to a fixed
+    // address (ET_EXEC), which the old injector copied there as is.
+    inline bool IsLegacy(const std::vector<char>& file)
+    {
+        return file.size() >= 52 && !std::memcmp(file.data(), "\x7f" "ELF", 4) && Detail::U16(file, 16) == 2;
+    }
+
+    // Transactional like Load. The image is the plugin's loadable segments at the addresses
+    // it was linked to; they must lie inside the guest arena. The old invoker's start-up is
+    // reproduced by the caller: __cxa_atexit is made to return at once (it is called by the
+    // C++ runtime initializer, without a valid gp), then _init and the entry point run.
+    inline bool LoadLegacy(const std::vector<char>& file, Image& output, std::string& error)
+    {
+        using namespace Detail;
+        auto fail = [&](std::string reason) { error = std::move(reason); return false; };
+        if (file.size() > MaxFileSize || std::memcmp(file.data(), "\x7f" "ELF", 4) || file[4] != 1 || file[5] != 1 ||
+            U16(file, 16) != 2 || U16(file, 18) != 8 || U16(file, 40) != 52 || U16(file, 42) != 32)
+            return fail("expected a MIPS ELF32 little-endian executable");
+        const uint32_t phOffset = U32(file, 28), phCount = U16(file, 44);
+        if (!phCount || !InFile(file, phOffset, uint64_t(phCount) * 32)) return fail("invalid program header table");
+        Image image;
+        image.legacy = true;
+        uint64_t low = UINT64_MAX, high = 0;
+        for (uint32_t i = 0; i < phCount; ++i)
         {
-            const auto* symbol = image.find(buffer.name);
-            if (!symbol) continue;
-            if (symbol->size < buffer.min || symbol->size % buffer.multiple || symbol->address % buffer.align ||
-                !image.contains(symbol->address, symbol->size, buffer.writable ? 1 : 0))
-                return fail(std::string("invalid exported buffer: ") + buffer.name);
-            image.info.*buffer.addr = symbol->address;
-            image.info.*buffer.size = symbol->size;
+            const size_t at = phOffset + size_t(i) * 32;
+            if (U32(file, at) != 1 || !U32(file, at + 20)) continue; // PT_LOAD with memory
+            const uint32_t offset = U32(file, at + 4), address = U32(file, at + 8), fileSize = U32(file, at + 16),
+                memorySize = U32(file, at + 20), flags = U32(file, at + 24);
+            if (fileSize > memorySize || !InFile(file, offset, fileSize) || address < ArenaBegin ||
+                uint64_t(address) + memorySize > ArenaEnd)
+                return fail("segment outside the guest arena");
+            // Synthetic sections: alloc, plus write/exec from the segment's flags.
+            Section s{};
+            s.flags = 2 | ((flags & 2) ? 1 : 0) | ((flags & 1) ? 4 : 0);
+            s.offset = offset; s.size = memorySize; s.address = address; s.placed = address; s.entrySize = fileSize;
+            image.sections.push_back(s);
+            low = std::min<uint64_t>(low, address);
+            high = std::max<uint64_t>(high, uint64_t(address) + memorySize);
         }
-        if (!image.info.CompatibleCRCListAddr)
-            return fail("missing CompatibleCRCList game restriction");
+        if (image.sections.empty()) return fail("no loadable segments");
+        image.info.Base = static_cast<uint32_t>(low & ~uint64_t(127));
+        image.info.Size = static_cast<uint32_t>(Align(high, 128) - image.info.Base);
+        image.bytes.assign(image.info.Size, 0);
+        for (const auto& s : image.sections)
+        {
+            for (const auto& other : image.sections)
+                if (&other != &s && s.placed < other.placed + other.size && other.placed < s.placed + s.size)
+                    return fail("overlapping segments");
+            std::memcpy(image.bytes.data() + s.placed - image.info.Base, file.data() + s.offset, s.entrySize);
+        }
+        // Symbols from the section headers (the ones the old injector looked up by name).
+        const uint32_t shOffset = U32(file, 32), shCount = U16(file, 48);
+        if (shCount && U16(file, 46) == 40 && InFile(file, shOffset, uint64_t(shCount) * 40))
+        {
+            for (uint32_t i = 0; i < shCount; ++i)
+            {
+                const size_t at = shOffset + size_t(i) * 40;
+                if (U32(file, at + 4) != 2) continue; // SHT_SYMTAB
+                const uint32_t offset = U32(file, at + 16), size = U32(file, at + 20), link = U32(file, at + 24);
+                if (U32(file, at + 36) != 16 || !InFile(file, offset, size) || link >= shCount) continue;
+                const size_t strings = shOffset + size_t(link) * 40;
+                Section table{};
+                table.offset = U32(file, strings + 16); table.size = U32(file, strings + 20);
+                if (!InFile(file, table.offset, table.size)) continue;
+                for (uint32_t entry = 0; entry < size / 16; ++entry)
+                {
+                    const size_t symbol = offset + size_t(entry) * 16;
+                    std::string name;
+                    const uint32_t value = U32(file, symbol + 4), length = U32(file, symbol + 8);
+                    if (!U16(file, symbol + 14) || !value || !String(file, table, U32(file, symbol), name) || name.empty()) continue;
+                    uint32_t flags = 0;
+                    for (const auto& s : image.sections)
+                        if (value >= s.placed && uint64_t(value) + std::max(length, 1u) <= uint64_t(s.placed) + s.size) flags = s.flags;
+                    if (flags) image.symbols.emplace(name, Symbol{value, length, flags});
+                }
+            }
+        }
+        image.info.EntryPoint = U32(file, 24);
+        if (image.info.EntryPoint % 4 || !image.contains(image.info.EntryPoint, 4, 4)) return fail("invalid entry point");
+        if (const auto* init = image.find("_init"); init && !(init->address % 4) && image.contains(init->address, 4, 4))
+            image.legacyInit = init->address;
+        if (const auto* atexit = image.find("__cxa_atexit"); atexit && !(atexit->address % 4) && image.contains(atexit->address, 8, 4))
+        {
+            Put(image.bytes, atexit->address - image.info.Base, 0x03E00008);     // jr ra
+            Put(image.bytes, atexit->address - image.info.Base + 4, 0x00000000); // nop
+        }
+        if (!ExportBuffers(image, error)) return false;
         error.clear();
         output = std::move(image);
         return true;
