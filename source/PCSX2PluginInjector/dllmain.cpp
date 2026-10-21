@@ -8,8 +8,10 @@
 
 #include <pcsx2f_api.h>
 #include "GuestModuleLoader.h"
+#include "GuestSettingsPath.h"
 #include "EmulatorHost.h"
 #include "PluginSettingsService.h"
+#include "PluginBooleanPeer.h"
 
 HWND FallbackWindowHandle;
 static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
@@ -76,6 +78,29 @@ CEXP uint32_t InvokeGuestPluginSettings(uint32_t requestAddress, uint32_t caller
     {
         const auto& image = module.image;
         if (!image.contains(caller, 4, 4)) continue;
+        if ((requestAddress & 3) || !image.contains(requestAddress, 16)) return PCSX2F_SETTINGS_INVALID;
+        uint32_t header[4];
+        auto* peerMemory = reinterpret_cast<uint8_t*>(gEEMainMemoryStart) + requestAddress;
+        std::memcpy(header, peerMemory, sizeof(header));
+        if (header[1] == 2) {
+            if (!UsesCfg(image) || header[0] != sizeof(PCSX2FBoolPeerRequest) ||
+                !PluginSettings::BooleanPeerStorage(image, requestAddress)) return PCSX2F_SETTINGS_INVALID;
+            PCSX2FBoolPeerRequest request;
+            std::memcpy(&request, peerMemory, sizeof(request));
+            if (!PluginSettings::BooleanPeerHeader(request)) return PCSX2F_SETTINGS_INVALID;
+            const LoadedGuestModule* target = nullptr;
+            for (const auto& candidate : s_loadedGuestModules) {
+                if (candidate.path.filename().string() != request.module) continue;
+                if (target || &candidate == &module || !UsesCfg(candidate.image)) return PCSX2F_SETTINGS_INVALID;
+                target = &candidate;
+            }
+            if (!target) return PCSX2F_SETTINGS_NOT_FOUND;
+            try {
+                const auto status = PluginSettings::ProcessBooleanPeer(GuestSettingsPath(target->path, target->image), request);
+                if (status == PCSX2F_SETTINGS_OK) std::memcpy(peerMemory, &request, sizeof(request));
+                return status;
+            } catch (const std::exception&) { return PCSX2F_SETTINGS_IO_ERROR; }
+        }
         if ((requestAddress & 3) || requestAddress < image.info.Base ||
             uint64_t(requestAddress) + sizeof(PCSX2FIniRequest) > uint64_t(image.info.Base) + image.info.Size)
             return PCSX2F_SETTINGS_INVALID;
@@ -84,8 +109,7 @@ CEXP uint32_t InvokeGuestPluginSettings(uint32_t requestAddress, uint32_t caller
         std::memcpy(&request, memory, sizeof(request));
         try
         {
-            auto path = module.path;
-            path.replace_extension(L".ini");
+            const auto path = GuestSettingsPath(module.path, image);
             const uint32_t status = PluginSettings::Process(path, request);
             if (status == PCSX2F_SETTINGS_OK && request.operation == PCSX2F_SETTINGS_READ)
                 std::memcpy(memory, &request, sizeof(request));
@@ -938,7 +962,7 @@ void LoadPlugins(
             return image.matchesCRC(mod.CompatibleCRCListAddr, mod.CompatibleCRCListSize, s_disc_crc) &&
                 (!mod.CompatibleElfCRCListAddr || image.matchesCRC(mod.CompatibleElfCRCListAddr, mod.CompatibleElfCRCListSize, s_current_crc));
         };
-        // Reads the plugin's ini and CLEO scripts into its pending entry.
+        // Reads the plugin settings and CLEO scripts into its pending entry.
         auto accept = [&](PendingPlugin&& plugin) -> bool
         {
             const auto& path = plugin.path;
@@ -948,7 +972,7 @@ void LoadPlugins(
                 spd::log()->error("{} skipped: module limit is 256", path.filename().string());
                 return false;
             }
-            auto iniPath = std::filesystem::path(path).replace_extension(L".ini");
+            auto iniPath = GuestSettingsPath(path, plugin.image);
             if (mod.PluginDataAddr && std::filesystem::exists(iniPath, ec))
             {
                 plugin.ini = LoadFileToBuffer(iniPath);
@@ -1128,7 +1152,10 @@ void LoadPlugins(
                 auto& mod = plugin.image.info;
                 if (const auto* supported = plugin.image.find("PCSX2FSettingsVersion"); supported &&
                     supported->size == sizeof(uint32_t) && plugin.image.contains(supported->address, sizeof(uint32_t), 1))
-                    WriteMemory32(supported->address, s_hostSupportsSettings ? 1u : 0u);
+                    WriteMemory32(supported->address, s_hostSupportsSettings ? (UsesCfg(plugin.image) ? 2u : 1u) : 0u);
+                if (const auto* supported = plugin.image.find("PCSX2FSettingsPeerVersion"); supported &&
+                    supported->size == sizeof(uint32_t) && !(supported->address & 3) && plugin.image.contains(supported->address, sizeof(uint32_t), 1))
+                    WriteMemory32(supported->address, s_hostSupportsSettings && UsesCfg(plugin.image) ? 1u : 0u);
                 if (plugin.hasIni)
                 {
                     MemoryFill(mod.PluginDataAddr, 0, mod.PluginDataSize);

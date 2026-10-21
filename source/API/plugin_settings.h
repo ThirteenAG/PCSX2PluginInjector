@@ -4,9 +4,12 @@
 
 /* Optional, synchronous host service. Export PCSX2FSettingsVersion initialized
  * to zero; the injector sets it to 1 when this service is available. The host
- * selects the INI beside the calling module; no host path is supplied by the
+ * selects settings beside the calling module; no host path is supplied by the
  * guest. Use only on settings changes/menu close, never in a rendering loop.
  * Requests live in the module's own data, stack or bounded heap. */
+// Export uint32_t PCSX2FSettingsFormat = 1 to opt into CFG-only loading/saving.
+// The host sets PCSX2FSettingsVersion to 2 for these modules; old hosts report 1.
+// CFG modules must reject versions below 2 so an old host never reads/writes INI.
 #define PCSX2F_SETTINGS_API() uint32_t PCSX2FSettingsVersion = 0
 extern uint32_t PCSX2FSettingsVersion;
 enum PCSX2FSettingsStatus {
@@ -22,9 +25,16 @@ struct PCSX2FIniRequest {
     uint32_t size, version, operation, count;
     struct PCSX2FIniEntry entries[PCSX2F_SETTINGS_MAX_ENTRIES];
 };
+// Versioned restart-only boolean access to one explicitly named loaded CFG peer.
+// Own-file request layout and version remain unchanged.
+extern uint32_t PCSX2FSettingsPeerVersion;
+struct PCSX2FBoolPeerRequest {
+    uint32_t size, version, operation, count;
+    char module[64], section[64], key[64], value[64];
+};
 #if defined(__mips__)
 static inline uint32_t PCSX2F_IniRequest(struct PCSX2FIniRequest* request) {
-    if (PCSX2FSettingsVersion != 1) return PCSX2F_SETTINGS_UNSUPPORTED;
+    if (PCSX2FSettingsVersion != 1 && PCSX2FSettingsVersion != 2) return PCSX2F_SETTINGS_UNSUPPORTED;
     register uint32_t number __asm__("$3") = PCSX2F_SETTINGS_SYSCALL;
     register uint32_t magic __asm__("$4") = PCSX2F_SETTINGS_MAGIC;
     register struct PCSX2FIniRequest* data __asm__("$5") = request;
@@ -32,5 +42,15 @@ static inline uint32_t PCSX2F_IniRequest(struct PCSX2FIniRequest* request) {
     __asm__ __volatile__("syscall" : "=r"(result), "+r"(number), "+r"(magic), "+r"(data) : : "memory");
     return result;
 }
+static inline uint32_t PCSX2F_BoolPeerRequest(struct PCSX2FBoolPeerRequest* request) {
+    if (PCSX2FSettingsVersion != 2 || PCSX2FSettingsPeerVersion != 1) return PCSX2F_SETTINGS_UNSUPPORTED;
+    register uint32_t number __asm__("$3") = PCSX2F_SETTINGS_SYSCALL;
+    register uint32_t magic __asm__("$4") = PCSX2F_SETTINGS_MAGIC;
+    register struct PCSX2FBoolPeerRequest* data __asm__("$5") = request;
+    register uint32_t result __asm__("$2");
+    __asm__ __volatile__("syscall" : "=r"(result), "+r"(number), "+r"(magic), "+r"(data) : : "memory");
+    return result;
+}
+
 #endif
 #endif
