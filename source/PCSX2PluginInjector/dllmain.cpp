@@ -4,7 +4,7 @@
 #include <chrono>
 #include <future>
 #include <filesystem>
-#include <atomic>
+#include <condition_variable>
 
 
 #include <pcsx2f_api.h>
@@ -327,7 +327,9 @@ static bool IsOwnGameWindow(HWND window)
 }
 
 static std::thread s_windowWatcher;
-static std::atomic<bool> s_windowWatcherStop{ false };
+static std::mutex s_windowWatcherMutex;
+static std::condition_variable s_windowWatcherWake;
+static bool s_windowWatcherStop = false;
 
 static bool IsFullscreenWindow(HWND window)
 {
@@ -357,9 +359,15 @@ static void WatchWindow()
             WriteMemory32(info.PCSX2DataAddr + offset, value);
     };
 
-    while (!s_windowWatcherStop)
+    // A resize only needs to reach the plugins within a few frames, and a stop
+    // wakes the wait at once.
+    while (true)
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(8));
+        {
+            std::unique_lock lock(s_windowWatcherMutex);
+            if (s_windowWatcherWake.wait_for(lock, std::chrono::milliseconds(250), [] { return s_windowWatcherStop; }))
+                break;
+        }
 
         const HWND window = GetRenderWindowFromDevice();
         RECT rect = {};
@@ -395,13 +403,20 @@ static void StartWindowWatcher()
     if (s_windowWatcher.joinable())
         return;
 
-    s_windowWatcherStop = false;
+    {
+        std::lock_guard lock(s_windowWatcherMutex);
+        s_windowWatcherStop = false;
+    }
     s_windowWatcher = std::thread(&WatchWindow);
 }
 
 static void StopWindowWatcher()
 {
-    s_windowWatcherStop = true;
+    {
+        std::lock_guard lock(s_windowWatcherMutex);
+        s_windowWatcherStop = true;
+    }
+    s_windowWatcherWake.notify_all();
     if (s_windowWatcher.joinable())
         s_windowWatcher.join();
 }
@@ -1505,6 +1520,14 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved)
     if (reason == DLL_PROCESS_ATTACH)
     {
         if (!IsUALPresent()) { InitializeASI(); }
+    }
+    else if (reason == DLL_PROCESS_DETACH && lpReserved)
+    {
+        // The emulator is closing without having shut the game down: Windows has
+        // already ended these threads, and a joinable thread object left for the
+        // static destructors would terminate the process.
+        if (s_windowWatcher.joinable()) s_windowWatcher.detach();
+        if (s_unthrottleThread.joinable()) s_unthrottleThread.detach();
     }
 
     return TRUE;
