@@ -4,6 +4,7 @@
 #include <chrono>
 #include <future>
 #include <filesystem>
+#include <atomic>
 
 
 #include <pcsx2f_api.h>
@@ -323,6 +324,86 @@ static bool IsOwnGameWindow(HWND window)
     DWORD processId = 0;
     GetWindowThreadProcessId(window, &processId);
     return processId == GetCurrentProcessId();
+}
+
+static std::thread s_windowWatcher;
+static std::atomic<bool> s_windowWatcherStop{ false };
+
+static bool IsFullscreenWindow(HWND window)
+{
+    const HWND root = GetAncestor(window, GA_ROOT);
+    if (GetWindowLongPtrW(root, GWL_STYLE) & WS_CAPTION)
+        return false;
+
+    MONITORINFO monitor = { sizeof(monitor) };
+    RECT rect = {};
+    if (!GetMonitorInfoW(MonitorFromWindow(root, MONITOR_DEFAULTTONEAREST), &monitor) || !GetWindowRect(root, &rect))
+        return false;
+
+    return rect.left <= monitor.rcMonitor.left && rect.top <= monitor.rcMonitor.top &&
+        rect.right >= monitor.rcMonitor.right && rect.bottom >= monitor.rcMonitor.bottom;
+}
+
+static void WatchWindow()
+{
+    uint32_t width = 0;
+    uint32_t height = 0;
+    bool fullscreen = false;
+
+    auto write = [](const auto& info, PCSX2DataType type, uint32_t value)
+    {
+        const uint32_t offset = 4 * static_cast<uint32_t>(type);
+        if (offset + sizeof(uint32_t) <= info.PCSX2DataSize)
+            WriteMemory32(info.PCSX2DataAddr + offset, value);
+    };
+
+    while (!s_windowWatcherStop)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(8));
+
+        const HWND window = GetRenderWindowFromDevice();
+        RECT rect = {};
+        if (!IsOwnGameWindow(window) || !GetClientRect(window, &rect) || rect.right <= 0 || rect.bottom <= 0)
+            continue;
+
+        const uint32_t newWidth = static_cast<uint32_t>(rect.right);
+        const uint32_t newHeight = static_cast<uint32_t>(rect.bottom);
+        const bool newFullscreen = IsFullscreenWindow(window);
+        if (newWidth == width && newHeight == height && newFullscreen == fullscreen)
+            continue;
+
+        width = newWidth;
+        height = newHeight;
+        fullscreen = newFullscreen;
+
+        std::lock_guard lock(s_guestModuleMutex);
+        for (const auto& module : s_loadedGuestModules)
+        {
+            const auto& info = module.image.info;
+            if (!info.PCSX2DataAddr)
+                continue;
+
+            write(info, PCSX2DataType::PCSX2Data_WindowSizeX, width);
+            write(info, PCSX2DataType::PCSX2Data_WindowSizeY, height);
+            write(info, PCSX2DataType::PCSX2Data_IsFullscreen, fullscreen ? 1u : 0u);
+        }
+    }
+}
+
+static void StartWindowWatcher()
+{
+    if (s_windowWatcher.joinable())
+        return;
+
+    s_windowWatcherStop = false;
+    s_windowWatcher = std::thread(&WatchWindow);
+}
+
+static void StopWindowWatcher()
+{
+    s_windowWatcherStop = true;
+    if (s_windowWatcher.joinable())
+        s_windowWatcher.join();
 }
 
 // The game is drawn into the main window of the emulator, and the windows it
@@ -1264,6 +1345,7 @@ void LoadPlugins(
                     s_loadedGuestModules.push_back({plugin.path, std::move(plugin.image)});
                 }
             }
+            StartWindowWatcher();
             if (HasInputPlugins())
             {
                 if (!gWindowHandle)
@@ -1361,6 +1443,7 @@ CEXP uintptr_t GetPluginSymbolAddr(const char* path, const char* sym_name)
 
 void ExitSignal()
 {
+    StopWindowWatcher();
     exitSignal.set_value();
     if (s_unthrottleThread.joinable()) s_unthrottleThread.join();
     std::promise<void>().swap(exitSignal);
