@@ -85,6 +85,10 @@ with a warning. `GetPluginSymbolAddr` resolves the current relocated module only
 Native consumers must refresh cached addresses across reset and ELF transitions.
 
 Reset, ELF transitions, and shutdown clear registrations and runtime state.
+Exception: a module exporting `int PCSX2FResident` that its game keeps alive across
+a launch of another ELF from the same disc (CRC in its `CompatibleCRCList`) stays
+registered and keeps receiving window data while that ELF loads no modules.
+The module itself must keep its memory reserved and its hooks valid there.
 Save/load states remain blocked while modules are active; memory-card saves work
 normally. The fork retains guest before-UI rain rendering. Original PCSX2 uses
 the native rain plugin's presentation fallback and a stock ImGui OSD adapter.

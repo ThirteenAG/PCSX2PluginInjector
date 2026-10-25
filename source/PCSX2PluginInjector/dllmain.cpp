@@ -71,6 +71,7 @@ static GetGuestHostApi s_getGuestHostApi = nullptr;
 static const PCSX2FGuestHostV1* s_guestHostApi = nullptr;
 struct LoadedGuestModule { std::filesystem::path path; GuestModule::Image image; };
 static std::vector<LoadedGuestModule> s_loadedGuestModules;
+static std::vector<LoadedGuestModule> s_residentGuestModules;
 static std::mutex s_guestModuleMutex;
 CEXP uint32_t InvokeGuestPluginSettings(uint32_t requestAddress, uint32_t caller)
 {
@@ -124,6 +125,7 @@ CEXP uint32_t InvokeGuestPluginSettings(uint32_t requestAddress, uint32_t caller
     return PCSX2F_SETTINGS_INVALID;
 }
 void ExitSignal();
+static void KeepResidentModules();
 const void* gWindowHandle;
 static std::mutex s_osdMutex;
 
@@ -982,6 +984,13 @@ void LoadPlugins(
         return;
     }
 
+    KeepResidentModules();
+    std::vector<LoadedGuestModule> resident;
+    {
+        std::lock_guard lock(s_guestModuleMutex);
+        resident.swap(s_residentGuestModules);
+    }
+
     ExitSignal();
     ResetInput();
     gEEMainMemoryStart = reinterpret_cast<uintptr_t>(EEMainMemoryStart);
@@ -1372,7 +1381,24 @@ void LoadPlugins(
             }
         }
         else
+        {
             spd::log()->info("No compatible relocatable modules were loaded");
+            bool kept = false;
+            {
+                std::lock_guard lock(s_guestModuleMutex);
+                for (auto& module : resident)
+                {
+                    const auto& mod = module.image.info;
+                    if (!module.image.matchesCRC(mod.CompatibleCRCListAddr, mod.CompatibleCRCListSize, s_disc_crc))
+                        continue;
+                    spd::log()->info("{} stays resident at 0x{:08X}", module.path.filename().string(), mod.Base);
+                    s_loadedGuestModules.push_back(std::move(module));
+                    kept = true;
+                }
+            }
+            if (kept)
+                StartWindowWatcher();
+        }
     }
     else
         spd::log()->info("No PLUGINS directory");
@@ -1456,6 +1482,20 @@ CEXP uintptr_t GetPluginSymbolAddr(const char* path, const char* sym_name)
     return 0;
 }
 
+static void KeepResidentModules()
+{
+    std::lock_guard lock(s_guestModuleMutex);
+    for (auto& module : s_loadedGuestModules)
+        if (module.image.find("PCSX2FResident"))
+            s_residentGuestModules.push_back(std::move(module));
+}
+
+static void GameShutdown()
+{
+    KeepResidentModules();
+    ExitSignal();
+}
+
 void ExitSignal()
 {
     StopWindowWatcher();
@@ -1508,7 +1548,7 @@ CEXP void InitializeASI()
         s_hostSupportsGuestRenderPhase = GetProcAddress(GetModuleHandle(nullptr), "PCSX2F_GuestRenderPhaseSupported") != nullptr;
         s_hostSupportsSettings = stock || GetProcAddress(GetModuleHandle(nullptr), "PCSX2F_PluginSettingsSupported") != nullptr;
         AddOnGameElfInitCallback(LoadPlugins);
-        AddOnGameShutdownCallback(ExitSignal);
+        AddOnGameShutdownCallback(GameShutdown);
         AddOnGameShutdownCallback(InputShutdown);
         AddOnGameShutdownCallback([] { FallbackWindowHandle = {}; });
         if (stock) StockPCSX2::Activate();
