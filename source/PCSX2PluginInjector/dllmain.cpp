@@ -65,6 +65,33 @@ void WriteMemoryRaw(uint32_t addr, const void* value, uint32_t size)
     if (size) WriteBytes(addr, value, size);
 }
 
+static void ApplyStartPatch(const std::filesystem::path& path, const GuestModule::Image& image)
+{
+    const auto* symbol = image.find("PCSX2FStartPatch");
+    if (!symbol || symbol->size != 3 * sizeof(uint32_t) || (symbol->address & 3) || !image.contains(symbol->address, symbol->size))
+        return;
+
+    const uint32_t address = image.word(symbol->address);
+    const uint32_t original = image.word(symbol->address + 4);
+    const uint32_t replacement = image.word(symbol->address + 8);
+    if ((address & 3) || address < 0x100000 || address + 4 > 0x02000000)
+    {
+        spd::log()->warn("{}: start patch address 0x{:08X} rejected", path.filename().string(), address);
+        return;
+    }
+
+    uint32_t current;
+    std::memcpy(&current, reinterpret_cast<const uint8_t*>(gEEMainMemoryStart) + address, sizeof(current));
+    if (current != original)
+    {
+        spd::log()->warn("{}: start patch at 0x{:08X} skipped, found 0x{:08X} instead of 0x{:08X}",
+            path.filename().string(), address, current, original);
+        return;
+    }
+    WriteMemory32(address, replacement);
+    spd::log()->info("{}: start patch 0x{:08X} -> 0x{:08X} at 0x{:08X}", path.filename().string(), original, replacement, address);
+}
+
 std::promise<void> exitSignal;
 std::thread s_unthrottleThread;
 static GetGuestHostApi s_getGuestHostApi = nullptr;
@@ -1359,6 +1386,8 @@ void LoadPlugins(
                 spd::log()->error("Module commit failed; startup was not armed");
                 return;
             }
+            for (const auto& plugin : pending)
+                ApplyStartPatch(plugin.path, plugin.image);
             {
                 std::lock_guard lock(s_guestModuleMutex);
                 for (auto& plugin : pending)

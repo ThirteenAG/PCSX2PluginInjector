@@ -89,6 +89,11 @@ Exception: a module exporting `int PCSX2FResident` that its game keeps alive acr
 a launch of another ELF from the same disc (CRC in its `CompatibleCRCList`) stays
 registered and keeps receiving window data while that ELF loads no modules.
 The module itself must keep its memory reserved and its hooks valid there.
+A module whose game shows something before the module start point (Tekken 5 puts its
+logo on screen before its crt0 EI) may export `uint32_t PCSX2FStartPatch[3]` = { address,
+original, replacement }. The injector writes the replacement word into the game when
+the module is committed, only if the original word is there, so an EI placed earlier in
+crt0 (within 2000 bytes of the entry, outside a delay slot) starts the modules there.
 Save/load states remain blocked while modules are active; memory-card saves work
 normally. The fork retains guest before-UI rain rendering. Original PCSX2 uses
 the native rain plugin's presentation fallback and a stock ImGui OSD adapter.
