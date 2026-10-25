@@ -73,10 +73,33 @@ Packed data pointers may be unaligned; instruction relocations must be aligned.
 The CPU-thread ELF callback writes and queues a complete load transaction. A
 successful commit reserves RAM above 32 MiB from game heap/memory-size syscalls.
 The emulator must have 128 MiB RAM enabled. BSS, stack, and heap start zeroed.
-Execution starts after the existing EI readiness boundary near the game entry,
-outside a branch delay slot. Each module gets its own stack and retains game GP
+On the fork, execution starts after crt0's SetUpThread and SetUpHeap syscalls have
+returned from the BIOS, before game constructors and startup routines. Both calls
+must originate near the current entry, outside a branch delay slot. Other startup
+layouts retain the EI readiness fallback; the stock adapter also uses EI. An
+earlier crt0 sync alone is insufficient: GP, stack, and kernel startup may still
+be uninitialized. At the guarded return, kernel syscalls and module-private
+allocation are available; game constructors have not run, so calls requiring
+game initialization must be deferred. Interrupts may already be enabled, and
+their state is preserved. Game instructions and interrupt enable timing are
+never patched. Each module gets its own stack and retains game GP
 for existing hook helpers. A private return syscall advances to the next module,
 then restores the full GPR, HI/LO, FPU, SA, and game PC context. Guest cycles advance.
+
+`CompatibleCRCList` selects the disc CRC. An optional `CompatibleElfCRCList`
+additionally selects the current ELF CRC; both filters must match. Add secondary
+program CRCs to the ELF list, not the disc list. Omitting the ELF list permits all
+programs on the selected disc. Every file-based ELF transition stops old host
+registrations and loads matching modules afresh, including their initialization. Both EE
+execution modes keep tracking later file-based launches after the first boot.
+A rejected module receives no input or window writes. Module hooks must support
+fresh initialization in each selected program and must not leave kernel pointers
+into a discarded instance. Custom loaders that jump into an overlay directly do
+not announce a new ELF; overlay handling remains within that loaded program.
+
+On the fork, GetMemorySize runs the installed guest kernel handler. Its returned
+size is capped at 32 MiB while modules reserve the extended arena, preserving
+handler side effects without exposing module memory to the game's allocator.
 
 Existing compatibility lists, INI, display/input, OSD, cheat, and CLEO buffer
 exports retain their layouts. Bounds are checked against allocated sections.

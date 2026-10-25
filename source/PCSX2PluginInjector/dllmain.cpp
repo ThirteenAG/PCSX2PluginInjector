@@ -351,6 +351,7 @@ static void WatchWindow()
     uint32_t width = 0;
     uint32_t height = 0;
     bool fullscreen = false;
+    spd::log()->info("Starting window watcher");
 
     auto write = [](const auto& info, PCSX2DataType type, uint32_t value)
     {
@@ -385,6 +386,7 @@ static void WatchWindow()
         fullscreen = newFullscreen;
 
         std::lock_guard lock(s_guestModuleMutex);
+        spd::log()->info("Window data: {}x{}, fullscreen {}, {} modules", width, height, fullscreen, s_loadedGuestModules.size());
         for (const auto& module : s_loadedGuestModules)
         {
             const auto& info = module.image.info;
@@ -396,6 +398,7 @@ static void WatchWindow()
             write(info, PCSX2DataType::PCSX2Data_IsFullscreen, fullscreen ? 1u : 0u);
         }
     }
+    spd::log()->info("Stopping window watcher");
 }
 
 static void StartWindowWatcher()
@@ -1052,11 +1055,17 @@ void LoadPlugins(
             }
             return false;
         };
-        auto compatible = [&](const GuestModule::Image& image)
+        auto compatible = [&](const GuestModule::Image& image, const std::filesystem::path& path)
         {
             const auto& mod = image.info;
-            return image.matchesCRC(mod.CompatibleCRCListAddr, mod.CompatibleCRCListSize, s_disc_crc) &&
-                (!mod.CompatibleElfCRCListAddr || image.matchesCRC(mod.CompatibleElfCRCListAddr, mod.CompatibleElfCRCListSize, s_current_crc));
+            if (!image.matchesCRC(mod.CompatibleCRCListAddr, mod.CompatibleCRCListSize, s_disc_crc))
+                return false;
+            if (mod.CompatibleElfCRCListAddr && !image.matchesCRC(mod.CompatibleElfCRCListAddr, mod.CompatibleElfCRCListSize, s_current_crc))
+            {
+                spd::log()->info("{} skipped: CompatibleElfCRCList excludes current ELF CRC 0x{:08X} (disc CRC 0x{:08X})", path.filename().string(), s_current_crc, s_disc_crc);
+                return false;
+            }
+            return true;
         };
         // Reads the plugin settings and CLEO scripts into its pending entry.
         auto accept = [&](PendingPlugin&& plugin) -> bool
@@ -1140,7 +1149,7 @@ void LoadPlugins(
                 s_guestHostApi->warn("Some PS2 plugins need updating. See PCSX2PluginInjector.log for filenames and details.");
                 continue;
             }
-            if (!compatible(plugin.image)) continue;
+            if (!compatible(plugin.image, path)) continue;
             const Range range{plugin.image.info.Base, plugin.image.info.Base + plugin.image.info.Size, path.filename().string()};
             if (range.begin < arenaBegin || range.end > arenaEnd)
             {
@@ -1175,7 +1184,7 @@ void LoadPlugins(
                 s_guestHostApi->warn("Some PS2 plugins need updating. See PCSX2PluginInjector.log for filenames and details.");
                 continue;
             }
-            if (!compatible(plugin.image)) continue;
+            if (!compatible(plugin.image, path)) continue;
             uint32_t size = plugin.image.info.Size, base = 0, limit = 0;
             bool placed = false;
             for (int attempt = 0; attempt < 8 && place(size, base, limit); ++attempt)
