@@ -116,3 +116,18 @@ project "ModuleProbeCpp"
    buildcommands { command }
    rebuildcommands { command .. ' -Clean', command }
    cleancommands { command .. ' -Clean' }
+
+-- Test programs, built to build/tests and run by CI
+for _, name in ipairs({ "GuestModuleLoaderTests", "StockRuntimeTests" }) do
+   project(name)
+      kind "ConsoleApp"
+      targetextension ".exe"
+      targetdir "build/tests"
+      files { "tests/" .. name .. ".cpp" }
+      removefiles { "Resources/*.rc", "includes/stdafx.h", "includes/stdafx.cpp" }
+      warnings "Extra"
+end
+project "GuestModuleLoaderTests"
+   flags { "FatalWarnings" }
+project "StockRuntimeTests"
+   defines { "NOMINMAX" }

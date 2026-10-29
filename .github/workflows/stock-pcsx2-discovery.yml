@@ -87,7 +87,8 @@ jobs:
         run: |
           $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
           $vsRoot = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
-          & "$vsRoot/MSBuild/Current/Bin/MSBuild.exe" tests/StockRuntimeTests.vcxproj /p:Configuration=Release /p:Platform=x64 /nologo /v:minimal
+          ./premake5.exe vs2022
+          & "$vsRoot/MSBuild/Current/Bin/MSBuild.exe" build/StockRuntimeTests.vcxproj "/p:Configuration=Release Win64" /p:Platform=x64 /nologo /v:minimal
           if ($LASTEXITCODE -ne 0) { throw 'Stock runtime test build failed.' }
           $pair = Get-Content 'build/upstream/development.json' -Raw | ConvertFrom-Json
           & build/tests/StockRuntimeTests.exe (Join-Path $PWD "build/discovery-artifact/$($pair.version).ini") $pair.exe

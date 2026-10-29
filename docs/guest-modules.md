@@ -51,8 +51,9 @@ boot another kernel, provide general file/thread services, or own the game's hea
 Allocation failure in throwing `new`/STL paths traps rather than unwinding.
 
 Global destructors can be registered with `__cxa_atexit`; reset discards the
-module's memory. Automatic unload/finalizer callbacks and state persistence are
-future work. Alignment beyond the EE's ordinary 16-byte allocation contract and
+module's memory. Automatic unload/finalizer callbacks remain future work. The
+fork persists guest RAM and host module bookkeeping in save states. Alignment
+beyond the EE's ordinary 16-byte allocation contract and
 TLS are outside this profile.
 
 For freestanding code with its own entry/runtime, use `-NoRuntime` and export
@@ -105,22 +106,38 @@ Existing compatibility lists, INI, display/input, OSD, cheat, and CLEO buffer
 exports retain their layouts. Bounds are checked against allocated sections.
 INI payloads begin with their actual 32-bit length; oversized input is truncated
 with a warning. `GetPluginSymbolAddr` resolves the current relocated module only.
-Native consumers must refresh cached addresses across reset and ELF transitions.
+Native consumers must refresh cached addresses across reset, ELF transitions,
+and state loads; a restored layout publishes a fresh host generation.
 
 Reset, ELF transitions, and shutdown clear registrations and runtime state.
-Save/load states remain blocked while modules are active; memory-card saves work
-normally. The fork retains guest before-UI rain rendering. Original PCSX2 uses
+The fork supports save/load states with modules active when the injector provides
+`GuestPluginStateTransfer`. New states embed the original ELF bytes and rebuild
+registrations from those saved bytes at the saved addresses; installed files
+never supply the code or metadata for these loads. Missing, changed or added
+installed plugins produce one short OSD note after loading, and reset/restart
+uses the installed versions. Matching sets are silent. Original ELF hashes and
+layouts validate the saved payload, rather than gate it against disk contents.
+The earlier identity-only manifest needs original ELFs once to load and re-save
+as a self-contained state. Loads do not rerun guest initialization. Plugin-free states discard existing
+module registrations; restart to initialize installed plugins again. The format
+and optional `PCSX2FStateLoadGeneration` settings refresh contract are documented
+in the fork's `docs/plugin-save-states.md`. Plugins without that export retain
+settings cached in restored guest globals, although their configuration buffer
+is refreshed when the sidecar exists. Missing sidecars preserve the saved buffer
+and parsed settings without requesting a refresh; current CFGs otherwise win,
+and plugins should ignore unknown keys. Memory-card saves continue to work normally. The fork retains
+guest before-UI rain rendering. Original PCSX2 uses
 the native rain plugin's presentation fallback and a stock ImGui OSD adapter.
 PINE is not used.
 
 ## Verification and guest debugging
 
-`GuestModuleLoaderTests.vcxproj` covers malformed/truncated files, transactional
+`tests/GuestModuleLoaderTests.cpp` covers malformed/truncated files, transactional
 rejection, relocation arithmetic, constructor validation, packed data pointers,
 CPIC, weak imports, BSS, buffers, capacity, and rebasing. Pass `--modules` followed
 by rebuilt ELF paths to validate their compiler output at two bases.
 The fork's `tests/guest-modules/RuntimeTests.vcxproj` and injector's
-`StockRuntimeTests.vcxproj` test their production state machines and register
+`tests/StockRuntimeTests.cpp` test their production state machines and register
 restoration. The stock test additionally maps the pinned original executable and
 checks its hash/PDB identity, symbol bounds, and ASLR-aware instruction prefixes.
 

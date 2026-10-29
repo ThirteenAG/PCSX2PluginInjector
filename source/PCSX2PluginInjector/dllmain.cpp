@@ -13,6 +13,7 @@
 #include "EmulatorHost.h"
 #include "PluginSettingsService.h"
 #include "PluginBooleanPeer.h"
+#include "GuestModuleState.h"
 
 HWND FallbackWindowHandle;
 static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
@@ -69,9 +70,10 @@ std::promise<void> exitSignal;
 std::thread s_unthrottleThread;
 static GetGuestHostApi s_getGuestHostApi = nullptr;
 static const PCSX2FGuestHostV1* s_guestHostApi = nullptr;
-struct LoadedGuestModule { std::filesystem::path path; GuestModule::Image image; };
+struct LoadedGuestModule { std::filesystem::path path; GuestModule::Image image; std::string hash; std::vector<char> file; };
 static std::vector<LoadedGuestModule> s_loadedGuestModules;
 static std::mutex s_guestModuleMutex;
+static uint32_t s_stateDisc = 0, s_stateElf = 0;
 CEXP uint32_t InvokeGuestPluginSettings(uint32_t requestAddress, uint32_t caller)
 {
     std::lock_guard lock(s_guestModuleMutex);
@@ -965,6 +967,7 @@ void LoadPlugins(
     const uint8_t AspectRatioSetting
 )
 {
+    s_stateDisc = s_disc_crc; s_stateElf = s_current_crc;
     spd::log()->info("Starting PCSX2PluginInjector");
     spd::log()->info("Game: {}", s_title);
     spd::log()->info("Disc Serial: {}", s_disc_serial);
@@ -1007,6 +1010,8 @@ void LoadPlugins(
         {
             std::filesystem::path path;
             GuestModule::Image image;
+            std::string hash;
+            std::vector<char> file;
             std::vector<char> ini;
             bool hasIni = false;
             std::vector<char> cleo;
@@ -1150,6 +1155,8 @@ void LoadPlugins(
                 continue;
             }
             if (!compatible(plugin.image, path)) continue;
+            plugin.hash = GuestPluginState::Hash(file);
+            plugin.file = file;
             const Range range{plugin.image.info.Base, plugin.image.info.Base + plugin.image.info.Size, path.filename().string()};
             if (range.begin < arenaBegin || range.end > arenaEnd)
             {
@@ -1185,6 +1192,8 @@ void LoadPlugins(
                 continue;
             }
             if (!compatible(plugin.image, path)) continue;
+            plugin.hash = GuestPluginState::Hash(file);
+            plugin.file = file;
             uint32_t size = plugin.image.info.Size, base = 0, limit = 0;
             bool placed = false;
             for (int attempt = 0; attempt < 8 && place(size, base, limit); ++attempt)
@@ -1366,7 +1375,7 @@ void LoadPlugins(
                     spd::log()->info("Loaded {} {} at 0x{:08X}, entry 0x{:08X}, generation {}",
                         plugin.path.filename().string(), plugin.image.legacy ? "(old format, fixed address)" : "dynamically",
                         plugin.image.info.Base, plugin.image.info.EntryPoint, s_guestHostApi->generation);
-                    s_loadedGuestModules.push_back({plugin.path, std::move(plugin.image)});
+                    s_loadedGuestModules.push_back({plugin.path, std::move(plugin.image), std::move(plugin.hash), std::move(plugin.file)});
                 }
             }
             StartWindowWatcher();
@@ -1478,6 +1487,8 @@ void ExitSignal()
     std::lock_guard lock(s_guestModuleMutex);
     s_loadedGuestModules.clear();
 }
+
+#include "GuestModuleState.inc"
 
 CEXP void InitializeASI()
 {

@@ -41,7 +41,7 @@ jobs:
     - name: Verify rebuilt guest modules
       shell: pwsh
       run: |
-        msbuild tests/GuestModuleLoaderTests.vcxproj /p:Configuration=Release /p:Platform=x64 /nologo /v:minimal
+        msbuild build/GuestModuleLoaderTests.vcxproj "/p:Configuration=Release Win64" /p:Platform=x64 /nologo /v:minimal
         if ($LASTEXITCODE -ne 0) { throw 'Guest loader test build failed.' }
         $modules = @(Get-ChildItem data/PLUGINS -Recurse -File -Filter '*.elf' | ForEach-Object FullName)
         if ($modules.Count -ne 6) { throw 'Expected three probes and three migrated demos.' }
