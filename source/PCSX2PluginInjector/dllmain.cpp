@@ -1397,10 +1397,10 @@ void LoadPlugins(
 
     spd::log()->info("Finished loading plugins\n");
 
-    auto XboxRainDroplets = L"PCSX2F.XboxRainDroplets64.asi";
-    if (GetModuleHandle(XboxRainDroplets) == NULL)
+    auto RainDroplets = L"PCSX2F.FusionRainDroplets64.asi";
+    if (GetModuleHandle(RainDroplets) == NULL)
     {
-        auto h = LoadLibraryW(XboxRainDroplets);
+        auto h = LoadLibraryW(RainDroplets);
         if (h != NULL)
         {
             auto procedure = (void(*)())GetProcAddress(h, "InitializeASI");
@@ -1415,7 +1415,7 @@ void LoadPlugins(
     else
     {
         // the module is already there, what it exports has to be picked up as well
-        RegisterGuestRenderPhasePlugin(GetModuleHandle(XboxRainDroplets));
+        RegisterGuestRenderPhasePlugin(GetModuleHandle(RainDroplets));
     }
 }
 
