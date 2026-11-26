@@ -83,6 +83,7 @@ namespace
     void RestoreGuestPluginState(const uintptr_t* context)
     {
         bool unthrottle = false;
+        const uint32_t display = CurrentDisplayAspect(static_cast<uint32_t>(context[6]));
         for (const auto& module : s_pendingGuestState)
         {
             const auto& image = module.image;
@@ -93,9 +94,11 @@ namespace
             if (mod.PCSX2DataAddr)
             {
                 auto [desktopWidth, desktopHeight] = GetDesktopRes();
+                const auto width = static_cast<uint32_t>(context[3]);
+                const auto height = static_cast<uint32_t>(context[4]);
                 const uint32_t values[] = {static_cast<uint32_t>(desktopWidth), static_cast<uint32_t>(desktopHeight),
-                    static_cast<uint32_t>(context[3]), static_cast<uint32_t>(context[4]),
-                    static_cast<uint32_t>(context[5]), static_cast<uint32_t>(context[6]), s_hostSupportsGuestRenderPhase};
+                    width, height, static_cast<uint32_t>(context[5]), GuestDisplayAspect(image, display, width, height),
+                    s_hostSupportsGuestRenderPhase};
                 WriteMemoryRaw(mod.PCSX2DataAddr, values, std::min<uint32_t>(mod.PCSX2DataSize, sizeof(values)));
             }
             if (mod.PluginDataAddr && haveSettings)
@@ -113,12 +116,13 @@ namespace
             };
             writeSymbol("PCSX2FSettingsVersion", s_hostSupportsSettings ? (UsesCfg(image) ? 2u : 1u) : 0u);
             writeSymbol("PCSX2FSettingsPeerVersion", s_hostSupportsSettings && UsesCfg(image) ? 1u : 0u);
+            writeSymbol("PCSX2FSettingsBatchVersion", s_hostSupportsSettings && UsesCfg(image) ? PCSX2FSettingsBatch::Capability : 0u);
             if (const auto* symbol = image.find("PCSX2FStateLoadGeneration"); symbol && symbol->size == 4 &&
                 !(symbol->address & 3) && image.contains(symbol->address, 4, 1))
             {
                 uint32_t generation;
                 std::memcpy(&generation, reinterpret_cast<const void*>(gEEMainMemoryStart + symbol->address), 4);
-                if (haveSettings) WriteMemory32(symbol->address, generation + 1);
+                if (haveSettings || UsesCfg(image)) WriteMemory32(symbol->address, generation + 1);
             }
             else
                 spd::log()->warn("{} has no post-state settings refresh export", module.path.filename().string());
@@ -126,12 +130,13 @@ namespace
                 std::lock_guard lock(s_inputMutex);
                 for (const auto& [type, address, size] : {
                     std::tuple{PtrType::KeyboardData, mod.KeyboardStateAddr, mod.KeyboardStateSize},
-                    std::tuple{PtrType::MouseData, mod.MouseStateAddr, mod.MouseStateSize},
-                    std::tuple{PtrType::CheatStringData, mod.CheatStringAddr, mod.CheatStringSize}})
+                    std::tuple{image.find("MouseStateV3") ? PtrType::MouseTransitionsData : PtrType::MouseData,
+                        mod.MouseStateAddr, mod.MouseStateSize},
+                    std::tuple{image.find("CheatStringV2") ? PtrType::CheatEventsData : PtrType::CheatStringData,
+                        mod.CheatStringAddr, mod.CheatStringSize}})
                 {
                     if (!address) continue;
-                    MemoryFill(address, 0, size);
-                    InputData.emplace_back(type, address, gEEMainMemoryStart + address, size);
+                    RegisterInputData(type, reinterpret_cast<uint8_t*>(gEEMainMemoryStart), address, size);
                 }
             }
             if (mod.OSDTextAddr)
@@ -150,6 +155,7 @@ namespace
         {
             std::lock_guard lock(s_guestModuleMutex);
             s_loadedGuestModules = std::move(s_pendingGuestState);
+            s_refreshWindowAfterRestore = true;
             s_stateDisc = s_pendingStateDisc; s_stateElf = s_pendingStateElf;
         }
         if (!s_loadedGuestModules.empty())

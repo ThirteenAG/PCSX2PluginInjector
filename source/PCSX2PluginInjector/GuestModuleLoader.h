@@ -92,7 +92,13 @@ namespace GuestModule
                 {"CompatibleElfCRCList", &PluginInfo::CompatibleElfCRCListAddr, &PluginInfo::CompatibleElfCRCListSize, 4, 4, 4, false},
                 {"KeyboardState", &PluginInfo::KeyboardStateAddr, &PluginInfo::KeyboardStateSize, 512, 1, 1, true},
                 {"MouseState", &PluginInfo::MouseStateAddr, &PluginInfo::MouseStateSize, 40, 1, 4, true},
+                {"MouseStateV2", &PluginInfo::MouseStateAddr, &PluginInfo::MouseStateSize,
+                    sizeof(PCSX2FMouseMotion), sizeof(PCSX2FMouseMotion), alignof(PCSX2FMouseMotion), true},
+                {"MouseStateV3", &PluginInfo::MouseStateAddr, &PluginInfo::MouseStateSize,
+                    sizeof(PCSX2FMouseTransitions), sizeof(PCSX2FMouseTransitions), alignof(PCSX2FMouseTransitions), true},
                 {"CheatString", &PluginInfo::CheatStringAddr, &PluginInfo::CheatStringSize, 2, 1, 1, true},
+                {"CheatStringV2", &PluginInfo::CheatStringAddr, &PluginInfo::CheatStringSize,
+                    sizeof(PCSX2FCheatEvents), sizeof(PCSX2FCheatEvents), alignof(PCSX2FCheatEvents), true},
                 {"OSDText", &PluginInfo::OSDTextAddr, &PluginInfo::OSDTextSize, 255, 255, 1, true},
                 {"FrameLimitUnthrottle", &PluginInfo::FrameLimitUnthrottleAddr, &PluginInfo::FrameLimitUnthrottleSize, 1, 1, 1, true},
                 {"CLEOScripts", &PluginInfo::CLEOScriptsAddr, &PluginInfo::CLEOScriptsSize, 1, 1, 1, true}};

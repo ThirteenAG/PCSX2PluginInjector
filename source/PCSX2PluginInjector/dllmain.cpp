@@ -5,6 +5,7 @@
 #include <future>
 #include <filesystem>
 #include <condition_variable>
+#include <atomic>
 
 
 #include <pcsx2f_api.h>
@@ -85,12 +86,41 @@ CEXP uint32_t InvokeGuestPluginSettings(uint32_t requestAddress, uint32_t caller
         uint32_t header[4];
         auto* peerMemory = reinterpret_cast<uint8_t*>(gEEMainMemoryStart) + requestAddress;
         std::memcpy(header, peerMemory, sizeof(header));
+        if (header[1] == PCSX2FSettingsBatch::Version)
+        {
+            using PCSX2FSettingsBatch::Request;
+            if (!UsesCfg(image) || header[0] != sizeof(Request) || !image.contains(requestAddress, sizeof(Request), 1))
+                return PCSX2F_SETTINGS_INVALID;
+            Request request;
+            std::memcpy(&request, peerMemory, sizeof(request));
+            try
+            {
+                const auto status = PluginSettings::Process(GuestSettingsPath(module.path, image), request);
+                if (status == PCSX2F_SETTINGS_OK && request.operation == PCSX2FSettingsBatch::Read)
+                    std::memcpy(peerMemory, &request, sizeof(request));
+                return status;
+            }
+            catch (const std::exception&)
+            {
+                return PCSX2F_SETTINGS_IO_ERROR;
+            }
+        }
         if (header[1] == 2) {
             if (!UsesCfg(image) || header[0] != sizeof(PCSX2FBoolPeerRequest) ||
                 !PluginSettings::BooleanPeerStorage(image, requestAddress)) return PCSX2F_SETTINGS_INVALID;
             PCSX2FBoolPeerRequest request;
             std::memcpy(&request, peerMemory, sizeof(request));
             if (!PluginSettings::BooleanPeerHeader(request)) return PCSX2F_SETTINGS_INVALID;
+            if (PluginSettings::PeerPresenceRequest(request))
+            {
+                const std::filesystem::path filename(request.module);
+                for (const auto& candidate : s_loadedGuestModules)
+                {
+                    if (&candidate != &module && _wcsicmp(candidate.path.filename().c_str(), filename.c_str()) == 0)
+                        return PCSX2F_SETTINGS_OK;
+                }
+                return PCSX2F_SETTINGS_NOT_FOUND;
+            }
             const LoadedGuestModule* target = nullptr;
             for (const auto& candidate : s_loadedGuestModules) {
                 if (candidate.path.filename().string() != request.module) continue;
@@ -286,6 +316,63 @@ struct InputDataT
 
 static std::mutex s_inputMutex;
 static std::vector<InputDataT> InputData;
+static_assert(sizeof(PCSX2FMouseMotion) == 24 && alignof(PCSX2FMouseMotion) == 4);
+static_assert(sizeof(PCSX2FMouseTransitions) == 44 && alignof(PCSX2FMouseTransitions) == 4);
+static_assert(sizeof(PCSX2FCheatEvents) == 44 && alignof(PCSX2FCheatEvents) == 4);
+
+static bool IsMouseMotion(const InputDataT& data)
+{
+    return data.Type == PtrType::MouseTransitionsData ||
+        (data.Type == PtrType::MouseData && data.Size == sizeof(PCSX2FMouseMotion));
+}
+
+// Called under s_inputMutex before the input thread can publish to this buffer.
+static void RegisterInputData(uint8_t type, uint8_t* base, uint32_t address, uint32_t size)
+{
+    const InputDataT data{type, address, reinterpret_cast<uintptr_t>(base + address), size};
+    uint32_t generation = 0;
+    if (IsMouseMotion(data) || type == PtrType::CheatEventsData)
+    {
+        std::memcpy(&generation, reinterpret_cast<const void*>(data.Addr), sizeof(generation));
+        if (++generation == 0) generation = 1;
+    }
+    MemoryFill(address, 0, size);
+    if (generation)
+        WriteMemory32(address, generation);
+    InputData.push_back(data);
+}
+
+static void PublishMouseMotion(PCSX2FMouseMotion& motion, uint32_t x, uint32_t y, uint32_t wheel, uint32_t buttons,
+                               uint32_t* presses = nullptr, uint32_t down = 0)
+{
+    std::atomic_ref<uint32_t> sequence(motion.sequence);
+    const uint32_t previous = sequence.fetch_add(1, std::memory_order_acq_rel);
+    const auto add = [](uint32_t& counter, uint32_t delta)
+    {
+        if (!delta) return;
+        std::atomic_ref<uint32_t> value(counter);
+        value.store(value.load(std::memory_order_relaxed) + delta, std::memory_order_relaxed);
+    };
+    add(motion.x, x);
+    add(motion.y, y);
+    add(motion.wheel, wheel);
+    std::atomic_ref<uint32_t>(motion.buttons).store(buttons, std::memory_order_relaxed);
+    if (presses && down)
+        for (unsigned i = 0; i < 5; ++i)
+            add(presses[i], (down >> i) & 1u);
+    sequence.store(previous + 2, std::memory_order_release);
+}
+
+static void PublishCheatEvent(PCSX2FCheatEvents& stream, char key)
+{
+    std::atomic_ref<uint32_t> sequence(stream.sequence);
+    const uint32_t previous = sequence.fetch_add(1, std::memory_order_acq_rel);
+    std::atomic_ref<uint32_t> count(stream.count);
+    const uint32_t write = count.load(std::memory_order_relaxed);
+    std::atomic_ref<char>(stream.events[write % sizeof(stream.events)]).store(key, std::memory_order_relaxed);
+    count.store(write + 1, std::memory_order_relaxed);
+    sequence.store(previous + 2, std::memory_order_release);
+}
 
 // only ever touched by the thread that owns the raw input window
 static bool s_gameInputActive = false;
@@ -348,11 +435,67 @@ static bool IsFullscreenWindow(HWND window)
         rect.right >= monitor.rcMonitor.right && rect.bottom >= monitor.rcMonitor.bottom;
 }
 
+static uint32_t CurrentDisplayAspect(uint32_t mode)
+{
+    static const auto current = reinterpret_cast<uint32_t(*)()>(
+        GetProcAddress(GetModuleHandle(nullptr), "PCSX2FGetCurrentDisplayAspect"));
+    const uint32_t display = current ? current() : mode;
+    return (display & 0xffu) == mode ? display : mode;
+}
+
+static bool GuestUsesEffectiveDisplayAspect(const GuestModule::Image& image)
+{
+    const auto* version = image.find("PCSX2FEffectiveAspectVersion");
+    return version && version->size == sizeof(uint32_t);
+}
+
+static uint32_t GuestDisplayAspect(const GuestModule::Image& image, uint32_t display, uint32_t width, uint32_t height)
+{
+    const uint32_t mode = display & 0xffu;
+    if (!GuestUsesEffectiveDisplayAspect(image))
+        return mode;
+    if (mode != Stretch || width == 0 || height == 0)
+        return display;
+
+    const float ratio = std::clamp(float(width) / float(height), 0.5f, 8.0f);
+    return mode | (static_cast<uint32_t>(ratio * 65536.0f + 0.5f) << 8);
+}
+
+static void PublishLiveDisplayAspect(const GuestModule::Image& image, uint32_t display, uint32_t width, uint32_t height)
+{
+    const auto& info = image.info;
+    constexpr uint32_t offset = sizeof(uint32_t) * PCSX2Data_AspectRatioSetting;
+    if (info.PCSX2DataSize < offset + sizeof(uint32_t))
+        return;
+
+    const uint32_t address = info.PCSX2DataAddr + offset;
+    if (!GuestUsesEffectiveDisplayAspect(image))
+    {
+        if ((display & 0xffu) < MaxCount)
+            WriteMemory32(address, display & 0xffu);
+        return;
+    }
+    if ((address & 3u) || address + sizeof(uint32_t) > gEEMainMemorySize)
+        return;
+
+    // The EE can read this word between any of the legacy geometry writes.
+    // Publish the mode and its effective aspect with one aligned store.
+    auto* word = reinterpret_cast<volatile LONG*>(gEEMainMemoryStart + address);
+    if ((display & 0xffu) >= MaxCount)
+        display = static_cast<uint32_t>(InterlockedCompareExchange(word, 0, 0));
+    InterlockedExchange(word, static_cast<LONG>(GuestDisplayAspect(image, display, width, height)));
+}
+
+static bool s_refreshWindowAfterRestore = false; // Protected by s_guestModuleMutex.
+
 static void WatchWindow()
 {
     uint32_t width = 0;
     uint32_t height = 0;
+    uint32_t aspect = MaxCount;
     bool fullscreen = false;
+    const auto renderAspect = reinterpret_cast<uint32_t(*)()>(
+        GetProcAddress(GetModuleHandle(nullptr), "PCSX2FGetRenderDisplayAspect"));
     spd::log()->info("Starting window watcher");
 
     auto write = [](const auto& info, PCSX2DataType type, uint32_t value)
@@ -380,15 +523,22 @@ static void WatchWindow()
         const uint32_t newWidth = static_cast<uint32_t>(rect.right);
         const uint32_t newHeight = static_cast<uint32_t>(rect.bottom);
         const bool newFullscreen = IsFullscreenWindow(window);
-        if (newWidth == width && newHeight == height && newFullscreen == fullscreen)
+        std::lock_guard lock(s_guestModuleMutex);
+        const uint32_t newAspect = renderAspect ? renderAspect() : MaxCount;
+        const bool forceRefresh = s_refreshWindowAfterRestore;
+        s_refreshWindowAfterRestore = false;
+        if (!forceRefresh && newWidth == width && newHeight == height && newFullscreen == fullscreen && newAspect == aspect)
             continue;
 
         width = newWidth;
         height = newHeight;
         fullscreen = newFullscreen;
+        aspect = newAspect;
 
-        std::lock_guard lock(s_guestModuleMutex);
         spd::log()->info("Window data: {}x{}, fullscreen {}, {} modules", width, height, fullscreen, s_loadedGuestModules.size());
+        const uint32_t mode = aspect & 0xffu;
+        if (mode < MaxCount)
+            spd::log()->info("Render aspect mode: {}, effective Auto {}", mode, float(aspect >> 8) / 65536.0f);
         for (const auto& module : s_loadedGuestModules)
         {
             const auto& info = module.image.info;
@@ -398,6 +548,7 @@ static void WatchWindow()
             write(info, PCSX2DataType::PCSX2Data_WindowSizeX, width);
             write(info, PCSX2DataType::PCSX2Data_WindowSizeY, height);
             write(info, PCSX2DataType::PCSX2Data_IsFullscreen, fullscreen ? 1u : 0u);
+            PublishLiveDisplayAspect(module.image, aspect, width, height);
         }
     }
     spd::log()->info("Stopping window watcher");
@@ -542,7 +693,12 @@ static bool ClearInputState(const InputDataT& data)
 {
     __try
     {
-        MemoryFill(data.GuestAddr, 0x00, static_cast<uint32_t>(data.Size));
+        if (IsMouseMotion(data))
+            PublishMouseMotion(*reinterpret_cast<PCSX2FMouseMotion*>(data.Addr), 0, 0, 0, 0);
+        else if (data.Type == PtrType::CheatEventsData)
+            PublishCheatEvent(*reinterpret_cast<PCSX2FCheatEvents*>(data.Addr), 0);
+        else
+            MemoryFill(data.GuestAddr, 0x00, static_cast<uint32_t>(data.Size));
         return true;
     }
     __except (EXCEPTION_EXECUTE_HANDLER)
@@ -635,13 +791,18 @@ static void UpdateCheatString(const InputDataT& data, const RAWKEYBOARD& keyboar
     if ((keyboard.Flags & RI_KEY_BREAK) == 0 || data.Size < 2)
         return;
 
-    auto text = reinterpret_cast<char*>(data.Addr);
     const auto keycode = keyboard.VKey;
-
-    // number or letter keys
-    if ((keycode > 47 && keycode < 58) || (keycode > 64 && keycode < 91))
+    const bool character = (keycode >= '0' && keycode <= '9') || (keycode >= 'A' && keycode <= 'Z');
+    if (data.Type == PtrType::CheatEventsData)
     {
-        std::memcpy(&text[1], &text[0], data.Size - 2);
+        PublishCheatEvent(*reinterpret_cast<PCSX2FCheatEvents*>(data.Addr), character ? static_cast<char>(keycode) : 0);
+        return;
+    }
+
+    auto text = reinterpret_cast<char*>(data.Addr);
+    if (character)
+    {
+        std::memmove(&text[1], &text[0], data.Size - 2);
         text[0] = static_cast<char>(keycode);
         text[data.Size - 1] = 0;
     }
@@ -653,6 +814,36 @@ static void UpdateCheatString(const InputDataT& data, const RAWKEYBOARD& keyboar
 
 static void UpdateMouseState(const InputDataT& data, const RAWMOUSE& mouse)
 {
+    // Absolute packets carry an absolute position.
+    const bool relative = !(mouse.usFlags & MOUSE_MOVE_ABSOLUTE);
+    const LONG dx = relative ? mouse.lLastX : 0;
+    const LONG dy = relative ? mouse.lLastY : 0;
+    if (IsMouseMotion(data))
+    {
+        auto& motion = *reinterpret_cast<PCSX2FMouseMotion*>(data.Addr);
+        uint32_t buttons = std::atomic_ref<uint32_t>(motion.buttons).load(std::memory_order_relaxed);
+        auto* transitions = data.Type == PtrType::MouseTransitionsData ?
+            reinterpret_cast<PCSX2FMouseTransitions*>(data.Addr) : nullptr;
+        uint32_t down = 0;
+        constexpr USHORT press[] = {RI_MOUSE_LEFT_BUTTON_DOWN, RI_MOUSE_RIGHT_BUTTON_DOWN,
+            RI_MOUSE_MIDDLE_BUTTON_DOWN, RI_MOUSE_BUTTON_4_DOWN, RI_MOUSE_BUTTON_5_DOWN};
+        constexpr USHORT release[] = {RI_MOUSE_LEFT_BUTTON_UP, RI_MOUSE_RIGHT_BUTTON_UP,
+            RI_MOUSE_MIDDLE_BUTTON_UP, RI_MOUSE_BUTTON_4_UP, RI_MOUSE_BUTTON_5_UP};
+        for (unsigned i = 0; i < 5; ++i)
+        {
+            const uint32_t bit = 1u << i;
+            if (mouse.usButtonFlags & press[i])
+            {
+                down |= bit & ~buttons;
+                buttons |= bit;
+            }
+            if (mouse.usButtonFlags & release[i]) buttons &= ~bit;
+        }
+        const int32_t wheel = mouse.usButtonFlags & RI_MOUSE_WHEEL ? static_cast<int16_t>(mouse.usButtonData) : 0;
+        PublishMouseMotion(motion, static_cast<uint32_t>(dx), static_cast<uint32_t>(dy),
+                           static_cast<uint32_t>(wheel), buttons, transitions ? transitions->presses : nullptr, down);
+        return;
+    }
     if (data.Size < (sizeof(CMouseControllerState) * KeyboardBufState::StateNum))
         return;
 
@@ -662,8 +853,8 @@ static void UpdateMouseState(const InputDataT& data, const RAWMOUSE& mouse)
     previousState = state;
 
     // Movement
-    state.X += static_cast<float>(mouse.lLastX);
-    state.Y += static_cast<float>(mouse.lLastY);
+    state.X += static_cast<float>(dx);
+    state.Y += static_cast<float>(dy);
 
     // A button stays held until the event that releases it arrives, the events in
     // between only carry the movement and may not be read as a release.
@@ -720,10 +911,10 @@ static bool WriteInputState(const InputDataT& data, const RAWINPUT& raw)
         {
             if (data.Type == PtrType::KeyboardData)
                 UpdateKeyboardState(data, raw.data.keyboard);
-            else if (data.Type == PtrType::CheatStringData)
+            else if (data.Type == PtrType::CheatStringData || data.Type == PtrType::CheatEventsData)
                 UpdateCheatString(data, raw.data.keyboard);
         }
-        else if (data.Type == PtrType::MouseData)
+        else if (data.Type == PtrType::MouseData || data.Type == PtrType::MouseTransitionsData)
         {
             UpdateMouseState(data, raw.data.mouse);
         }
@@ -1267,6 +1458,9 @@ void LoadPlugins(
                 if (const auto* supported = plugin.image.find("PCSX2FSettingsVersion"); supported &&
                     supported->size == sizeof(uint32_t) && plugin.image.contains(supported->address, sizeof(uint32_t), 1))
                     WriteMemory32(supported->address, s_hostSupportsSettings ? (UsesCfg(plugin.image) ? 2u : 1u) : 0u);
+                if (const auto* supported = plugin.image.find("PCSX2FSettingsBatchVersion"); supported &&
+                    supported->size == sizeof(uint32_t) && !(supported->address & 3) && plugin.image.contains(supported->address, sizeof(uint32_t), 1))
+                    WriteMemory32(supported->address, s_hostSupportsSettings && UsesCfg(plugin.image) ? PCSX2FSettingsBatch::Capability : 0u);
                 if (const auto* supported = plugin.image.find("PCSX2FSettingsPeerVersion"); supported &&
                     supported->size == sizeof(uint32_t) && !(supported->address & 3) && plugin.image.contains(supported->address, sizeof(uint32_t), 1))
                     WriteMemory32(supported->address, s_hostSupportsSettings && UsesCfg(plugin.image) ? 1u : 0u);
@@ -1296,7 +1490,8 @@ void LoadPlugins(
                     WritePCSX2Data(PCSX2DataType::PCSX2Data_WindowSizeX, (uint32_t)WindowSizeX);
                     WritePCSX2Data(PCSX2DataType::PCSX2Data_WindowSizeY, (uint32_t)WindowSizeY);
                     WritePCSX2Data(PCSX2DataType::PCSX2Data_IsFullscreen, (uint32_t)IsFullscreen);
-                    WritePCSX2Data(PCSX2DataType::PCSX2Data_AspectRatioSetting, (uint32_t)AspectRatioSetting);
+                    WritePCSX2Data(PCSX2DataType::PCSX2Data_AspectRatioSetting,
+                        GuestDisplayAspect(plugin.image, CurrentDisplayAspect(AspectRatioSetting), WindowSizeX, WindowSizeY));
                     WritePCSX2Data(PCSX2DataType::PCSX2Data_GuestRenderPhase, (uint32_t)s_hostSupportsGuestRenderPhase);
                 }
 
@@ -1313,21 +1508,17 @@ void LoadPlugins(
                 if (mod.MouseStateAddr)
                 {
                     spd::log()->info("{} requests mouse state", plugin_path.filename().string());
-                    {
-                        std::lock_guard<std::mutex> lock(s_inputMutex);
-                        InputData.emplace_back(PtrType::MouseData, mod.MouseStateAddr, (uintptr_t)(EEMainMemoryStart + mod.MouseStateAddr), mod.MouseStateSize);
-                    }
-                    MemoryFill(mod.MouseStateAddr, 0, mod.MouseStateSize);
+                    std::lock_guard<std::mutex> lock(s_inputMutex);
+                    const auto type = plugin.image.find("MouseStateV3") ? PtrType::MouseTransitionsData : PtrType::MouseData;
+                    RegisterInputData(type, EEMainMemoryStart, mod.MouseStateAddr, mod.MouseStateSize);
                 }
 
                 if (mod.CheatStringAddr)
                 {
                     spd::log()->info("{} requests cheat string access", plugin_path.filename().string());
-                    {
-                        std::lock_guard<std::mutex> lock(s_inputMutex);
-                        InputData.emplace_back(PtrType::CheatStringData, mod.CheatStringAddr, (uintptr_t)(EEMainMemoryStart + mod.CheatStringAddr), mod.CheatStringSize);
-                    }
-                    MemoryFill(mod.CheatStringAddr, 0, mod.CheatStringSize);
+                    std::lock_guard<std::mutex> lock(s_inputMutex);
+                    const auto type = plugin.image.find("CheatStringV2") ? PtrType::CheatEventsData : PtrType::CheatStringData;
+                    RegisterInputData(type, EEMainMemoryStart, mod.CheatStringAddr, mod.CheatStringSize);
                 }
 
                 if (mod.OSDTextAddr)

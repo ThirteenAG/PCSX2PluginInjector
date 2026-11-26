@@ -9,17 +9,23 @@ inline bool BooleanPeerStorage(const GuestModule::Image& image, uint32_t address
 inline bool BooleanToken(const char (&value)[64]) {
     return (value[0] == '0' || value[0] == '1') && value[1] == 0;
 }
+inline bool PeerPresenceRequest(const PCSX2FBoolPeerRequest& request) {
+    return request.operation == PCSX2F_SETTINGS_READ && request.count == 0;
+}
 inline bool BooleanPeerHeader(const PCSX2FBoolPeerRequest& request) {
-    if (request.size != sizeof(request) || request.version != 2 || request.count != 1 ||
-        request.operation > PCSX2F_SETTINGS_WRITE || !Valid(request.section, true) || !Valid(request.key, true)) return false;
+    if (request.size != sizeof(request) || request.version != 2) return false;
     const auto* end = static_cast<const char*>(std::memchr(request.module, 0, sizeof(request.module)));
     if (!end || end - request.module < 5 || std::string_view(end - 4, 4) != ".elf") return false;
     for (const char* p = request.module; p != end; ++p)
         if (!((*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z') || (*p >= '0' && *p <= '9') || *p == '.' || *p == '_' || *p == '-')) return false;
+    if (PeerPresenceRequest(request))
+        return !request.section[0] && !request.key[0] && !request.value[0];
+    if (request.count != 1 || request.operation > PCSX2F_SETTINGS_WRITE ||
+        !Valid(request.section, true) || !Valid(request.key, true)) return false;
     return request.operation == PCSX2F_SETTINGS_READ || BooleanToken(request.value);
 }
 inline uint32_t ProcessBooleanPeer(const std::filesystem::path& path, PCSX2FBoolPeerRequest& peer) {
-    if (!BooleanPeerHeader(peer)) return PCSX2F_SETTINGS_INVALID;
+    if (PeerPresenceRequest(peer) || !BooleanPeerHeader(peer)) return PCSX2F_SETTINGS_INVALID;
     PCSX2FIniRequest request{};
     request.size = sizeof(request); request.version = 1; request.operation = PCSX2F_SETTINGS_READ; request.count = 1;
     std::memcpy(request.entries[0].section, peer.section, sizeof(peer.section));

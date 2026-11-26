@@ -58,6 +58,7 @@ enum AspectRatioType
     RAuto4_3_3_2,
     R4_3,
     R16_9,
+    R10_7,
     MaxCount
 };
 
@@ -86,6 +87,30 @@ struct CMouseControllerState
     float   Y;
 };
 
+// Optional MouseStateV2 export. The injector publishes 32-bit cumulative
+// displacement and a button mask under the sequence counter. A new generation
+// starts from zero on boot and state restore. Guests never write this buffer.
+struct PCSX2FMouseMotion
+{
+    uint32_t generation, sequence, x, y, wheel, buttons;
+};
+
+// Optional MouseStateV3 export. Per-button press counters use the same
+// sequence as the motion and physical button levels.
+struct PCSX2FMouseTransitions
+{
+    struct PCSX2FMouseMotion motion;
+    uint32_t presses[5];
+};
+
+// Optional CheatStringV2 export. The host publishes an ordered keyboard release
+// stream so each guest can delimit its own gameplay sessions.
+struct PCSX2FCheatEvents
+{
+    uint32_t generation, sequence, count;
+    char events[32];
+};
+
 enum OSDString
 {
     OSDStringNum = 10,
@@ -96,7 +121,9 @@ enum PtrType
 {
     KeyboardData,
     MouseData,
-    CheatStringData
+    CheatStringData,
+    CheatEventsData,
+    MouseTransitionsData
 };
 
 enum
